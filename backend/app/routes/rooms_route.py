@@ -3,15 +3,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db import get_async_session
-from backend.app.models import Room
-from backend.app.schemas.rooms import RoomCreate
+from app.models import Room
+from app.schemas.rooms import RoomCreate
 
 router = APIRouter()
 
 # Endpoint to read all rooms
 @router.get("/rooms")
 async def read_rooms(session: AsyncSession = Depends(get_async_session)):
-    result = await session.execute(select(Room).order_by(Room.created_at.desc()))
+    query = select(Room).order_by(Room.created_at.desc())
+    result = await session.execute(query)
     rooms = [row[0] for row in result.all()]
     rooms_data = [
         {
@@ -31,7 +32,7 @@ async def create_room(
     room_create: RoomCreate,
     session: AsyncSession = Depends(get_async_session)
 ):
-    room = Room(title=room_create.title, user_id="test_user") 
+    room = Room(title=room_create.title, user_id=room_create.user_id)
     session.add(room)
     await session.commit()
     await session.refresh(room)
