@@ -31,7 +31,7 @@ async def create_room(
     room_create: RoomCreate,
     session: AsyncSession = Depends(get_async_session)
 ):
-    room = Room(title=room_create.title, user_id="test_user")
+    room = Room(title=room_create.title, user_id="test_user") 
     session.add(room)
     await session.commit()
     await session.refresh(room)
