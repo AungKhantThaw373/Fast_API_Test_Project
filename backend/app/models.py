@@ -10,9 +10,11 @@ from app.db import Base
 class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String, unique=True)
+    username = Column(String, unique=True,nullable=False)
+    fullname = Column(String, nullable=True)
     email = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False,onupdate=datetime.utcnow)
     rooms = relationship("Room", back_populates="users")
     password = Column(String, nullable=False)
 
