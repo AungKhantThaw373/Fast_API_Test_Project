@@ -6,11 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.security import verify_password, create_access_token
+from app.security import verify_password, create_access_token, get_current_user
 from app.config import settings
 from app.db import get_async_session
 from app.models import User
 from app.schemas.auth import Token, UserCreate
+from app.schemas.user import CurrentUser
 from app.security import get_password_hash
 
 router = APIRouter()
@@ -29,6 +30,24 @@ async def get_users(session: AsyncSession = Depends(get_async_session)):
         for user in users
     ]
     return {"users": users_data}        
+
+@router.get("/me")
+async def get_me(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: AsyncSession = Depends(get_async_session),
+):
+    query = select(User).where(User.username == current_user.username)
+    result = await session.execute(query)
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+    return {
+        "id": str(user.id),
+        "username": user.username,
+        "email": user.email,
+        "created_at": user.created_at.isoformat(),
+    }
 
 @router.post("/register",status_code=201)
 async def signup(user_in: UserCreate, session: AsyncSession = Depends(get_async_session)):

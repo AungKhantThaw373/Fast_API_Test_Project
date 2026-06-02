@@ -22,7 +22,7 @@ export default function LoginPage() {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/py/users', {
+                const response = await fetch('http://localhost:8000/api/py/me', {
                     credentials: 'include',
                 });
                 if (response.ok) {
