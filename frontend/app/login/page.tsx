@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+// Update this if your backend runs on a different port
+const API_BASE_URL = 'http://localhost:8000';
+
 export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -18,86 +21,76 @@ export default function LoginPage() {
     const [signUpError, setSignUpError] = useState('');
     const [signUpLoading, setSignUpLoading] = useState(false);
 
-    // Check if already logged in
     useEffect(() => {
+        // Quick check to see if we already have a valid session via the HTTPOnly cookie
         const checkAuth = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/py/users', {
-                    credentials: 'include',
-                });
-                if (response.ok) {
-                    router.push('/dashboard');
+                const res = await fetch(`${API_BASE_URL}/me`, { credentials: 'include' });
+                if (res.ok) {
+                    router.push('/dashboard'); // Already logged in
                 }
             } catch (err) {
-                // Not authenticated, stay on login
+                // Ignore error, user just needs to log in
             }
         };
         checkAuth();
     }, [router]);
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.SubmitEvent<HTMLFormElement>) => {
         e.preventDefault();
-        setError('');
         setLoading(true);
+        setError('');
 
         try {
-            const formData = new FormData();
-            formData.append('username', email);
+            // OAuth2PasswordRequestForm expects form-urlencoded data
+            const formData = new URLSearchParams();
+            formData.append('username', email); // Backend maps email to 'username' in the form
             formData.append('password', password);
 
-            const response = await fetch('http://localhost:8000/api/py/token', {
+            const response = await fetch(`${API_BASE_URL}/token`, {
                 method: 'POST',
-                credentials: 'include',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: formData,
+                credentials: 'include', // Important: receives the HttpOnly cookie
             });
 
-            if (!response.ok) {
-                const data = await response.json();
-                setError(data.detail || 'Login failed');
-                setLoading(false);
-                return;
-            }
-
-            const data = await response.json();
-            if (data.access_token) {
+            if (response.ok) {
                 router.push('/dashboard');
+            } else {
+                const data = await response.json();
+                setError(data.detail || 'Invalid credentials');
             }
         } catch (err) {
-            setError('An error occurred. Please try again.');
+            setError('Network error. Is the server running?');
+        } finally {
             setLoading(false);
         }
     };
 
-    const handleSignUp = async (e: React.FormEvent) => {
+    const handleSignUp = async (e: React.SubmitEvent<HTMLFormElement>) => {
         e.preventDefault();
-        setSignUpError('');
         setSignUpLoading(true);
+        setSignUpError('');
 
         try {
-            const response = await fetch('http://localhost:8000/api/py/register', {
+            const response = await fetch(`${API_BASE_URL}/register`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(signUpData),
             });
 
-            if (!response.ok) {
+            if (response.ok) {
+                // Success: Switch to login view and pre-fill the email
+                setShowSignUp(false);
+                setEmail(signUpData.email);
+                setPassword('');
+            } else {
                 const data = await response.json();
                 setSignUpError(data.detail || 'Sign up failed');
-                setSignUpLoading(false);
-                return;
             }
-
-            // Sign up successful, switch back to login
-            setShowSignUp(false);
-            setSignUpData({ username: '', email: '', password: '' });
-            setError('');
-            setEmail(signUpData.email);
-            setPassword('');
-            alert('Sign up successful! Please log in.');
         } catch (err) {
-            setSignUpError('An error occurred. Please try again.');
+            setSignUpError('Network error. Is the server running?');
+        } finally {
             setSignUpLoading(false);
         }
     };
@@ -229,47 +222,48 @@ const styles = {
         fontFamily: 'Arial, sans-serif',
     },
     box: {
+        backgroundColor: 'white',
+        padding: '40px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
         width: '100%',
         maxWidth: '400px',
-        padding: '40px',
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
     },
     title: {
-        textAlign: 'center' as const,
-        marginBottom: '30px',
+        margin: '0 0 20px 0',
         fontSize: '24px',
         color: '#333',
+        textAlign: 'center' as const,
     },
     form: {
         display: 'flex',
         flexDirection: 'column' as const,
-        gap: '20px',
+        gap: '15px',
     },
     formGroup: {
         display: 'flex',
         flexDirection: 'column' as const,
-        gap: '8px',
+        gap: '5px',
     },
     label: {
         fontSize: '14px',
+        color: '#666',
         fontWeight: 'bold' as const,
-        color: '#555',
     },
     input: {
         padding: '10px',
         fontSize: '14px',
+        color: 'black',
         border: '1px solid #ddd',
         borderRadius: '4px',
-        boxSizing: 'border-box' as const,
+        outline: 'none',
     },
     button: {
         padding: '12px',
         fontSize: '16px',
         fontWeight: 'bold' as const,
         color: 'white',
-        backgroundColor: '#007bff',
+        backgroundColor: '#0070f3',
         border: 'none',
         borderRadius: '4px',
         cursor: 'pointer',
@@ -284,17 +278,18 @@ const styles = {
         border: '1px solid #f5c6cb',
     },
     switchText: {
-        textAlign: 'center' as const,
+        margin: '15px 0 0 0',
         fontSize: '14px',
         color: '#666',
+        textAlign: 'center' as const,
     },
     switchLink: {
         background: 'none',
         border: 'none',
-        color: '#007bff',
-        cursor: 'pointer',
+        color: '#0070f3',
         textDecoration: 'underline',
-        fontSize: '14px',
+        cursor: 'pointer',
         padding: 0,
+        fontSize: '14px',
     },
 };

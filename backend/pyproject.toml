@@ -10,6 +10,7 @@ dependencies = [
     "fastapi>=0.136.1",
     "fastapi-users[sqlalchemy]>=15.0.5",
     "passlib>=1.7.4",
+    "pgvector>=0.4.2",
     "psycopg2>=2.9.12",
     "pwdlib[argon2]>=0.3.0",
     "pydantic-settings>=2.14.1",
