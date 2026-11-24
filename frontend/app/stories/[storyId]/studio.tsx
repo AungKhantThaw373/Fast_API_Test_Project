@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/components/wiki/capture-dialog';
 import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
+import { CommandPalette } from '@/components/command-palette';
 import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
 import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type Story, type StoryDetails, type StoryArc } from '@/lib/api';
@@ -1059,6 +1060,16 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					<footer className="editor-footer"><span>Autosaves after a short pause · Ctrl/Cmd+S saves now</span><span>Stillroom does not generate story text.</span></footer>
 				</>}
 			</section>
+
+			<CommandPalette
+				storyId={storyId}
+				chapters={chapters}
+				onChapter={(chapterId) => {
+					const target = chapters.find((chapter) => chapter.id === chapterId);
+					if (target) void selectChapter(target);
+				}}
+				onQuietView={() => setFocusMode((value) => !value)}
+			/>
 
 			{!focusMode && !paneOpen && (
 				<button className="pane-reopen" onClick={() => setPaneOpen(true)} title="Show the desk (Ctrl/Cmd + .)">‹ Desk</button>

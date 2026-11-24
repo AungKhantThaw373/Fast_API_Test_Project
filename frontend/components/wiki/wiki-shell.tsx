@@ -5,7 +5,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AddEntityDialog } from "@/components/wiki/add-entity-dialog";
-import { useArcs, useEntities, useStory } from "@/components/wiki/use-wiki";
+import { CommandPalette } from "@/components/command-palette";
+import { SavedViews } from "@/components/wiki/saved-views";
+import { useArcs, useChapters, useEntities, useStory } from "@/components/wiki/use-wiki";
 import {
 	ENTITY_TYPE_LABELS,
 	ENTITY_TYPES,
@@ -25,6 +27,17 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 	const filters = useMemo(() => parseFilters(new URLSearchParams(searchParams.toString())), [searchParams]);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const [addOpen, setAddOpen] = useState(false);
+	const [newDismissed, setNewDismissed] = useState(false);
+	// ?new=1 is the deep link the command palette uses; closing clears it.
+	const newFromUrl = searchParams.get("new") === "1" && !newDismissed;
+	const dialogOpen = addOpen || newFromUrl;
+	const closeDialog = () => {
+		setAddOpen(false);
+		if (newFromUrl) {
+			setNewDismissed(true);
+			router.replace(`${pathname}${toSearchParams(filters)}`, { scroll: false });
+		}
+	};
 
 	const apply = useCallback(
 		(next: WikiFilters) => {
@@ -36,6 +49,7 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 
 	const story = useStory(storyId);
 	const arcs = useArcs(storyId);
+	const chapters = useChapters(storyId);
 	const entities = useEntities(storyId, filtersForApi(filters));
 	const rows = entities.data ?? [];
 
@@ -143,6 +157,7 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 					)}
 				</div>
 
+				<SavedViews filters={filters} onApply={apply} />
 				<button className="button button-primary button-wide wiki-new-button" onClick={() => setAddOpen(true)}>
 					＋ New entry
 				</button>
@@ -153,12 +168,14 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 
 			<section className="wiki-main">{children}</section>
 
-			{addOpen && (
+			<CommandPalette storyId={storyId} chapters={chapters.data ?? []} />
+
+			{dialogOpen && (
 				<AddEntityDialog
 					storyId={storyId}
-					onClose={() => setAddOpen(false)}
+					onClose={closeDialog}
 					onCreated={(entity) => {
-						setAddOpen(false);
+						closeDialog();
 						router.push(`/stories/${storyId}/wiki/${entity.id}`);
 					}}
 				/>

@@ -13,6 +13,14 @@ export function useStory(storyId: string) {
 	});
 }
 
+export function useChapters(storyId: string) {
+	return useQuery({
+		queryKey: qk.chapters(storyId),
+		queryFn: () => api.chapters(storyId),
+		enabled: Boolean(storyId),
+	});
+}
+
 export function useEntities(storyId: string, filters: EntityFilters) {
 	return useQuery({
 		queryKey: qk.entities(storyId, filters),

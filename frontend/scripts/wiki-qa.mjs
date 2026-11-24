@@ -290,6 +290,33 @@ async function main() {
 	const arcNames = await page.locator(".wiki-row-title strong").allInnerTexts();
 	check("the wiki filters by arc", arcNames.length >= 0, `${arcNames.length} entries in the arc`);
 
+	// 6d. Threads answer "what is unresolved?".
+	const thread = await request(
+		`/stories/${story.id}/threads`,
+		{ method: "POST", body: JSON.stringify({ title: "Who lit the lantern?", description: "Hollis never says.", setup_chapter_id: chapter.id, setup_quote: "Hollis carried a lantern" }) },
+		cookie,
+	);
+	await page.goto(`${WEB}/stories/${story.id}/wiki/threads`);
+	await page.waitForSelector(".thread-card", { timeout: 20_000 });
+	check("threads list open questions", (await page.locator(".thread-card h2").first().innerText()) === thread.title);
+	await page.getByRole("button", { name: "Mark resolved" }).first().click();
+	await page.getByLabel("Chapter that pays this off").selectOption({ label: "2. Night Watch" });
+	await page.locator(".thread-resolve-form .button-approve").click();
+	await page.waitForFunction(() => !document.querySelector(".thread-card.state-open"), { timeout: 20_000 });
+	const resolved = await request(`/stories/${story.id}/threads`, {}, cookie);
+	check("resolve a thread", resolved.threads[0]?.state === "resolved", resolved.threads[0]?.state);
+
+	// 6e. The command palette finds an entry and jumps to it.
+	await page.goto(`${WEB}/stories/${story.id}?chapter=${chapter.id}`);
+	await page.waitForSelector(".manuscript-editor");
+	await page.keyboard.press("Control+k");
+	await page.waitForSelector(".command-dialog", { timeout: 10_000 });
+	await page.locator(".command-input").fill("Tessa");
+	await page.waitForSelector(".command-item:has-text('Tessa')", { timeout: 20_000 });
+	await page.locator(".command-item:has-text('Tessa')").first().click();
+	await page.waitForURL(/\/wiki\/[0-9a-f-]{36}$/, { timeout: 20_000 });
+	check("command palette opens an entry", /\/wiki\//.test(new URL(page.url()).pathname), page.url());
+
 	// 7. Filters survive a refresh.
 	await page.goto(`${WEB}/stories/${story.id}/wiki?type=character`);
 	await page.waitForSelector(".wiki-row-main");
