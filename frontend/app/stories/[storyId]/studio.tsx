@@ -4,11 +4,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Toaster, toast } from 'sonner';
 import { AIProviderSettingsForm } from '@/components/ai-provider-settings';
+import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/components/wiki/capture-dialog';
+import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
 import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type Story, type StoryDetails } from '@/lib/api';
 import { clearBufferIfSaved, decideDraft, deleteDraft, getDraft, putDraft, type DraftRecord } from '@/lib/draft-buffer';
 import { retryDelayMs, saveStatus, shouldRetry, type SaveState } from '@/lib/save-state';
+import { lineNumberAt, lineRange, lineText } from '@/lib/selection';
 
 type Pane = 'ai' | 'bible' | 'setups' | 'continuity';
 type SaveSnapshot = { title: string; content: string };
@@ -64,6 +67,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [saveState, setSaveState] = useState<SaveState>({ status: 'saved', revision: 1 });
 	const [conflict, setConflict] = useState<ConflictPrompt | null>(null);
 	const [recovered, setRecovered] = useState(false);
+	const [capture, setCapture] = useState<CaptureSelection | null>(null);
+	const [selection, setSelection] = useState<{ text: string; line: number } | null>(null);
 	const [historyDiff, setHistoryDiff] = useState<RevisionDiff | null>(null);
 	const [historySelection, setHistorySelection] = useState<number[]>([]);
 
@@ -202,19 +207,34 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		return () => { alive = false; };
 	}, [storyId, router, resolveChapterDraft, deepChapterId]);
 
+	// Track the manuscript selection. ``selectionchange`` is the only event that
+	// fires for mouse, keyboard, and programmatic selections alike.
+	useEffect(() => {
+		function readSelection() {
+			const editor = editorRef.current;
+			if (!editor || document.activeElement !== editor) return;
+			if (editor.selectionStart === editor.selectionEnd) {
+				setSelection(null);
+				return;
+			}
+			const text = editor.value.slice(editor.selectionStart, editor.selectionEnd).trim();
+			setSelection(text ? { text, line: lineNumberAt(editor.value, editor.selectionStart) } : null);
+		}
+		document.addEventListener('selectionchange', readSelection);
+		return () => document.removeEventListener('selectionchange', readSelection);
+	}, []);
+
 	// Once the linked chapter is on screen, put the caret on the cited line.
 	useEffect(() => {
 		if (!deepLine || !activeId || !editorRef.current) return;
 		const marker = `${activeId}:${deepLine}`;
 		if (jumpedRef.current === marker) return;
-		const lines = draftContent.split('\n');
-		if (deepLine > lines.length) return;
-		const start = lines.slice(0, deepLine - 1).reduce((total, line) => total + line.length + 1, 0);
-		const end = start + lines[deepLine - 1].length;
+		if (!lineText(draftContent, deepLine)) return;
 		jumpedRef.current = marker;
 		const editor = editorRef.current;
+		const range = lineRange(draftContent, deepLine);
 		editor.focus();
-		editor.setSelectionRange(start, end);
+		editor.setSelectionRange(range.start, range.end);
 		editor.scrollTop = Math.max(0, (deepLine - 3) * 24);
 	}, [activeId, deepLine, draftContent]);
 
@@ -935,9 +955,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	function locateLine(lineNumber: number) {
 		const editor = editorRef.current;
 		if (!editor) return;
-		const lines = draftContent.split('\n');
-		const offset = lines.slice(0, Math.max(0, lineNumber - 1)).reduce((sum, line) => sum + line.length + 1, 0);
-		editor.focus(); editor.setSelectionRange(offset, offset + (lines[lineNumber - 1]?.length ?? 0));
+		const range = lineRange(draftContent, lineNumber);
+		editor.focus(); editor.setSelectionRange(range.start, range.end);
 	}
 
 	async function openFindingLine(finding: ContinuityFinding) {
@@ -958,6 +977,12 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		.filter((entry) => bibleCategory === 'all' || entry.category === bibleCategory)
 		.filter((entry) => !bibleSearch.trim() || `${entry.name} ${entry.description}`.toLocaleLowerCase().includes(bibleSearch.trim().toLocaleLowerCase()));
 	const threads = entries.filter((entry) => entry.category === 'plot_thread' && entry.status !== 'dismissed');
+
+	// A selection in the manuscript is enough to start an entry, a fact, or a thread.
+	const openCapture = (mode: CaptureMode) => {
+		if (!activeChapter || !selection) return;
+		setCapture({ mode, text: selection.text.slice(0, 1000), line: selection.line });
+	};
 
 	return (
 		<main className={'studio-shell' + (focusMode ? ' focus-mode' : '')}>
@@ -1006,8 +1031,23 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					<div className="editor-page">
 						<input className="chapter-title-input" aria-label="Chapter title" value={draftTitle} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, title: event.target.value }; setHasUnsavedChanges(true); setDraftTitle(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Chapter title" maxLength={200} />
 						<div className="editor-rule" />
-						<textarea ref={editorRef} className="manuscript-editor" value={draftContent} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, content: event.target.value }; setHasUnsavedChanges(true); setDraftContent(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Let the first sentence arrive in its own time." aria-label="Chapter manuscript" spellCheck />
+						<textarea ref={editorRef} className="manuscript-editor" value={draftContent} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, content: event.target.value }; setHasUnsavedChanges(true); setDraftContent(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Let the first sentence arrive in its own time." aria-label="Chapter manuscript" spellCheck onSelect={(event) => {
+							const target = event.currentTarget;
+							if (target.selectionStart === target.selectionEnd) { setSelection(null); return; }
+							const text = target.value.slice(target.selectionStart, target.selectionEnd).trim();
+							if (!text) { setSelection(null); return; }
+							setSelection({ text, line: lineNumberAt(target.value, target.selectionStart) });
+						}} onKeyDown={(event) => { if (event.key === 'Escape') setSelection(null); }} />
 						{activeChapter.index_status === 'indexing' && <div className="indexing-note"><span className="tiny-spinner" /> Story memory is quietly catching up.</div>}
+						{selection && (
+							<div className="selection-actions" role="toolbar" aria-label="Capture the selected passage">
+								<span className="selection-label">Line {selection.line} selected</span>
+								<button className="text-button" onClick={() => openCapture('entity')}>Add to wiki</button>
+								<button className="text-button" onClick={() => openCapture('fact')}>Add fact</button>
+								<button className="text-button" onClick={() => openCapture('thread')}>Add thread</button>
+								<button className="text-button subtle" onClick={() => setSelection(null)}>Dismiss</button>
+							</div>
+						)}
 					</div>
 					<footer className="editor-footer"><span>Autosaves after a short pause · Ctrl/Cmd+S saves now</span><span>Stillroom does not generate story text.</span></footer>
 				</>}
@@ -1043,6 +1083,11 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 						</div>
 					</section>
 					{pane === 'bible' && <>
+						<NameCandidatesPanel
+							storyId={storyId}
+							chapter={activeChapter ? { id: activeChapter.id, chapter_number: activeChapter.chapter_number, title: activeChapter.title } : null}
+							onOpenEntity={(entityId) => void go(`/stories/${storyId}/wiki/${entityId}`)}
+						/>
 						<section className="bible-scan-panel">
 							<div className="pane-section-title"><strong>Scan chapters</strong><span>Story Bible</span></div>
 							<p className="pane-hint">Choose a chapter range to find details for your approval.</p>
@@ -1085,6 +1130,17 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				</div>
 				<div className="pane-bottom-note">Suggestions are drafts for your approval. Nothing becomes canon without you.</div>
 			</aside>}
+			{capture && activeChapter && (
+				<CaptureDialog
+					storyId={storyId}
+					story={story}
+					chapterId={activeChapter.id}
+					chapterNumber={activeChapter.chapter_number}
+					selection={capture}
+					onClose={() => setCapture(null)}
+					onDone={() => { setCapture(null); setSelection(null); void refreshBible(); }}
+				/>
+			)}
 			{recovered && <div className="studio-notice" role="status">Recovered unsaved changes from this browser.<button aria-label="Dismiss message" onClick={() => setRecovered(false)}>×</button></div>}
 			<ConflictDialog
 				open={conflict !== null}

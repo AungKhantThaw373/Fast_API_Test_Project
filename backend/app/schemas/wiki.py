@@ -328,6 +328,27 @@ class ExceptionListOut(BaseModel):
     exceptions: list[ExceptionOut]
 
 
+class NameCandidateOut(BaseModel):
+    name: str
+    count: int
+    first_line: int
+    sample: str
+
+
+class NameCandidateListOut(BaseModel):
+    chapter_id: UUID
+    chapter_number: int
+    candidates: list[NameCandidateOut]
+
+
+class NameCandidateAccept(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    entity_type: EntityType
+    chapter_id: UUID
+    line_start: int | None = Field(default=None, ge=1)
+    quote: str | None = Field(default=None, max_length=4000)
+
+
 class InboxSourceOut(BaseModel):
     chapter_id: UUID | None = None
     chapter_number: int | None = None

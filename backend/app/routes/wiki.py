@@ -9,6 +9,8 @@ from app.db import get_async_session
 from app.models.app_models import User
 from app.models.wiki_models import CanonException
 from app.schemas.wiki import (
+    AliasOut,
+    EntityOut,
     EventCreate,
     EventListOut,
     EventOut,
@@ -17,6 +19,9 @@ from app.schemas.wiki import (
     ExceptionListOut,
     ExceptionOut,
     InboxOut,
+    NameCandidateAccept,
+    NameCandidateListOut,
+    NameCandidateOut,
     ThreadCreate,
     ThreadListOut,
     ThreadOut,
@@ -24,7 +29,9 @@ from app.schemas.wiki import (
 )
 from app.security import get_current_user
 from app.services import canon_exceptions as exceptions_service
+from app.services import entities as entity_service
 from app.services import inbox as inbox_service
+from app.services import name_candidates as candidates_service
 from app.services import stories as stories_service
 from app.services import threads as threads_service
 
@@ -149,6 +156,65 @@ async def delete_event(
     await stories_service.owned_story(session, event.story_id, user.id)
     await threads_service.delete_event(session, event)
     await session.commit()
+
+
+@router.get(
+    "/stories/{story_id}/chapters/{chapter_id}/name-candidates",
+    response_model=NameCandidateListOut,
+)
+async def list_name_candidates(
+    story_id: UUID,
+    chapter_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> NameCandidateListOut:
+    await stories_service.owned_story(session, story_id, user.id)
+    chapter, candidates = await candidates_service.candidates_for_chapter(
+        session, story_id, chapter_id
+    )
+    return NameCandidateListOut(
+        chapter_id=chapter.id,
+        chapter_number=chapter.chapter_number,
+        candidates=[
+            NameCandidateOut(
+                name=item.name,
+                count=item.count,
+                first_line=item.first_line,
+                sample=item.sample,
+            )
+            for item in candidates
+        ],
+    )
+
+
+@router.post(
+    "/stories/{story_id}/name-candidates/accept",
+    status_code=status.HTTP_201_CREATED,
+    response_model=EntityOut,
+)
+async def accept_name_candidate(
+    story_id: UUID,
+    payload: NameCandidateAccept,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> EntityOut:
+    await stories_service.owned_story(session, story_id, user.id)
+    entity = await candidates_service.accept_candidate(
+        session,
+        story_id=story_id,
+        chapter_id=payload.chapter_id,
+        name=payload.name,
+        entity_type=payload.entity_type,
+        line_start=payload.line_start,
+        quote=payload.quote,
+    )
+    await session.commit()
+    await session.refresh(entity)
+    aliases = await entity_service.aliases_for(session, [entity.id])
+    out = EntityOut.model_validate(entity).model_copy(
+        update={"aliases": [AliasOut.model_validate(alias) for alias in aliases.get(entity.id, [])]}
+    )
+    return out
 
 
 @router.get("/stories/{story_id}/exceptions", response_model=ExceptionListOut)

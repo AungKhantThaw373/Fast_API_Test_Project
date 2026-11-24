@@ -324,6 +324,13 @@ export interface CanonException {
 	created_at: string;
 }
 
+export interface NameCandidate {
+	name: string;
+	count: number;
+	first_line: number;
+	sample: string;
+}
+
 export interface FactInput {
 	predicate: string;
 	value_text?: string | null;
@@ -639,6 +646,14 @@ export const api = {
 		const query = state ? `?state=${state}` : "";
 		return (await request<{ threads: WikiThread[] }>(`/stories/${storyId}/threads${query}`)).threads;
 	},
+	nameCandidates: async (storyId: string, chapterId: string) =>
+		request<{ chapter_id: string; chapter_number: number; candidates: NameCandidate[] }>(
+			`/stories/${storyId}/chapters/${chapterId}/name-candidates`,
+		),
+	acceptNameCandidate: (
+		storyId: string,
+		input: { name: string; entity_type: EntityType; chapter_id: string; line_start?: number | null; quote?: string | null },
+	) => request<WikiEntity>(`/stories/${storyId}/name-candidates/accept`, { method: "POST", body: JSON.stringify(input) }),
 	createThread: (
 		storyId: string,
 		input: {

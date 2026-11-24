@@ -694,3 +694,27 @@ a { color: inherit; text-decoration: none; }
 	.relationship-form { grid-template-columns: 1fr; }
 	.wiki-form-grid { grid-template-columns: 1fr; }
 }
+
+/* Capture flows */
+.selection-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0 0; padding: 8px 12px; border: 1px solid #dfe4d8; border-radius: 6px; background: #f5f8f2; }
+.selection-label { color: #6f736a; font-size: 11.5px; font-weight: 600; }
+.capture-tabs { display: flex; gap: 4px; margin: 4px 0 14px; padding: 3px; border-radius: 6px; background: #f1f0e9; }
+.capture-tabs button { flex: 1; padding: 7px 10px; border: 0; border-radius: 4px; background: transparent; color: #6f736a; font-size: 12px; cursor: pointer; }
+.capture-tabs button.active { background: var(--white); color: var(--forest-deep); font-weight: 600; box-shadow: 0 1px 2px rgba(40,43,38,.08); }
+.capture-suggestions { display: grid; gap: 4px; max-height: 170px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.capture-suggestions button { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 7px 10px; border: 1px solid #e6e4db; border-radius: 5px; background: #fffefa; text-align: left; cursor: pointer; }
+.capture-suggestions button:hover { border-color: #a9b7a0; }
+.capture-suggestions span { color: #92938a; font-size: 11.5px; }
+.capture-chosen { margin: 0; color: var(--forest-deep); font-size: 11.5px; }
+.name-candidates { padding: 14px 15px; border: 1px solid #e4e2d8; border-radius: 7px; background: #fdfcf7; }
+.name-candidates .wiki-section-head h2 { font-family: Georgia, serif; font-size: 16px; }
+.candidate-list { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.candidate-row { display: grid; gap: 8px; padding: 10px 11px; border: 1px solid #e9e7de; border-radius: 6px; background: var(--white); }
+.candidate-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.candidate-main strong { font-size: 13.5px; }
+.candidate-count { color: #92938a; font-size: 11px; }
+.candidate-sample { flex-basis: 100%; margin: 2px 0 0; color: #6d7068; font-size: 12px; font-style: italic; line-height: 1.5; }
+.candidate-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.candidate-actions select { height: 30px; border: 1px solid #e0ded5; border-radius: 5px; padding: 0 8px; background: #fffefa; font-size: 11.5px; }
+.candidate-rename { display: flex; gap: 6px; align-items: center; flex: 1; }
+.candidate-rename input { flex: 1; height: 30px; border: 1px solid #e0ded5; border-radius: 5px; padding: 0 9px; font-size: 12px; }
