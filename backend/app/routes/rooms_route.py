@@ -1,17 +1,24 @@
-from fastapi import APIRouter, Depends
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db import get_async_session
-from app.models import Room
+from app.models.app_models import Room
 from app.schemas.rooms import RoomCreate
+from app.security import get_current_user
+from app.schemas.user import CurrentUser
+from app.models.app_models import User
 
 router = APIRouter()
 
 # Endpoint to read all rooms
 @router.get("/rooms")
-async def read_rooms(session: AsyncSession = Depends(get_async_session)):
-    query = select(Room).order_by(Room.created_at.desc())
+async def read_rooms(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: AsyncSession = Depends(get_async_session),
+):
+    query = select(Room).join(User, Room.user_id == User.id).where(User.username == current_user.username).order_by(Room.created_at.desc())
     result = await session.execute(query)
     rooms = [row[0] for row in result.all()]
     rooms_data = [
@@ -30,9 +37,14 @@ async def read_rooms(session: AsyncSession = Depends(get_async_session)):
 @router.post("/rooms")
 async def create_room(
     room_create: RoomCreate,
-    session: AsyncSession = Depends(get_async_session)
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: AsyncSession = Depends(get_async_session),
 ):
-    room = Room(title=room_create.title, user_id=room_create.user_id)
+    result = await session.execute(select(User).where(User.username == current_user.username))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=401, detail="User no longer exists")
+    room = Room(title=room_create.title, user_id=user.id)
     session.add(room)
     await session.commit()
     await session.refresh(room)

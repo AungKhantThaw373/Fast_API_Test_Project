@@ -1,31 +1,49 @@
-from fastapi import FastAPI
-from app.db import create_db_and_tables
 from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes.rooms_route import router as rooms_router
+
+from app.db import engine
+from app.logging_config import configure_app_logging
 from app.routes.auth_routes import router as auth_router
-from app.routes.docs_routes import router as docs_router
+from app.routes.editing_routes import router as editing_router
+from app.routes.story_routes import router as story_router
 from app.routes.user_routes import router as user_router
+from app.services.indexing import reindex_stale_embedding_models, stop_index_jobs
+
+
+configure_app_logging()
+
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup code: Create database and tables
-    await create_db_and_tables()
+async def lifespan(_app: FastAPI):
+    await reindex_stale_embedding_models()
     yield
-    # Shutdown code (if needed) can be added here
+    await stop_index_jobs()
+    await engine.dispose()
 
-app = FastAPI(lifespan=lifespan,root_path="/api/py")
 
-# CORS configuration to allow requests from the Next.js frontend
+app = FastAPI(
+	title="Stillroom",
+	description="A chapter writing studio and a structured story draft file library.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # your Next.js frontend
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Content-Type"],
 )
 
-app.include_router(rooms_router)
+
+@app.get("/health", tags=["system"])
+async def health():
+    return {"status": "ok"}
+
+
 app.include_router(auth_router)
-app.include_router(docs_router)
 app.include_router(user_router)
+app.include_router(story_router)
+app.include_router(editing_router)

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.supabase_storage import supabase
 from fastapi import Form,UploadFile, File
 import uuid
-from app.models import DOC
+from app.models.app_models import DOC
 from app.db import get_async_session
 
 router = APIRouter()
