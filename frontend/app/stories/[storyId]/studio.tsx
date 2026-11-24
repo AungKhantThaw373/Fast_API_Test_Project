@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Toaster, toast } from 'sonner';
 import { AIProviderSettingsForm } from '@/components/ai-provider-settings';
@@ -40,6 +40,11 @@ export default function StoryStudio({ storyId }: { storyId: string }) {
 function StoryStudioInner({ storyId }: { storyId: string }) {
 	const confirm = useConfirm();
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	// Deep links from the wiki: ?chapter=<id>&line=<n> opens that passage.
+	const deepChapterId = searchParams.get('chapter');
+	const deepLine = Number(searchParams.get('line') ?? '') || 0;
+	const jumpedRef = useRef('');
 	const editorRef = useRef<HTMLTextAreaElement>(null);
 	const revisionRef = useRef(new Map<string, number>());
 	const savedRef = useRef(new Map<string, SaveSnapshot>());
@@ -160,7 +165,10 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				setBibleScanStart(1);
 				setBibleScanEnd(storyData.chapters.at(-1)?.chapter_number ?? 1);
 				const rememberedId = window.sessionStorage.getItem(`stillroom-active-chapter:${storyId}`);
-				const initialChapter = storyData.chapters.find((chapter) => chapter.id === rememberedId) ?? storyData.chapters[0];
+				const initialChapter =
+					storyData.chapters.find((chapter) => chapter.id === deepChapterId)
+					?? storyData.chapters.find((chapter) => chapter.id === rememberedId)
+					?? storyData.chapters[0];
 				if (initialChapter) {
 					const fullChapter = await api.chapter(initialChapter.id);
 					if (!alive) return;
@@ -192,7 +200,23 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		}
 		void load();
 		return () => { alive = false; };
-	}, [storyId, router, resolveChapterDraft]);
+	}, [storyId, router, resolveChapterDraft, deepChapterId]);
+
+	// Once the linked chapter is on screen, put the caret on the cited line.
+	useEffect(() => {
+		if (!deepLine || !activeId || !editorRef.current) return;
+		const marker = `${activeId}:${deepLine}`;
+		if (jumpedRef.current === marker) return;
+		const lines = draftContent.split('\n');
+		if (deepLine > lines.length) return;
+		const start = lines.slice(0, deepLine - 1).reduce((total, line) => total + line.length + 1, 0);
+		const end = start + lines[deepLine - 1].length;
+		jumpedRef.current = marker;
+		const editor = editorRef.current;
+		editor.focus();
+		editor.setSelectionRange(start, end);
+		editor.scrollTop = Math.max(0, (deepLine - 3) * 24);
+	}, [activeId, deepLine, draftContent]);
 
 	useEffect(() => {
 		if (!hasUnsavedChanges) return;
