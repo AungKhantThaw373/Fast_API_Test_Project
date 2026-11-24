@@ -9,6 +9,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -47,7 +48,7 @@ class Story(Base):
 
     owner: Mapped[User] = relationship("User", back_populates="stories")
     chapters: Mapped[list[Chapter]] = relationship(
-        "Chapter", back_populates="story", cascade="all, delete-orphan", order_by="Chapter.chapter_number"
+        "Chapter", back_populates="story", cascade="all, delete-orphan", order_by="Chapter.position"
     )
     bible_entries: Mapped[list[StoryBibleEntry]] = relationship(
         "StoryBibleEntry", back_populates="story", cascade="all, delete-orphan"
@@ -65,6 +66,7 @@ class Chapter(Base):
             postgresql_where=text("deleted_at IS NULL"),
         ),
         Index("ix_chapters_story_deleted", "story_id", "deleted_at"),
+        Index("ix_chapters_story_position", "story_id", "position"),
     )
 
     id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -72,6 +74,8 @@ class Chapter(Base):
         UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False, index=True
     )
     chapter_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Ordering source. chapter_number is only what the writer sees.
+    position: Mapped[float] = mapped_column(Float, nullable=False, default=1024.0)
     title: Mapped[str] = mapped_column(String(200), nullable=False, default="Untitled chapter")
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     word_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

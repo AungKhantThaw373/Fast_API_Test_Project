@@ -130,3 +130,22 @@ Frontend:
   the flow runs on standalone Playwright instead.
 - Next: Phase 2 route split, query batching, stable positions, and the durable
   worker.
+
+## Phase 2 (partial) stable chapter positions
+
+- Migration `72e3aad68ab6`: `story_chapters.position DOUBLE PRECISION`, backfilled
+  from `chapter_number`, indexed on `(story_id, position)`.
+- `services/chapter_order.py`: `next_position` (+1024), `assign_positions` (one
+  executemany), `renumber_display` (two bulk statements plus bulk updates of the
+  denormalized `chapter_number` copies), and `rebalance_story`.
+- Create/import/reorder/move/delete use positions. Reorder of 1,100 chapters is
+  covered by a timing test and no longer issues one UPDATE per chapter or uses the
+  negative-number dance.
+- Fixed two bugs found by the new tests: moving a chapter between stories collided
+  with the destination's unique display number, and `ChapterReorder` capped the
+  list at 500 chapters (now 5,000).
+- `list_stories` is a single aggregate query (the N+1 noted in P2-2).
+- Not done yet: P2-1 route split/response models, P2-2 pagination and ETags,
+  P2-3 batched continuity retrieval, P2-4 index/statement-timeout migration,
+  P2-6 durable worker, P2-7 worker concurrency, P2-8 request ids and `/ready`,
+  and all of Phase 3.

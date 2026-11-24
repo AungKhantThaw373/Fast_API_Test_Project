@@ -1,7 +1,7 @@
 import asyncio
 import re
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
@@ -42,6 +42,11 @@ from app.schemas.stories import (
 from app.security import get_current_user
 from app.services.ai_service import AIProviderHTTPError
 from app.services.ai_settings import has_ai_config
+from app.services.chapter_order import (
+    assign_positions,
+    next_position,
+    renumber_display,
+)
 from app.services.continuity import scan_chapter
 from app.services.indexing import schedule_bible_extraction, schedule_chapter_reindex
 from app.services.snapshots import diff_revisions, record_checkpoint, record_snapshot
@@ -247,7 +252,7 @@ async def get_story_index_status(
             Chapter.bible_scan_error,
         )
         .where(Chapter.story_id == story_id, Chapter.deleted_at.is_(None))
-        .order_by(Chapter.chapter_number)
+        .order_by(Chapter.position)
     )
     return {
         "chapters": [
@@ -294,14 +299,11 @@ async def create_chapter(
     session: AsyncSession = Depends(get_async_session),
 ):
     story = await _owned_story(session, story_id, user.id)
-    last_number = await session.scalar(
-        select(func.max(Chapter.chapter_number)).where(
-            Chapter.story_id == story.id, Chapter.deleted_at.is_(None)
-        )
-    )
+    position = await next_position(session, story.id)
     chapter = Chapter(
         story_id=story.id,
-        chapter_number=(last_number or 0) + 1,
+        chapter_number=0,
+        position=position,
         title=payload.title.strip() or "Untitled chapter",
         content=payload.content,
         word_count=len(payload.content.split()),
@@ -310,6 +312,8 @@ async def create_chapter(
     )
     session.add(chapter)
     story.updated_at = datetime.now(UTC)
+    await session.flush()
+    await renumber_display(session, story.id)
     await session.commit()
     await session.refresh(chapter)
     background_tasks.add_task(schedule_chapter_reindex, chapter.id)
@@ -345,16 +349,13 @@ async def import_manuscript(
     parts = _split_manuscript(payload.filename, payload.content)
     if not parts:
         raise HTTPException(status_code=400, detail="No chapter text could be found in that manuscript.")
-    last_number = await session.scalar(
-        select(func.max(Chapter.chapter_number)).where(
-            Chapter.story_id == story.id, Chapter.deleted_at.is_(None)
-        )
-    )
+    position = await next_position(session, story.id)
     created = []
-    for offset, (title, content) in enumerate(parts, start=1):
+    for offset, (title, content) in enumerate(parts):
         chapter = Chapter(
             story_id=story.id,
-            chapter_number=(last_number or 0) + offset,
+            chapter_number=0,
+            position=position + offset * 1024.0,
             title=title,
             content=content,
             word_count=len(content.split()),
@@ -364,6 +365,8 @@ async def import_manuscript(
         session.add(chapter)
         created.append(chapter)
     story.updated_at = datetime.now(UTC)
+    await session.flush()
+    await renumber_display(session, story.id)
     await session.commit()
     for chapter in created:
         await session.refresh(chapter)
@@ -575,21 +578,18 @@ async def reorder_chapters(
 ):
     story = await _owned_story(session, story_id, user.id)
     chapters = list(await session.scalars(
-        select(Chapter).where(Chapter.story_id == story.id).order_by(Chapter.chapter_number)
+        select(Chapter)
+        .where(Chapter.story_id == story.id, Chapter.deleted_at.is_(None))
+        .order_by(Chapter.position)
     ))
     by_id = {chapter.id: chapter for chapter in chapters}
     if len(payload.chapter_ids) != len(chapters) or set(payload.chapter_ids) != set(by_id):
         raise HTTPException(status_code=422, detail="Include every chapter exactly once when reordering.")
     ordered = [by_id[item] for item in payload.chapter_ids]
-    for chapter in chapters:
-        chapter.chapter_number = -chapter.chapter_number
+    # One bulk position rewrite, then two bulk statements for display numbers.
+    await assign_positions(session, ordered)
     await session.flush()
-    for number, chapter in enumerate(ordered, start=1):
-        chapter.chapter_number = number
-        await session.execute(update(SceneEmbedding).where(SceneEmbedding.chapter_id == chapter.id).values(chapter_number=number))
-        await session.execute(update(ContinuityFinding).where(
-            ContinuityFinding.earlier_chapter_id == chapter.id
-        ).values(earlier_chapter_number=number))
+    await renumber_display(session, story.id)
     await session.execute(delete(ContinuityScan).where(ContinuityScan.story_id == story.id))
     story.updated_at = datetime.now(UTC)
     await session.commit()
@@ -628,7 +628,7 @@ async def move_chapter(
 
     source_chapters = list(await session.scalars(select(Chapter).where(
         Chapter.story_id == source_story.id
-    ).order_by(Chapter.chapter_number)))
+    ).order_by(Chapter.position)))
     for item in source_chapters:
         if item.id != chapter.id:
             item.chapter_number = -item.chapter_number
@@ -638,28 +638,22 @@ async def move_chapter(
     # source chapters that cite it also become invalid.
     await session.execute(delete(ContinuityScan).where(ContinuityScan.story_id == source_story.id))
     await session.execute(delete(ContinuityFinding).where(ContinuityFinding.earlier_chapter_id == chapter.id))
-    new_number = (await session.scalar(select(func.max(Chapter.chapter_number)).where(
-        Chapter.story_id == destination.id
-    )) or 0) + 1
+    # Park the chapter on a temporary number before changing its story: the
+    # destination may already own its display number, and the unique index is
+    # checked per row.
+    chapter.chapter_number = -1_000_000 - int(uuid4().int % 900_000)
     chapter.story_id = destination.id
-    chapter.chapter_number = new_number
+    chapter.position = await next_position(session, destination.id)
     await session.flush()
     await session.execute(update(SceneEmbedding).where(SceneEmbedding.chapter_id == chapter.id).values(
-        story_id=destination.id, chapter_number=new_number
+        story_id=destination.id
     ))
     for entry in entries:
         entry.story_id = destination.id
 
-    remaining = [item for item in source_chapters if item.id != chapter.id]
-    for item in remaining:
-        item.chapter_number = -abs(item.chapter_number)
-    await session.flush()
-    for number, item in enumerate(remaining, start=1):
-        item.chapter_number = number
-        await session.execute(update(SceneEmbedding).where(SceneEmbedding.chapter_id == item.id).values(chapter_number=number))
-        await session.execute(update(ContinuityFinding).where(
-            ContinuityFinding.earlier_chapter_id == item.id
-        ).values(earlier_chapter_number=number))
+    await renumber_display(session, source_story.id)
+    await renumber_display(session, destination.id)
+    await session.refresh(chapter)
     now = datetime.now(UTC)
     source_story.updated_at = destination.updated_at = now
     await session.commit()
@@ -683,24 +677,13 @@ async def delete_chapter(
         delete(ContinuityFinding).where(ContinuityFinding.earlier_chapter_id == chapter.id)
     )
 
+    # One bulk statement pair instead of an UPDATE per chapter.
+    await renumber_display(session, story_id)
     remaining = list(await session.scalars(
         select(Chapter)
         .where(Chapter.story_id == story_id, Chapter.deleted_at.is_(None))
-        .order_by(Chapter.chapter_number)
+        .order_by(Chapter.position)
     ))
-    for item in remaining:
-        item.chapter_number = -item.chapter_number
-    await session.flush()
-    for number, item in enumerate(remaining, start=1):
-        item.chapter_number = number
-        await session.execute(
-            update(SceneEmbedding).where(SceneEmbedding.chapter_id == item.id).values(chapter_number=number)
-        )
-        await session.execute(
-            update(ContinuityFinding)
-            .where(ContinuityFinding.earlier_chapter_id == item.id)
-            .values(earlier_chapter_number=number)
-        )
 
     story = await session.get(Story, story_id)
     if story is not None:
@@ -1067,7 +1050,7 @@ async def scan_story_bible_range(
             Chapter.chapter_number >= payload.start_chapter,
             Chapter.chapter_number <= payload.end_chapter,
         )
-        .order_by(Chapter.chapter_number)
+        .order_by(Chapter.position)
     )).all())
     if not chapters:
         raise HTTPException(status_code=404, detail="No chapters were found in that range.")
