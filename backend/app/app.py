@@ -3,20 +3,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db import engine
+from app.db import async_session, engine
 from app.logging_config import configure_app_logging
 from app.routes.auth_routes import router as auth_router
 from app.routes.editing_routes import router as editing_router
 from app.routes.story_routes import router as story_router
 from app.routes.user_routes import router as user_router
+from app.schema_check import assert_schema_at_head
 from app.services.indexing import reindex_stale_embedding_models, stop_index_jobs
-
 
 configure_app_logging()
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    async with async_session() as session:
+        await assert_schema_at_head(session)
     await reindex_stale_embedding_models()
     yield
     await stop_index_jobs()

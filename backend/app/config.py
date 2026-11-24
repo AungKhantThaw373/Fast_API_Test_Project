@@ -1,15 +1,21 @@
 from typing import Literal
 
+from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+INSECURE_JWT_SECRETS = {"change-me", "secret", "changeme", "password", "test"}
+MIN_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
+    APP_ENV: Literal["development", "production"] = "development"
+
     user: str
     password: str
     host: str
     port: int
     dbname: str
-    DATABASE_SSL: str = "require"
+    DATABASE_SSL: str = "disable"
     JWT_SECRET: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 14
@@ -26,7 +32,7 @@ class Settings(BaseSettings):
     STORY_BIBLE_TIMEOUT_SECONDS: float = 180
     # Provider requests that may be in flight at once. Bible scans use this to
     # process several chapters in parallel instead of one after another.
-    AI_MAX_CONCURRENT_REQUESTS: int = 3
+    AI_MAX_CONCURRENT_REQUESTS: int = Field(default=3, ge=1, le=16)
     AI_SETTINGS_ENCRYPTION_KEY: str | None = None
     COOKIE_SECURE: bool = False
 
@@ -36,7 +42,66 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    @field_validator("JWT_SECRET")
+    @classmethod
+    def validate_jwt_secret(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < MIN_SECRET_LENGTH:
+            raise ValueError(
+                f"JWT_SECRET must be at least {MIN_SECRET_LENGTH} characters. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        if value.casefold() in INSECURE_JWT_SECRETS:
+            raise ValueError("JWT_SECRET is a well-known placeholder; replace it with a random secret.")
+        return value
 
-# BaseSettings reads required values from the environment and .env at runtime.
-# Pylance cannot account for Pydantic's settings sources during constructor analysis.
-settings = Settings()  # pyright: ignore[reportCallIssue]
+    @field_validator("AI_SETTINGS_ENCRYPTION_KEY")
+    @classmethod
+    def validate_encryption_key(cls, value: str | None) -> str | None:
+        if value is None or value.strip() == "":
+            return None
+        value = value.strip()
+        if len(value) < MIN_SECRET_LENGTH:
+            raise ValueError(
+                f"AI_SETTINGS_ENCRYPTION_KEY must be at least {MIN_SECRET_LENGTH} characters when set."
+            )
+        return value
+
+    @field_validator("host", "dbname", "user", "password")
+    @classmethod
+    def validate_database_field(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Database connection settings cannot be empty.")
+        return value
+
+    @field_validator("OLLAMA_BASE_URL", "OPENROUTER_BASE_URL")
+    @classmethod
+    def validate_base_url(cls, value: str) -> str:
+        value = value.strip().rstrip("/")
+        if not value.startswith(("http://", "https://")):
+            raise ValueError("Provider base URLs must start with http:// or https://.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_production(self) -> "Settings":
+        if self.APP_ENV == "production" and not self.COOKIE_SECURE:
+            raise ValueError("COOKIE_SECURE must be true when APP_ENV=production.")
+        return self
+
+
+def _load_settings() -> Settings:
+    """Load settings, turning validation failures into a readable message.
+
+    A bad .env should not greet the operator with a Pydantic traceback.
+    """
+    try:
+        return Settings()  # pyright: ignore[reportCallIssue]
+    except ValidationError as exc:
+        problems = []
+        for error in exc.errors():
+            location = ".".join(str(part) for part in error["loc"]) or "<settings>"
+            problems.append(f"  - {location}: {error['msg']}")
+        raise SystemExit("Configuration error:\n" + "\n".join(problems)) from None
+
+
+settings = _load_settings()

@@ -30,3 +30,39 @@
 - Added `Docs/database.md`; rewrote `backend/.env.example` to match the variables
   the app actually reads.
 - Next: fail-fast configuration and startup schema check.
+
+## Phase 0 fail-fast configuration
+
+- `app/config.py` now validates `JWT_SECRET` length/placeholder values, the
+  encryption key length, provider base URLs, database fields, and
+  `COOKIE_SECURE` in production. Validation failures print a readable
+  `Configuration error:` block instead of a Pydantic traceback.
+- Added `app/schema_check.py`; the FastAPI lifespan refuses to start when
+  `alembic_version` is not at head.
+- Removed the dead `SUPABASE_*` and `MinerU_API_KEY` keys from the environment and
+  rewrote `.env.example` to document every variable the app reads.
+- Verified: `JWT_SECRET=short uv run python -c "import app.app"` and
+  `APP_ENV=production ...` both fail with readable messages; normal config imports.
+
+## Phase 0 email normalization
+
+- Migration `1e10de6c20dc` aborts if lowercasing would create duplicates, then
+  lowercases addresses and adds the functional unique index `uq_users_email_lower`.
+- `UserCreate`/`UserLogin` normalize with `normalize_email`; login and register
+  compare case-insensitively.
+
+## Phase 0 test foundation
+
+- Added a `dev` dependency group (pytest, pytest-asyncio, httpx, ruff, pyright).
+- `tests/conftest.py` builds the schema in `stillroom_test` via Alembic, truncates
+  every application table between tests, and stubs indexing/provider background
+  tasks so tests never call Ollama.
+- 36 tests across auth, ownership, chapter conflicts, reorder, scene splitting, and
+  quote verification.
+- `uv run ruff check .` and `uv run pyright` are clean. Existing tab-indented and
+  long-prompt modules are excluded from E501 rather than reformatted here.
+- Fixed two real defects the tests found: reorder/delete serialized server-onupdate
+  `updated_at` after commit (MissingGreenlet under asyncpg), and legacy `rooms`/`docs`
+  ORM models with no schema had been left behind after the route cleanup.
+- Added `pyrightconfig.json` and `[tool.pytest.ini_options]`.
+- Next: CI, backups, and the task runner.
