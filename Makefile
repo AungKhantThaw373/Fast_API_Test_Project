@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend lint typecheck migrate backup install
+.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend qa-wiki seed-wiki lint typecheck migrate backup install
 
 install:
 	cd backend && uv sync
@@ -27,6 +27,14 @@ lint:
 
 test-frontend:
 	cd frontend && npm test
+
+# End-to-end wiki flows. Needs the API on :8000 and `next start` on :3000.
+qa-wiki:
+	cd frontend && node scripts/wiki-qa.mjs
+
+# 1,000 entities for the Phase 4 performance budget: make seed-wiki EMAIL=you@example.com
+seed-wiki:
+	cd backend && uv run python -m scripts.seed_wiki --email "$(EMAIL)" --title "$(or $(TITLE),Perf)" --count $(or $(COUNT),1000)
 
 typecheck:
 	cd backend && uv run pyright
