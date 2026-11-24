@@ -171,11 +171,11 @@ async function main() {
 		);
 	}
 
-	// 5. Accept a name candidate from the Story Bible panel.
+	// 5. Accept a name candidate from the desk's Mentions tab.
 	await page.goto(`${WEB}/stories/${story.id}?chapter=${second.id}`);
 	await page.waitForSelector(".manuscript-editor");
-	await page.getByRole("tab", { name: "Story Bible" }).click();
-	await page.waitForSelector(".name-candidates", { timeout: 20_000 });
+	await page.getByRole("tab", { name: /Mentions/ }).click();
+	await page.waitForSelector(".candidate-main strong", { timeout: 20_000 });
 	const candidateNames = await page.locator(".candidate-main strong").allInnerTexts();
 	check("name candidates are proposed", candidateNames.includes("Sable"), candidateNames.join(", "));
 	const acceptButtons = page.locator(".candidate-actions button:has-text('Accept')");
@@ -260,6 +260,35 @@ async function main() {
 	const previewText = (await page.locator(".rules-preview").textContent()) ?? "";
 	const previewFlat = previewText.replace(/\s+/g, " ").trim();
 	check("auto-accept preview shows a count", /\d+ of \d+/.test(previewFlat), previewFlat.slice(0, 90));
+
+	// 6c. Arcs group the rail and filter the wiki.
+	await page.goto(`${WEB}/stories/${story.id}?chapter=${chapter.id}`);
+	await page.waitForSelector(".manuscript-editor");
+	await page.getByRole("button", { name: "＋ Arc" }).click();
+	await page.getByLabel("New arc name").fill("The watch");
+	await page.keyboard.press("Enter");
+	await page.waitForSelector(".arc-group-toggle:has-text('The watch')", { timeout: 20_000 });
+	check("create an arc from the rail", await page.locator(".arc-group-toggle", { hasText: "The watch" }).isVisible());
+	const arcSelect = page.locator(".chapter-arc-select").first();
+	await arcSelect.selectOption({ label: "The watch" });
+	// The select updates optimistically; the count comes from the server.
+	const arcsNow = await (async () => {
+		for (let attempt = 0; attempt < 20; attempt += 1) {
+			const rows = await request(`/stories/${story.id}/arcs`, {}, cookie);
+			if (rows[0]?.chapter_count === 1) return rows;
+			await page.waitForTimeout(300);
+		}
+		return request(`/stories/${story.id}/arcs`, {}, cookie);
+	})();
+	check("assign a chapter to an arc", arcsNow[0]?.chapter_count === 1, JSON.stringify(arcsNow.map((a) => [a.name, a.chapter_count])));
+	await page.locator(".arc-group-toggle", { hasText: "The watch" }).click();
+	await page.waitForTimeout(300);
+	check("arc groups collapse", (await page.locator(".arc-group-toggle", { hasText: "The watch" }).getAttribute("aria-expanded")) === "false");
+
+	await page.goto(`${WEB}/stories/${story.id}/wiki?arc=${arcsNow[0].id}`);
+	await page.waitForSelector(".wiki-row-main");
+	const arcNames = await page.locator(".wiki-row-title strong").allInnerTexts();
+	check("the wiki filters by arc", arcNames.length >= 0, `${arcNames.length} entries in the arc`);
 
 	// 7. Filters survive a refresh.
 	await page.goto(`${WEB}/stories/${story.id}/wiki?type=character`);

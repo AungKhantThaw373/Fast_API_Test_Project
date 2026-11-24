@@ -159,7 +159,7 @@ a { color: inherit; text-decoration: none; }
 .studio-section-link:hover { color: var(--forest-deep); }
 
 /* Writing desk */
-.studio-shell { width: 100%; min-height: 100vh; display: grid; grid-template-columns: 224px minmax(400px, 1fr) 350px; background: var(--paper); }
+.studio-shell { width: 100%; min-height: 100vh; display: grid; grid-template-columns: 224px minmax(400px, 1fr) auto; background: var(--paper); }
 .chapter-rail { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 18px 14px 13px; border-right: 1px solid var(--line); background: #f3f1ea; }
 .rail-brand-row { display: flex; align-items: center; justify-content: space-between; padding: 0 3px 29px; }
 .rail-brand-row .wordmark { font-size: 18px; }
@@ -230,7 +230,7 @@ a { color: inherit; text-decoration: none; }
 .button-check { width: 100%; min-height: 34px; margin-top: 10px; border-color: #dce4d7; background: #eef2e9; color: #52664b; font-size: 11px; }
 .button-check:hover:not(:disabled) { border-color: #becbb7; background: #e5ebdf; }
 .button-check:disabled { background: #f2f1ec; color: #a2a299; }
-.pane-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 13px; border-bottom: 1px solid var(--line); }
+.pane-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 30px; margin: 0 13px; border-bottom: 1px solid var(--line); }
 .pane-tabs button { position: relative; min-width: 0; padding: 10px 2px 9px; border: 0; background: transparent; color: #8e8f86; cursor: pointer; font-size: 9px; }
 .pane-tabs button.active { color: #495b43; font-weight: 600; }
 .pane-tabs button.active::after { content: ''; position: absolute; right: 8px; bottom: -1px; left: 8px; height: 2px; background: #71836a; }
@@ -757,3 +757,38 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 760px) {
 	.rules-grid { grid-template-columns: 1fr; }
 }
+
+
+/* Chapter desk: collapse, resize, notes, mentions */
+.pane-resize { position: absolute; top: 0; left: -3px; width: 6px; height: 100%; border: 0; padding: 0; background: transparent; cursor: col-resize; }
+.pane-resize:hover, .pane-resize:focus-visible { background: rgba(83,105,79,.18); }
+.pane-collapse { justify-self: end; align-self: center; width: 26px; height: 26px; border: 0; border-radius: 5px; background: transparent; color: #85877d; font-size: 15px; cursor: pointer; }
+.pane-collapse:hover { background: #ecebe3; color: var(--forest-deep); }
+.pane-reopen { position: sticky; top: 14px; align-self: start; margin-top: 14px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); color: #5f635a; font-size: 12px; cursor: pointer; writing-mode: vertical-rl; }
+.pane-reopen:hover { border-color: #c9c8bd; color: var(--forest-deep); }
+.notes-pane { display: grid; gap: 12px; }
+.notes-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.notes-stats div { padding: 10px 12px; border: 1px solid #e7e5dc; border-radius: 6px; background: var(--white); }
+.notes-stats dt { color: #85877d; font-size: 12px; }
+.notes-stats dd { margin: 3px 0 0; font-size: 19px; font-family: Georgia, serif; color: var(--forest-deep); }
+.notes-mentions { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.notes-mentions li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 9px; border-radius: 5px; background: #f5f4ec; font-size: 12px; }
+.notes-mentions li span { color: #85877d; font-size: 12px; }
+.link-button { border: 0; padding: 0; background: none; color: var(--forest-deep); font-size: 12.5px; text-decoration: underline; text-decoration-color: #c9d0c1; cursor: pointer; text-align: left; }
+.pane-links { display: flex; flex-wrap: wrap; gap: 10px; padding: 9px 11px; border: 1px solid #e7e5dc; border-radius: 6px; background: #fbfaf6; font-size: 12px; }
+.pane-links a { color: var(--forest-deep); text-decoration: underline; text-decoration-color: #c9d0c1; }
+.notes-threads { display: grid; gap: 8px; }
+
+/* Arc grouping in the chapter rail */
+.arc-group { display: grid; gap: 2px; }
+.arc-group-head { display: flex; align-items: center; padding: 6px 4px 3px; }
+.arc-group-toggle { display: flex; align-items: baseline; gap: 6px; width: 100%; border: 0; padding: 2px; background: none; color: #7d7f76; font-size: 12px; text-align: left; cursor: pointer; }
+.arc-group-toggle:disabled { cursor: default; }
+.arc-caret { font-size: 12px; color: #a3a59b; }
+.arc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; letter-spacing: .06em; font-size: 12px; font-weight: 600; }
+.arc-count { padding: 0 5px; border-radius: 999px; background: #e8e6de; color: #85877d; font-size: 12px; }
+.chapter-arc-select { max-width: 76px; height: 22px; border: 1px solid #e0ded5; border-radius: 4px; background: #fffefa; color: #6f736a; font-size: 12px; }
+.arc-add-button { margin-top: 6px; border: 1px dashed #d7d5ca; border-radius: 5px; padding: 6px 9px; background: transparent; color: #85877d; font-size: 12px; cursor: pointer; }
+.arc-add-button:hover { border-color: #bcbfb2; color: var(--forest-deep); }
+.arc-add-form { display: flex; gap: 5px; margin-top: 6px; }
+.arc-add-form input { flex: 1; min-width: 0; height: 27px; border: 1px solid #dcdad0; border-radius: 4px; padding: 0 7px; background: #fffefa; font-size: 12px; }

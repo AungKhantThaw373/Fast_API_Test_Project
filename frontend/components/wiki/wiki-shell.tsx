@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AddEntityDialog } from "@/components/wiki/add-entity-dialog";
-import { useEntities, useStory } from "@/components/wiki/use-wiki";
+import { useArcs, useEntities, useStory } from "@/components/wiki/use-wiki";
 import {
 	ENTITY_TYPE_LABELS,
 	ENTITY_TYPES,
@@ -35,6 +35,7 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 	);
 
 	const story = useStory(storyId);
+	const arcs = useArcs(storyId);
 	const entities = useEntities(storyId, filtersForApi(filters));
 	const rows = entities.data ?? [];
 
@@ -125,6 +126,14 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 					</label>
 				</div>
 
+				<select value={filters.arc} onChange={(event) => apply({ ...filters, arc: event.target.value })} aria-label="Filter by arc">
+					<option value="">Every arc</option>
+					{(arcs.data ?? []).map((arc) => (
+						<option key={arc.id} value={arc.id}>
+							{arc.name}
+						</option>
+					))}
+				</select>
 				<div className="wiki-result-count" role="status" aria-live="polite">
 					{entities.isPending ? "Counting…" : `${rows.length} ${rows.length === 1 ? "entry" : "entries"}`}
 					{hasActiveFilters(filters) && (

@@ -27,10 +27,11 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 export interface WikiFilters {
 	type: string;
 	status: string;
+	arc: string;
 	q: string;
 }
 
-export const EMPTY_FILTERS: WikiFilters = { type: "", status: "", q: "" };
+export const EMPTY_FILTERS: WikiFilters = { type: "", status: "", arc: "", q: "" };
 
 type RawParams = Record<string, string | string[] | undefined> | URLSearchParams;
 
@@ -45,6 +46,7 @@ export function parseFilters(params: RawParams): WikiFilters {
 	return {
 		type: read(params, "type"),
 		status: read(params, "status"),
+		arc: read(params, "arc"),
 		q: read(params, "q"),
 	};
 }
@@ -53,21 +55,28 @@ export function toSearchParams(filters: WikiFilters): string {
 	const params = new URLSearchParams();
 	if (filters.type) params.set("type", filters.type);
 	if (filters.status) params.set("status", filters.status);
+	if (filters.arc) params.set("arc", filters.arc);
 	if (filters.q.trim()) params.set("q", filters.q.trim());
 	const query = params.toString();
 	return query ? `?${query}` : "";
 }
 
-export function filtersForApi(filters: WikiFilters): { type?: string; status?: string; q?: string } {
-	const apiFilters: { type?: string; status?: string; q?: string } = {};
+export function filtersForApi(filters: WikiFilters): {
+	type?: string;
+	status?: string;
+	arc_id?: string;
+	q?: string;
+} {
+	const apiFilters: { type?: string; status?: string; arc_id?: string; q?: string } = {};
 	if (filters.type) apiFilters.type = filters.type;
 	if (filters.status) apiFilters.status = filters.status;
+	if (filters.arc) apiFilters.arc_id = filters.arc;
 	if (filters.q.trim()) apiFilters.q = filters.q.trim();
 	return apiFilters;
 }
 
 export function hasActiveFilters(filters: WikiFilters): boolean {
-	return Boolean(filters.type || filters.status || filters.q.trim());
+	return Boolean(filters.type || filters.status || filters.arc || filters.q.trim());
 }
 
 export function activeFilterLabels(filters: WikiFilters): string[] {

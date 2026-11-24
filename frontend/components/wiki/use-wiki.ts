@@ -85,3 +85,11 @@ export function useEntitySearch(storyId: string, term: string) {
 		staleTime: 10_000,
 	});
 }
+
+export function useArcs(storyId: string) {
+	return useQuery({
+		queryKey: qk.arcs(storyId),
+		queryFn: () => api.arcs(storyId),
+		enabled: Boolean(storyId),
+	});
+}

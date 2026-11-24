@@ -3,17 +3,18 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Toaster, toast } from 'sonner';
-import { AIProviderSettingsForm } from '@/components/ai-provider-settings';
+import Link from 'next/link';
 import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/components/wiki/capture-dialog';
 import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
+import { ChapterRail } from '@/components/studio/chapter-rail';
 import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
-import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type Story, type StoryDetails } from '@/lib/api';
+import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type Story, type StoryDetails, type StoryArc } from '@/lib/api';
 import { clearBufferIfSaved, decideDraft, deleteDraft, getDraft, putDraft, type DraftRecord } from '@/lib/draft-buffer';
 import { retryDelayMs, saveStatus, shouldRetry, type SaveState } from '@/lib/save-state';
 import { lineNumberAt, lineRange, lineText } from '@/lib/selection';
 
-type Pane = 'ai' | 'bible' | 'setups' | 'continuity';
+type Pane = 'notes' | 'findings' | 'mentions';
 type SaveSnapshot = { title: string; content: string };
 type ConflictPrompt = {
 	localTitle: string;
@@ -92,17 +93,21 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [historyOpen, setHistoryOpen] = useState(false);
 	const [chapterHistory, setChapterHistory] = useState<ChapterRevisionSummary[]>([]);
 	const [historyLoading, setHistoryLoading] = useState(false);
-	const [bibleDraft, setBibleDraft] = useState<{ id?: string; category: BibleEntry['category']; name: string; description: string } | null>(null);
 	const [findingFilter, setFindingFilter] = useState<'open' | 'resolved' | 'dismissed' | 'all'>('open');
-	const [bibleSearch, setBibleSearch] = useState('');
-	const [bibleCategory, setBibleCategory] = useState<'all' | BibleEntry['category']>('all');
-	const [pane, setPane] = useState<Pane>('bible');
+	const [pane, setPane] = useState<Pane>('notes');
 	const [loading, setLoading] = useState(true);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [checking, setChecking] = useState(false);
 	const [checkRetryCountdown, setCheckRetryCountdown] = useState(0);
 	const [lastScan, setLastScan] = useState<{ chapterId: string; revision: number } | null>(null);
 	const [focusMode, setFocusMode] = useState(false);
+	const [paneOpen, setPaneOpen] = useState(true);
+	const [arcs, setArcs] = useState<StoryArc[]>([]);
+	const [paneWidth, setPaneWidth] = useState(() => {
+		if (typeof window === 'undefined') return 372;
+		const stored = Number(window.localStorage.getItem('stillroom:pane-width'));
+		return Number.isFinite(stored) && stored > 0 ? Math.min(Math.max(stored, 320), 720) : 372;
+	});
 	const [error, setError] = useState('');
 	const [notice, setNotice] = useState('');
 
@@ -161,10 +166,17 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		let alive = true;
 		async function load() {
 			try {
-				const [storyData, bible, storyList] = await Promise.all([api.story(storyId), api.bible(storyId), api.stories()]);
+				const [storyData, bible, storyList, arcList] = await Promise.all([
+					api.story(storyId),
+					api.bible(storyId),
+					api.stories(),
+					// Arcs are optional furniture: an empty list must never block the draft.
+					api.arcs(storyId).catch(() => [] as StoryArc[]),
+				]);
 				if (!alive) return;
 				setStory(storyData);
 				setChapters(storyData.chapters);
+				setArcs(arcList);
 				setEntries(bible);
 				setOtherStories(storyList.filter((item) => item.id !== storyId));
 				setBibleScanStart(1);
@@ -494,6 +506,17 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		window.addEventListener('keydown', saveShortcut);
 		return () => window.removeEventListener('keydown', saveShortcut);
 	}, [activeChapterId, draftTitle, draftContent, persistChapter]);
+
+	useEffect(() => {
+		const onKeyDown = (event: KeyboardEvent) => {
+			if ((event.metaKey || event.ctrlKey) && event.key === '.') {
+				event.preventDefault();
+				setPaneOpen((value) => !value);
+			}
+		};
+		window.addEventListener('keydown', onKeyDown);
+		return () => window.removeEventListener('keydown', onKeyDown);
+	}, []);
 
 	useEffect(() => {
 		if (!activeChapterId) return;
@@ -880,38 +903,26 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [words, activeChapter?.id, activeChapter?.index_status, earlierChaptersReady, story?.scan_interval_words, story?.external_analysis_enabled]);
 
-	async function decideEntry(entry: BibleEntry, decision: 'accepted' | 'dismissed') {
+	async function assignArc(chapterId: string, arcId: string | null) {
+		const previous = chapters;
+		setChapters((current) => current.map((chapter) => (chapter.id === chapterId ? { ...chapter, arc_id: arcId } : chapter)));
 		try {
-			const updated = await api.decideBibleEntry(entry.id, decision);
-			setEntries((current) => current.map((item) => item.id === entry.id ? updated : item));
-		} catch (cause) { setError(cause instanceof Error ? cause.message : 'That suggestion could not be saved.'); }
+			await api.assignArc(storyId, arcId, [chapterId]);
+			setArcs(await api.arcs(storyId));
+		} catch (cause) {
+			setChapters(previous);
+			toast.error(cause instanceof Error ? cause.message : 'That chapter could not be moved.');
+		}
 	}
 
-	function startBibleEdit(entry?: BibleEntry) {
-		setBibleDraft(entry
-			? { id: entry.id, category: entry.category, name: entry.name, description: entry.description }
-			: { category: 'character', name: '', description: '' });
-	}
-
-	async function saveBibleDraft() {
-		if (!bibleDraft || !bibleDraft.name.trim() || !bibleDraft.description.trim()) return;
+	async function createArc(name: string) {
 		try {
-			const payload = { category: bibleDraft.category, name: bibleDraft.name.trim(), description: bibleDraft.description.trim(), details: bibleDraft.id ? entries.find((entry) => entry.id === bibleDraft.id)?.details ?? {} : {} };
-			const updated = bibleDraft.id ? await api.editBibleEntry(bibleDraft.id, payload) : await api.createBibleEntry(storyId, payload);
-			setEntries((current) => bibleDraft.id ? current.map((entry) => entry.id === updated.id ? updated : entry) : [...current, updated]);
-			setBibleDraft(null);
-		} catch (cause) { setError(cause instanceof Error ? cause.message : 'The Story Bible entry could not be saved.'); }
-	}
-
-	async function deleteBibleEntry(entry: BibleEntry) {
-		if (!await confirm({
-			title: 'Delete this Story Bible entry?',
-			description: `“${entry.name}” will be removed. This cannot be undone.`,
-			confirmLabel: 'Delete entry',
-			destructive: true,
-		})) return;
-		try { await api.deleteBibleEntry(entry.id); setEntries((current) => current.filter((item) => item.id !== entry.id)); }
-		catch (cause) { setError(cause instanceof Error ? cause.message : 'The Story Bible entry could not be deleted.'); }
+			await api.createArc(storyId, name);
+			setArcs(await api.arcs(storyId));
+			toast.success(`“${name}” added. Assign chapters from the rail.`);
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : 'That arc could not be created.');
+		}
 	}
 
 	async function openBibleSource(entry: BibleEntry) {
@@ -971,12 +982,10 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	if (loading) return <main className="quiet-loading"><span className="loading-mark" /><p>Opening your writing desk…</p></main>;
 	if (!story) return <main className="quiet-loading"><p>{error || 'This story is not available.'}</p><button className="text-button" onClick={() => router.push("/dashboard")}>Back to stories</button></main>;
 
-	const suggestions = entries.filter((entry) => entry.status === 'suggested');
 	const savedScanReady = lastScan !== null && activeChapter !== null && lastScan.chapterId === activeChapter.id && lastScan.revision === activeChapter.revision;
-	const bible = entries.filter((entry) => entry.status === 'accepted' && entry.category !== 'plot_thread')
-		.filter((entry) => bibleCategory === 'all' || entry.category === bibleCategory)
-		.filter((entry) => !bibleSearch.trim() || `${entry.name} ${entry.description}`.toLocaleLowerCase().includes(bibleSearch.trim().toLocaleLowerCase()));
 	const threads = entries.filter((entry) => entry.category === 'plot_thread' && entry.status !== 'dismissed');
+	const chapterMentions = activeChapter ? entries.filter((entry) => entry.source_chapter_id === activeChapter.id) : [];
+	const openThreads = threads.filter((item) => item.thread_state === 'open').length;
 
 	// A selection in the manuscript is enough to start an entry, a fact, or a thread.
 	const openCapture = (mode: CaptureMode) => {
@@ -990,18 +999,16 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				<div className="rail-brand-row"><button className="wordmark" onClick={() => void go("/dashboard")}><span className="wordmark-icon">s</span>stillroom</button><button className="back-link" onClick={() => void go("/dashboard")} aria-label="Back to stories">←</button></div>
 				<div className="book-label">YOUR STORY</div><div className="rail-story-title" title={story.title}>{story.title}</div>
 				<div className="chapter-list-heading"><span>CHAPTERS</span><span>{chapters.length}</span></div>
-				<nav className="chapter-list" aria-label="Chapters">
-					{chapters.map((chapter) => <div key={chapter.id} className="chapter-nav-row">
-						<button className={'chapter-nav-item' + (activeId === chapter.id ? ' selected' : '')} onClick={() => void selectChapter(chapter)}>
-							<span className="chapter-nav-number">{String(chapter.chapter_number).padStart(2, '0')}</span><span className="chapter-nav-copy"><strong>{chapter.title}</strong><small>{chapter.word_count.toLocaleString()} words</small></span>
-						</button>
-						<div className="chapter-row-actions">
-							<button className="chapter-order-button" onClick={() => void reorderChapter(chapter.id, -1)} disabled={chapter.chapter_number === 1} aria-label={`Move ${chapter.title} up`} title="Move up">↑</button>
-							<button className="chapter-order-button" onClick={() => void reorderChapter(chapter.id, 1)} disabled={chapter.chapter_number === chapters.length} aria-label={`Move ${chapter.title} down`} title="Move down">↓</button>
-							<button className="chapter-delete-button" onClick={() => void deleteChapter(chapter)} aria-label={`Delete ${chapter.title}`} title="Delete chapter">×</button>
-						</div>
-					</div>)}
-				</nav>
+				<ChapterRail
+					chapters={chapters}
+					arcs={arcs}
+					activeId={activeId}
+					onSelect={(chapter) => void selectChapter(chapter)}
+					onMove={(chapterId, delta) => void reorderChapter(chapterId, delta)}
+					onDelete={(chapter) => void deleteChapter(chapter)}
+					onAssign={(chapterId, arcId) => void assignArc(chapterId, arcId)}
+					onCreateArc={createArc}
+				/>
 				<button className="new-chapter-button" onClick={() => void addChapter()}>＋ <span>New chapter</span></button>
 				{activeChapter && otherStories.length > 0 && <label className="move-chapter-control"><span>Move active chapter</span><select defaultValue="" onChange={(event) => { if (event.target.value) void moveActiveChapter(event.target.value); event.target.value = ''; }}><option value="">Choose a story…</option>{otherStories.map((item) => <option value={item.id} key={item.id}>{item.title}</option>)}</select></label>}
 				<label className="import-button">↥ <span>Import .txt or .md</span><input type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(event) => void importManuscript(event)} /></label>
@@ -1053,68 +1060,78 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				</>}
 			</section>
 
-			{!focusMode && <aside className="insights-pane">
-				<div className="insights-heading"><div><div className="eyebrow">THE STORY, REMEMBERED</div><h2>Continuity desk</h2></div><span className="provider-status">{story.external_analysis_enabled ? 'AI checks on' : 'AI checks off'}</span></div>
-				<div className="pane-tabs" role="tablist" aria-label="Continuity desk pages"><button role="tab" aria-selected={pane === 'ai'} className={pane === 'ai' ? 'active' : ''} onClick={() => setPane('ai')}>AI settings</button><button role="tab" aria-selected={pane === 'bible'} className={pane === 'bible' ? 'active' : ''} onClick={() => setPane('bible')}>Story Bible</button><button role="tab" aria-selected={pane === 'setups'} className={pane === 'setups' ? 'active' : ''} onClick={() => setPane('setups')}>Threads <span>{threads.filter((item) => item.thread_state === 'open').length}</span></button><button role="tab" aria-selected={pane === 'continuity'} className={pane === 'continuity' ? 'active' : ''} onClick={() => setPane('continuity')}>Continuity <span>{currentFindings.length}</span></button></div>
+			{!focusMode && !paneOpen && (
+				<button className="pane-reopen" onClick={() => setPaneOpen(true)} title="Show the desk (Ctrl/Cmd + .)">‹ Desk</button>
+			)}
+			{!focusMode && paneOpen && <aside className="insights-pane" style={{ width: paneWidth }}>
+				<button
+					className="pane-resize"
+					aria-label="Resize the desk"
+					title="Drag to resize"
+					onPointerDown={(event) => {
+						const startX = event.clientX;
+						const startWidth = paneWidth;
+						const move = (moveEvent: PointerEvent) => setPaneWidth(Math.min(Math.max(startWidth - (moveEvent.clientX - startX), 320), 720));
+						const up = () => {
+							window.removeEventListener('pointermove', move);
+							window.removeEventListener('pointerup', up);
+							setPaneWidth((width) => {
+								window.localStorage.setItem('stillroom:pane-width', String(width));
+								return width;
+							});
+						};
+						window.addEventListener('pointermove', move);
+						window.addEventListener('pointerup', up);
+					}}
+				/>
+				<div className="insights-heading"><div><div className="eyebrow">THE STORY, REMEMBERED</div><h2>Chapter desk</h2></div><span className="provider-status">{story.external_analysis_enabled ? 'AI checks on' : 'AI checks off'}</span></div>
+				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages"><button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Notes</button><button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button><button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button><button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={() => setPaneOpen(false)}>›</button></div>
 				<div className="pane-content">
-					<section hidden={pane !== 'ai'} className="ai-pane-page">
-						<div>
-							<p className="pane-hint">Choose the service used for story analysis. Stillroom never generates manuscript prose.</p>
-							<AIProviderSettingsForm />
-						</div>
-						<div className="ai-story-settings-inline">
-							<div className="pane-section-title"><strong>Checks for this story</strong><span>{story.external_analysis_enabled ? 'Enabled' : 'Paused'}</span></div>
-							<label className="story-analysis-toggle">
-								<span><strong>Allow external AI analysis</strong><small>Chapter text and relevant earlier passages go to your selected API host.</small></span>
-								<input type="checkbox" checked={story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ external_analysis_enabled: event.target.checked })} />
-							</label>
-							<label className="ai-field">
-								<span>Automatic check interval</span>
-								<select value={story.scan_interval_words} disabled={!story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ scan_interval_words: Number(event.target.value) })}>
-									<option value={0}>Off · check manually</option>
-									<option value={500}>Every 500 new words</option>
-									<option value={1000}>Every 1,000 new words</option>
-									<option value={1500}>Every 1,500 new words</option>
-									<option value={3000}>Every 3,000 new words</option>
-								</select>
-								<small>Automatic checks are optional. You can also check a draft manually.</small>
-							</label>
-							<div className="ai-privacy-note"><strong>Privacy</strong><p>External analysis is limited to this story. Local indexing stays on Ollama.</p></div>
-						</div>
-					</section>
-					{pane === 'bible' && <>
-						<NameCandidatesPanel
-							storyId={storyId}
-							chapter={activeChapter ? { id: activeChapter.id, chapter_number: activeChapter.chapter_number, title: activeChapter.title } : null}
-							onOpenEntity={(entityId) => void go(`/stories/${storyId}/wiki/${entityId}`)}
-						/>
+					{pane === 'notes' && <section className="notes-pane">
+						<div className="pane-section-title"><strong>This chapter</strong><span>{activeChapter ? `Chapter ${activeChapter.chapter_number}` : 'No chapter open'}</span></div>
+						<p className="pane-hint">{activeChapter ? activeChapter.title : 'Open a chapter to see what the story already knows about it.'}</p>
+						<dl className="notes-stats"><div><dt>Mentioned here</dt><dd>{chapterMentions.length}</dd></div><div><dt>Open threads</dt><dd>{openThreads}</dd></div></dl>
+						{chapterMentions.length > 0 && <ul className="notes-mentions">{chapterMentions.slice(0, 12).map((entry) => <li key={entry.id}><button className="link-button" onClick={() => void go(`/stories/${storyId}/wiki/${entry.id}`)}>{entry.name}</button><span>{CATEGORY_LABEL[entry.category]}</span></li>)}</ul>}
+						<div className="pane-links"><Link href={`/stories/${storyId}/wiki/review`}>Review inbox</Link><Link href={`/stories/${storyId}/wiki`}>Open the wiki</Link><Link href="/settings">AI settings</Link></div>
+						<section className="notes-threads">
+							<div className="pane-section-title"><strong>Open threads</strong><span>{openThreads}</span></div>
+							{threads.length ? threads.map((entry) => <article className={'thread-card' + (entry.thread_state === 'resolved' ? ' resolved' : '')} key={entry.id}><div className="thread-status">{entry.thread_state === 'resolved' ? 'Resolved' : 'Still open'}</div><h3>{entry.name}</h3><p>{entry.description}</p><div className="bible-entry-actions"><button className="text-button" onClick={() => void setThread(entry, entry.thread_state === 'resolved' ? 'open' : 'resolved')}>{entry.thread_state === 'resolved' ? 'Reopen thread' : 'Mark resolved'}</button>{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Open source</button>}</div></article>) : <div className="pane-empty">Unresolved setups and questions will appear here when they are noticed in your chapters.</div>}
+						</section>
+						<div className="pane-section-title"><strong>Checks for this story</strong><span>{story.external_analysis_enabled ? 'Enabled' : 'Paused'}</span></div>
+						<label className="story-analysis-toggle">
+							<span><strong>Allow external AI analysis</strong><small>Chapter text and relevant earlier passages go to your selected API host.</small></span>
+							<input type="checkbox" checked={story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ external_analysis_enabled: event.target.checked })} />
+						</label>
+						<label className="ai-field">
+							<span>Automatic check interval</span>
+							<select value={story.scan_interval_words} disabled={!story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ scan_interval_words: Number(event.target.value) })}>
+								<option value={0}>Off · check manually</option>
+								<option value={500}>Every 500 new words</option>
+								<option value={1000}>Every 1,000 new words</option>
+								<option value={1500}>Every 1,500 new words</option>
+								<option value={3000}>Every 3,000 new words</option>
+							</select>
+							<small>Automatic checks are optional. You can also check a draft manually.</small>
+						</label>
+						<div className="ai-privacy-note"><strong>Privacy</strong><p>External analysis is limited to this story. Local indexing stays on Ollama.</p></div>
 						<section className="bible-scan-panel">
-							<div className="pane-section-title"><strong>Scan chapters</strong><span>Story Bible</span></div>
-							<p className="pane-hint">Choose a chapter range to find details for your approval.</p>
+							<div className="pane-section-title"><strong>Read for details</strong><span>Finds proposals</span></div>
+							<p className="pane-hint">Choose a chapter range. Anything found becomes a proposal in the review inbox.</p>
 							<div className="bible-scan-range">
 								<label><span>From</span><select value={bibleScanStart} onChange={(event) => setBibleScanStart(Number(event.target.value))}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.title}</option>)}</select></label>
 								<label><span>Through</span><select value={bibleScanEnd} onChange={(event) => setBibleScanEnd(Number(event.target.value))}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.title}</option>)}</select></label>
 							</div>
-							<button className="button button-bible-scan" onClick={() => void scanBibleRange()} disabled={!chapters.length || hasUnsavedChanges || scanningBible || bibleScanPending.length > 0 || bibleScanStart > bibleScanEnd}>
-								{scanningBible ? 'Queueing scan…' : 'Scan range'}
-							</button>
-							<label className="bible-scan-force"><input type="checkbox" checked={bibleScanForce} onChange={(event) => setBibleScanForce(event.target.checked)} /><span>Re-scan unchanged chapters</span></label>
-							<small className="bible-scan-help">Save your latest edits before scanning. Only chapters not scanned since their latest edit are sent unless you choose to re-scan. Your selected AI provider receives the chapter text. Editing and local indexing do not trigger Story Bible suggestions.</small>
+							<button className="button button-bible-scan" onClick={() => void scanBibleRange()} disabled={!chapters.length || hasUnsavedChanges || scanningBible || bibleScanPending.length > 0 || bibleScanStart > bibleScanEnd}>{scanningBible ? 'Queueing scan…' : 'Read range'}</button>
+							<label className="bible-scan-force"><input type="checkbox" checked={bibleScanForce} onChange={(event) => setBibleScanForce(event.target.checked)} /><span>Read unchanged chapters again</span></label>
 							{bibleScanMessage && <p className={`bible-scan-message${bibleScanFailed ? ' is-error' : ''}`} role="status">{bibleScanMessage}</p>}
 						</section>
-						<div className="bible-section-heading"><div className="pane-section-title"><strong>Story Bible</strong><span>{bible.length} shown</span></div><button className="text-button" onClick={() => startBibleEdit()}>Add entry</button></div>
-						<div className="bible-filters"><input value={bibleSearch} onChange={(event) => setBibleSearch(event.target.value)} placeholder="Search details" aria-label="Search Story Bible" /><select value={bibleCategory} onChange={(event) => setBibleCategory(event.target.value as typeof bibleCategory)} aria-label="Filter Story Bible category"><option value="all">All types</option>{Object.entries(CATEGORY_LABEL).filter(([key]) => key !== 'plot_thread').map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div>
-						{bibleDraft && <form className="bible-edit-form" onSubmit={(event) => { event.preventDefault(); void saveBibleDraft(); }}>
-							<label>Type<select value={bibleDraft.category} onChange={(event) => setBibleDraft({ ...bibleDraft, category: event.target.value as BibleEntry['category'] })}>{Object.entries(CATEGORY_LABEL).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-							<label>Name<input value={bibleDraft.name} onChange={(event) => setBibleDraft({ ...bibleDraft, name: event.target.value })} maxLength={200} required /></label>
-							<label>Details<textarea value={bibleDraft.description} onChange={(event) => setBibleDraft({ ...bibleDraft, description: event.target.value })} maxLength={10000} rows={3} required /></label>
-							<div className="suggestion-actions"><button className="button button-approve" type="submit">Save entry</button><button type="button" className="text-button subtle" onClick={() => setBibleDraft(null)}>Cancel</button></div>
-						</form>}
-						{suggestions.length > 0 && <section className="suggestion-section"><div className="pane-section-title"><strong>For your approval</strong><span>{suggestions.length}</span></div><p className="pane-hint">New details found in your pages. Add only what belongs.</p>{suggestions.map((entry) => <article className="suggestion-card" key={entry.id}><div className="suggestion-category">{CATEGORY_LABEL[entry.category]}</div><h3>{entry.name}</h3><p>{entry.description}</p>{entry.source_quote && <blockquote>“{entry.source_quote}”</blockquote>}<div className="suggestion-actions"><button className="button button-approve" onClick={() => void decideEntry(entry, 'accepted')}>Add to Bible</button><button className="text-button subtle" onClick={() => void decideEntry(entry, 'dismissed')}>Ignore</button><button className="text-button subtle" onClick={() => startBibleEdit(entry)}>Edit</button><button className="text-button subtle" onClick={() => void deleteBibleEntry(entry)}>Delete</button>{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Source</button>}</div></article>)}</section>}
-						<section className="bible-section"><div className="pane-section-title"><strong>Established details</strong><span>{bible.length}</span></div>{bible.length ? bible.map((entry) => <article className="bible-entry" key={entry.id}><span className="bible-entry-type">{CATEGORY_LABEL[entry.category]}</span><strong>{entry.name}</strong><p>{entry.description}</p><div className="bible-entry-actions"><button className="text-button" onClick={() => startBibleEdit(entry)}>Edit</button><button className="text-button subtle" onClick={() => void deleteBibleEntry(entry)}>Delete</button>{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Open source</button>}</div></article>) : <div className="pane-empty">Approved character details, places, objects, and rules will gather here.</div>}</section>
-					</>}
-					{pane === 'setups' && <section><div className="pane-section-title"><strong>Open story threads</strong><span>{threads.filter((item) => item.thread_state === 'open').length}</span></div><p className="pane-hint">Specific questions and promises the story may return to.</p>{threads.length ? threads.map((entry) => <article className={'thread-card' + (entry.thread_state === 'resolved' ? ' resolved' : '')} key={entry.id}><div className="thread-status">{entry.thread_state === 'resolved' ? 'Resolved' : 'Still open'}</div><h3>{entry.name}</h3><p>{entry.description}</p>{entry.source_quote && <blockquote>“{entry.source_quote}”</blockquote>}<div className="bible-entry-actions"><button className="text-button" onClick={() => void setThread(entry, entry.thread_state === 'resolved' ? 'open' : 'resolved')}>{entry.thread_state === 'resolved' ? 'Reopen thread' : 'Mark resolved'}</button><button className="text-button" onClick={() => startBibleEdit(entry)}>Edit</button>{entry.status === 'suggested' && <><button className="text-button" onClick={() => void decideEntry(entry, 'accepted')}>Add to Bible</button><button className="text-button subtle" onClick={() => void decideEntry(entry, 'dismissed')}>Ignore</button></>}{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Open source</button>}<button className="text-button subtle" onClick={() => void deleteBibleEntry(entry)}>Delete</button></div></article>) : <div className="pane-empty">Unresolved setups and questions will appear here when they are noticed in your chapters.</div>}</section>}
-					{pane === 'continuity' && <section>
+					</section>}
+					{pane === 'mentions' && <NameCandidatesPanel
+						storyId={storyId}
+						chapter={activeChapter ? { id: activeChapter.id, chapter_number: activeChapter.chapter_number, title: activeChapter.title } : null}
+						onOpenEntity={(entityId) => void go(`/stories/${storyId}/wiki/${entityId}`)}
+					/>}
+					{pane === 'findings' && <section>
 						<div className="pane-section-title continuity-title">
 							<strong>Continuity findings <span className="finding-count">{currentFindings.filter((item) => item.review_status === 'open').length}</span></strong>
 							<select className="finding-filter" aria-label="Choose chapter findings" value={findingsTargetChapterId || activeId} onChange={(event) => void changeFindingChapter(event.target.value)}><option value="" disabled>Select chapter</option>{chapters.map((item) => <option key={item.id} value={item.id}>Ch. {item.chapter_number}</option>)}</select>

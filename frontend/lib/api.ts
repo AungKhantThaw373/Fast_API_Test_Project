@@ -56,6 +56,7 @@ export interface Chapter {
 	id: string;
 	story_id: string;
 	chapter_number: number;
+	arc_id?: string | null;
 	title: string;
 	content?: string;
 	word_count: number;
@@ -66,6 +67,17 @@ export interface Chapter {
 	index_error: string | null;
 	updated_at: string;
 	deleted_at?: string | null;
+}
+
+export interface StoryArc {
+	id: string;
+	story_id: string;
+	name: string;
+	summary: string;
+	position: number;
+	chapter_count: number;
+	first_chapter_number: number | null;
+	last_chapter_number: number | null;
 }
 
 export interface StoryDetails extends Story {
@@ -759,6 +771,17 @@ export const api = {
 		request<Array<{ id: string; source_id: string; target_id: string; source_name: string; target_name: string; score: number; status: string }>>(
 			`/stories/${storyId}/merge-proposals`,
 		),
+	arcs: (storyId: string) => request<Array<StoryArc>>(`/stories/${storyId}/arcs`),
+	createArc: (storyId: string, name: string, summary = "") =>
+		request<StoryArc>(`/stories/${storyId}/arcs`, { method: "POST", body: JSON.stringify({ name, summary }) }),
+	updateArc: (arcId: string, changes: { name?: string; summary?: string; position?: number }) =>
+		request<StoryArc>(`/arcs/${arcId}`, { method: "PATCH", body: JSON.stringify(changes) }),
+	deleteArc: (arcId: string) => request<void>(`/arcs/${arcId}`, { method: "DELETE" }),
+	assignArc: (storyId: string, arcId: string | null, chapterIds: string[]) =>
+		request<{ updated: number }>(`/stories/${storyId}/arcs`, {
+			method: "PUT",
+			body: JSON.stringify({ arc_id: arcId, chapter_ids: chapterIds }),
+		}),
 	editingFolders: async () => (await request<{ folders: DraftFolder[] }>("/editing/folders")).folders,
 	createEditingFolder: (name: string) => request<DraftFolder>("/editing/folders", {
 		method: "POST",

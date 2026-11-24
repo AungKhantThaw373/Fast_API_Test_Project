@@ -55,6 +55,24 @@ class Story(Base):
     )
 
 
+class Arc(Base):
+    """A named span of chapters. At 270+ chapters, a flat list stops working."""
+
+    __tablename__ = "arcs"
+    __table_args__ = (UniqueConstraint("story_id", "name", name="uq_arc_story_name"),)
+
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    position: Mapped[float] = mapped_column(Float, nullable=False, default=1024.0)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Chapter(Base):
     __tablename__ = "story_chapters"
     __table_args__ = (
@@ -74,6 +92,9 @@ class Chapter(Base):
         UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False, index=True
     )
     chapter_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    arc_id: Mapped[UUIDType | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("arcs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     # Ordering source. chapter_number is only what the writer sees.
     position: Mapped[float] = mapped_column(Float, nullable=False, default=1024.0)
     title: Mapped[str] = mapped_column(String(200), nullable=False, default="Untitled chapter")
@@ -145,6 +166,9 @@ class SceneEmbedding(Base):
         UUID(as_uuid=True), ForeignKey("story_chapters.id", ondelete="CASCADE"), nullable=False, index=True
     )
     chapter_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    arc_id: Mapped[UUIDType | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("arcs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     start_line: Mapped[int] = mapped_column(Integer, nullable=False)

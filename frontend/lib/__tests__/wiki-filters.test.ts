@@ -15,7 +15,7 @@ import {
 
 describe('wiki filter URL state', () => {
 	it('round-trips filters through search params', () => {
-		const filters = { type: 'character', status: 'active', q: 'mira' };
+		const filters = { type: 'character', status: 'active', arc: '', q: 'mira' };
 		expect(toSearchParams(filters)).toBe('?type=character&status=active&q=mira');
 		expect(parseFilters(new URLSearchParams('type=character&status=active&q=mira'))).toEqual(filters);
 	});
@@ -29,18 +29,20 @@ describe('wiki filter URL state', () => {
 		expect(parseFilters({ type: ['location', 'item'], q: undefined })).toEqual({
 			type: 'location',
 			status: '',
+			arc: '',
 			q: '',
 		});
 	});
 
 	it('only sends filters the API understands', () => {
-		expect(filtersForApi({ type: 'item', status: '', q: ' lamp ' })).toEqual({ type: 'item', q: 'lamp' });
+		expect(filtersForApi({ type: 'item', status: '', arc: '', q: ' lamp ' })).toEqual({ type: 'item', q: 'lamp' });
+		expect(filtersForApi({ ...EMPTY_FILTERS, arc: 'arc-1' })).toEqual({ arc_id: 'arc-1' });
 		expect(filtersForApi(EMPTY_FILTERS)).toEqual({});
 	});
 
 	it('describes active filters for the empty state', () => {
 		expect(hasActiveFilters(EMPTY_FILTERS)).toBe(false);
-		expect(activeFilterLabels({ type: 'location', status: 'archived', q: 'port' })).toEqual([
+		expect(activeFilterLabels({ type: 'location', status: 'archived', arc: '', q: 'port' })).toEqual([
 			'“port”',
 			'Place',
 			'Archived',

@@ -49,6 +49,7 @@ class ChapterSummaryOut(BaseModel):
     id: UUID
     story_id: UUID
     chapter_number: int
+    arc_id: UUID | None = None
     title: str
     word_count: int
     revision: int
@@ -153,3 +154,32 @@ class RevisionDiffOut(BaseModel):
     older: DiffSideOut
     newer: DiffSideOut
     hunks: list[DiffHunkOut]
+
+
+class ArcCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    summary: str = Field(default="", max_length=20_000)
+
+
+class ArcUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    summary: str | None = Field(default=None, max_length=20_000)
+    position: float | None = None
+
+
+class ArcOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    story_id: UUID
+    name: str
+    summary: str
+    position: float
+    chapter_count: int = 0
+    first_chapter_number: int | None = None
+    last_chapter_number: int | None = None
+
+
+class ArcAssignment(BaseModel):
+    arc_id: UUID | None = None
+    chapter_ids: list[UUID] = Field(min_length=1, max_length=5000)

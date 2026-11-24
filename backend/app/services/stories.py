@@ -90,6 +90,7 @@ async def load_story_detail(session: AsyncSession, story_id: UUID, user_id: UUID
                 Chapter.id,
                 Chapter.story_id,
                 Chapter.chapter_number,
+                Chapter.arc_id,
                 Chapter.title,
                 Chapter.word_count,
                 Chapter.revision,

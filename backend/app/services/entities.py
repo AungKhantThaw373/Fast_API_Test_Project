@@ -777,6 +777,7 @@ async def list_entities(
     entity_type: str | None = None,
     status: str | None = None,
     query: str | None = None,
+    arc_id: UUID | None = None,
     limit: int | None = None,
     cursor: str | None = None,
 ) -> tuple[list[Entity], str | None]:
@@ -798,6 +799,26 @@ async def list_entities(
         needle = f"%{query.strip().lower()}%"
         statement = statement.where(
             or_(Entity.name.ilike(needle), Entity.canonical_name.ilike(needle))
+        )
+    if arc_id is not None:
+        bounds = (
+            await session.execute(
+                select(func.min(Chapter.chapter_number), func.max(Chapter.chapter_number)).where(
+                    Chapter.arc_id == arc_id,
+                    Chapter.story_id == story_id,
+                    Chapter.deleted_at.is_(None),
+                )
+            )
+        ).one()
+        low, high = bounds
+        if low is None or high is None:
+            # An empty arc matches nothing, rather than matching everything.
+            return [], None
+        statement = statement.where(
+            Entity.last_chapter_number.is_not(None),
+            Entity.last_chapter_number >= low,
+            Entity.first_chapter_number.is_not(None),
+            Entity.first_chapter_number <= high,
         )
     if cursor:
         updated_at, entity_id = decode_cursor(cursor, (cursor_timestamp, cursor_uuid))

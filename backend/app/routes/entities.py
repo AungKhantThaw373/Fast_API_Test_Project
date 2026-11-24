@@ -66,6 +66,7 @@ async def list_entities(
     entity_type: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     q: str | None = Query(default=None, max_length=200),
+    arc_id: UUID | None = Query(default=None),
     limit: int | None = Query(default=None, ge=1, le=500),
     cursor: str | None = Query(default=None),
     user: User = Depends(get_current_user),
@@ -78,6 +79,7 @@ async def list_entities(
         entity_type=entity_type,
         status=status_filter,
         query=q,
+        arc_id=arc_id,
         limit=limit,
         cursor=cursor,
     )
