@@ -129,6 +129,8 @@ sandbox/
 # Notebooks, PDFs and datasets kept locally, not shipped or
 # versioned with the application.
 Jupyter/
-Docs/
+/Docs/*
+!/Docs/baseline.md
+!/Docs/build-log.md
 data/
 datasets/
