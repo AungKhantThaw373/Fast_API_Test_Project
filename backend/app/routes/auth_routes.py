@@ -2,16 +2,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_async_session
 from app.models.app_models import User
-from app.schemas.auth import UserCreate
+from app.schemas.auth import UserCreate, normalize_email
 from app.security import create_access_token, get_password_hash, verify_password
-
 
 router = APIRouter(tags=["authentication"])
 
@@ -22,7 +21,10 @@ async def register(
     session: AsyncSession = Depends(get_async_session),
 ):
     exists = await session.scalar(
-        select(User.id).where((User.email == user_in.email) | (User.username == user_in.username))
+        select(User.id).where(
+            (func.lower(User.email) == user_in.email.strip().lower())
+            | (User.username == user_in.username)
+        )
     )
     if exists:
         raise HTTPException(status_code=409, detail="That email or username is already in use.")
@@ -48,7 +50,8 @@ async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: AsyncSession = Depends(get_async_session),
 ):
-    user = await session.scalar(select(User).where(User.email == form_data.username))
+    email = normalize_email(form_data.username)
+    user = await session.scalar(select(User).where(func.lower(User.email) == email))
     if user is None or not verify_password(form_data.password, user.password):
         raise HTTPException(status_code=401, detail="Email or password is incorrect.")
 
