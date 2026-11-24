@@ -41,6 +41,27 @@ class SaveConflict(Exception):
         super().__init__("Chapter changed since it was loaded.")
 
 
+async def _reload_ordered(
+    session: AsyncSession, chapter_ids: list[UUID]
+) -> list[Chapter]:
+    """Reload rows in one statement, in the given order.
+
+    ``updated_at`` is a server-side ``onupdate`` column, so committing an UPDATE
+    expires it; serializing an expired attribute outside the greenlet raises
+    ``MissingGreenlet``. Refreshing each row worked but cost one round trip per
+    chapter — 1,100 of them on a large reorder.
+    """
+    if not chapter_ids:
+        return []
+    rows = await session.scalars(
+        select(Chapter)
+        .where(Chapter.id.in_(chapter_ids))
+        .execution_options(populate_existing=True)
+    )
+    by_id = {chapter.id: chapter for chapter in rows}
+    return [by_id[chapter_id] for chapter_id in chapter_ids if chapter_id in by_id]
+
+
 async def owned_chapter(
     session: AsyncSession, chapter_id: UUID, user_id: UUID, *, for_update: bool = False
 ) -> Chapter:
@@ -126,10 +147,9 @@ async def import_manuscript(
     story.updated_at = datetime.now(UTC)
     await session.flush()
     await renumber_display(session, story.id)
+    created_ids = [chapter.id for chapter in created]
     await session.commit()
-    for chapter in created:
-        await session.refresh(chapter)
-    return created
+    return await _reload_ordered(session, created_ids)
 
 
 async def _drop_stale_suggestions(session: AsyncSession, chapter: Chapter) -> None:
@@ -273,13 +293,9 @@ async def reorder_chapters(
     # Cached findings compare against the old order, so they no longer hold.
     await session.execute(delete(ContinuityScan).where(ContinuityScan.story_id == story.id))
     story.updated_at = datetime.now(UTC)
+    ordered_ids = [chapter.id for chapter in ordered]
     await session.commit()
-    # ``updated_at`` is a server-side onupdate column, so committing an UPDATE
-    # expires it. Reload before serializing or the response touches expired
-    # attributes outside the greenlet and fails.
-    for chapter in ordered:
-        await session.refresh(chapter)
-    return ordered
+    return await _reload_ordered(session, ordered_ids)
 
 
 async def move_chapter(
@@ -377,10 +393,9 @@ async def delete_chapter(session: AsyncSession, chapter: Chapter) -> list[Chapte
     story = await session.get(Story, story_id)
     if story is not None:
         story.updated_at = datetime.now(UTC)
+    remaining_ids = [item.id for item in remaining]
     await session.commit()
-    for item in remaining:
-        await session.refresh(item)
-    return remaining
+    return await _reload_ordered(session, remaining_ids)
 
 
 async def mark_for_reindex(session: AsyncSession, chapter: Chapter) -> Chapter:

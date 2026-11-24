@@ -1,16 +1,21 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.db import async_session, engine
 from app.logging_config import configure_app_logging
+from app.middleware import RequestContextMiddleware
 from app.routes.auth_routes import router as auth_router
 from app.routes.bible import router as bible_router
 from app.routes.chapters import router as chapter_router
 from app.routes.continuity import router as continuity_router
 from app.routes.editing_routes import router as editing_router
+from app.routes.health import router as health_router
 from app.routes.jobs import router as job_router
 from app.routes.stories import router as story_router
 from app.routes.system_routes import router as system_router
@@ -58,11 +63,44 @@ app.add_middleware(
 )
 
 
-@app.get("/health", tags=["system"])
-async def health():
-    return {"status": "ok"}
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Every error body carries the request id the writer can quote."""
+    from app.middleware import current_request_id
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "request_id": current_request_id()},
+        headers=getattr(exc, "headers", None),
+    )
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    from app.middleware import current_request_id
+
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "request_id": current_request_id()},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+    from app.middleware import current_request_id
+
+    logging.getLogger("stillroom.api").exception("Unhandled error on %s", request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Something went wrong. Quote the request id when reporting it.",
+            "request_id": current_request_id(),
+        },
+    )
+
+
+app.add_middleware(RequestContextMiddleware)
+app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(story_router)

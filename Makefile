@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend worker test lint typecheck migrate backup install
+.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend lint typecheck migrate backup install
 
 install:
 	cd backend && uv sync
@@ -34,6 +34,10 @@ typecheck:
 
 migrate:
 	cd backend && uv run alembic upgrade head
+
+# Phase 2 budget: writes Docs/perf.md-style numbers to stdout (test database).
+perf:
+	cd backend && uv run python scripts/perf.py
 
 backup:
 	./scripts/backup.sh

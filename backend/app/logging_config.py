@@ -10,6 +10,9 @@ import logging
 import sys
 
 LOG_FORMAT = "%(asctime)s %(levelname)-7s %(name)-22s %(message)s"
+# The request id is optional: worker lines have no request, so the filter fills
+# in "-" and the format stays the same everywhere.
+DETAILED_FORMAT = "%(asctime)s %(levelname)-7s %(name)-22s request_id=%(request_id)s %(message)s"
 
 
 def configure_app_logging(level: int = logging.INFO) -> None:
@@ -19,8 +22,13 @@ def configure_app_logging(level: int = logging.INFO) -> None:
     # printed twice and uvicorn's access log stays untouched.
     app_logger.propagate = False
     if not app_logger.handlers:
+        from app.middleware import RequestIdFilter
+
         handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt="%H:%M:%S"))
+        handler.addFilter(RequestIdFilter())
+        handler.setFormatter(
+            logging.Formatter(DETAILED_FORMAT, datefmt="%H:%M:%S")
+        )
         app_logger.addHandler(handler)
 
 

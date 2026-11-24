@@ -262,3 +262,38 @@ permutations, OneDrive).
 - Smoke-tested end to end against Ollama: enqueued reindex → worker → chapter
   `indexed`, job `succeeded`.
 - 85 backend tests pass; ruff, pyright, eslint, tsc clean.
+
+## Phase 2 — P2-8 request ids and readiness
+
+- `app/middleware.py`: `RequestContextMiddleware` assigns `X-Request-ID` (or keeps
+  an incoming one), stores it in a `ContextVar`, echoes it on the response, and
+  logs one line per request with method, path, status, and duration. A logging
+  filter adds `request_id=` to every `stillroom.*` line, worker lines included
+  (`request_id=-`).
+- Error bodies now carry the id: handlers for `HTTPException`,
+  `RequestValidationError`, and unhandled exceptions all include `request_id` and
+  keep the existing `detail` shape.
+- `app/services/health.py` centralises the dependency checks; `routes/health.py`
+  exposes `/health` (no I/O at all, asserted by a test) and `/ready` (database,
+  pgvector, schema head, Ollama, fresh worker heartbeat). `/ready` answers 503
+  with a per-dependency report when anything is missing.
+- `routes/system_routes.py` reuses the same checks.
+- New `tests/test_readiness.py` (6 tests): generated and preserved request ids,
+  ids in error and validation bodies, `/ready` transitioning 503 -> 200 after a
+  worker heartbeat, and `/health` issuing zero SQL statements.
+- 91 backend tests pass; ruff and pyright clean.
+
+## Phase 2 — P2-9 performance budget
+
+- `backend/scripts/perf.py` measures the manual's targets through the real ASGI
+  app on `stillroom_test` with synthetic vectors and cleans up after itself.
+- `Docs/perf.md` records: chapter open 6.4 ms p95, chapter save 28.9 ms p95, story
+  list 4.4 ms p95, retrieval at 10k chunks 20.3 ms p95, 2 DB statements per
+  retrieval, 1,100-chapter reorder 248 ms. All targets met; `EXPLAIN` confirms the
+  HNSW index is used.
+- Fixed while measuring: reorder/import/delete refreshed response rows one query
+  per chapter; they now reload in a single `WHERE id IN (...)`.
+- First attempt produced a 7.8 s retrieval p95 because autovacuum had not analyzed
+  the bulk-loaded table; the script now vacuums and warms up first, and
+  `Docs/perf.md` explains the trap.
+- 91 backend tests pass; ruff, pyright, eslint, tsc, and 19 vitest tests clean.
