@@ -134,3 +134,7 @@ Jupyter/
 !/Docs/build-log.md
 data/
 datasets/
+
+# ---------- Database dumps (contain manuscript data) ----------
+backups/
+*.dump
