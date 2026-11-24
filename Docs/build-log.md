@@ -156,3 +156,23 @@ Added a root `AGENTS.md` with the environment, commands, verified state, the
 ordered list of remaining Phase 2/3 tasks, and the gotchas that cost time
 (dev-server hydration, `MissingGreenlet` after commit, partial unique index
 permutations, OneDrive).
+
+## Phase 2 — P2-1 route split and response models
+
+- `app/routes/story_routes.py` (1,256 lines) is gone. Four resource routers now
+  own the same URLs: `routes/stories.py` (103), `routes/chapters.py` (254),
+  `routes/bible.py` (135), `routes/continuity.py` (113).
+- Business logic and DB access moved into `services/stories.py`,
+  `services/chapters.py`, and `services/bible.py`; the scan orchestration
+  (readiness checks, per-chapter lock, cache re-check, finding carry-over) moved
+  into `services/continuity.py`. No route file exceeds 300 lines.
+- `app/schemas/{stories,chapters,bible,continuity}.py` now hold request *and*
+  response models. Every endpoint declares a `response_model`; the 409 conflict
+  path still returns its hand-built body so the dialog payload is unchanged.
+- Verified: every path and method in `/openapi.json` is identical to the old
+  router; `detail.chapters[]` still omits `content`; timestamps now serialize as
+  RFC 3339 `Z` (pydantic) instead of `+00:00` (`isoformat`), which `new Date()`
+  accepts.
+- `tests/conftest.py` now stubs the AI tasks on `app.services.indexing` instead
+  of the deleted route module, so both routers and services see the stub.
+- 64 tests pass, ruff and pyright clean.

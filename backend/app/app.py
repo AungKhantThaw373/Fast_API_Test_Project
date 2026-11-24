@@ -7,8 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db import async_session, engine
 from app.logging_config import configure_app_logging
 from app.routes.auth_routes import router as auth_router
+from app.routes.bible import router as bible_router
+from app.routes.chapters import router as chapter_router
+from app.routes.continuity import router as continuity_router
 from app.routes.editing_routes import router as editing_router
-from app.routes.story_routes import router as story_router
+from app.routes.stories import router as story_router
 from app.routes.system_routes import router as system_router
 from app.routes.trash_routes import router as trash_router
 from app.routes.user_routes import router as user_router
@@ -67,6 +70,9 @@ async def health():
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(story_router)
+app.include_router(chapter_router)
+app.include_router(bible_router)
+app.include_router(continuity_router)
 app.include_router(trash_router)
 app.include_router(system_router)
 app.include_router(editing_router)

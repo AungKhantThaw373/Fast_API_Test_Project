@@ -53,13 +53,13 @@ def prepare_database():
 @pytest.fixture(autouse=True)
 def disable_background_ai(monkeypatch):
     """Never hit Ollama or a provider from a test."""
-    from app.routes import story_routes
+    from app.services import indexing
 
     async def noop(*_args, **_kwargs):
         return None
 
-    monkeypatch.setattr(story_routes, "schedule_chapter_reindex", noop)
-    monkeypatch.setattr(story_routes, "schedule_bible_extraction", noop)
+    monkeypatch.setattr(indexing, "schedule_chapter_reindex", noop)
+    monkeypatch.setattr(indexing, "schedule_bible_extraction", noop)
 
 
 @pytest_asyncio.fixture(autouse=True)
