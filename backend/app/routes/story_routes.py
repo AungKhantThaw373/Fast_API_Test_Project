@@ -1,9 +1,10 @@
 import asyncio
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +31,7 @@ from app.schemas.stories import (
     ChapterMove,
     ChapterReorder,
     ChapterUpdate,
+    CheckpointCreate,
     FindingReviewUpdate,
     IntentionalUpdate,
     ManuscriptImport,
@@ -42,6 +44,8 @@ from app.services.ai_service import AIProviderHTTPError
 from app.services.ai_settings import has_ai_config
 from app.services.continuity import scan_chapter
 from app.services.indexing import schedule_bible_extraction, schedule_chapter_reindex
+from app.services.snapshots import diff_revisions, record_checkpoint, record_snapshot
+from app.services.trash import trash_chapter, trash_story
 
 logger = get_logger("api")
 router = APIRouter(prefix="/stories", tags=["writing studio"])
@@ -58,6 +62,7 @@ def _story_data(story: Story) -> dict:
         "external_analysis_enabled": story.external_analysis_enabled,
         "created_at": story.created_at.isoformat(),
         "updated_at": story.updated_at.isoformat(),
+        "deleted_at": story.deleted_at.isoformat() if story.deleted_at else None,
     }
 
 
@@ -74,6 +79,7 @@ def _chapter_data(chapter: Chapter, include_content: bool = True) -> dict:
         "index_status": chapter.index_status,
         "index_error": chapter.index_error,
         "updated_at": chapter.updated_at.isoformat(),
+        "deleted_at": chapter.deleted_at.isoformat() if chapter.deleted_at else None,
     }
     if include_content:
         result["content"] = chapter.content
@@ -98,7 +104,11 @@ def _entry_data(entry: StoryBibleEntry) -> dict:
 
 async def _owned_story(session: AsyncSession, story_id: UUID, user_id: UUID) -> Story:
     story = await session.scalar(
-        select(Story).where(Story.id == story_id, Story.owner_id == user_id)
+        select(Story).where(
+            Story.id == story_id,
+            Story.owner_id == user_id,
+            Story.deleted_at.is_(None),
+        )
     )
     if story is None:
         raise HTTPException(status_code=404, detail="Story not found.")
@@ -109,7 +119,12 @@ async def _owned_chapter(session: AsyncSession, chapter_id: UUID, user_id: UUID)
     chapter = await session.scalar(
         select(Chapter)
         .join(Story, Chapter.story_id == Story.id)
-        .where(Chapter.id == chapter_id, Story.owner_id == user_id)
+        .where(
+            Chapter.id == chapter_id,
+            Chapter.deleted_at.is_(None),
+            Story.deleted_at.is_(None),
+            Story.owner_id == user_id,
+        )
     )
     if chapter is None:
         raise HTTPException(status_code=404, detail="Chapter not found.")
@@ -121,17 +136,22 @@ async def list_stories(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    stories = await session.scalars(
-        select(Story).where(Story.owner_id == user.id).order_by(Story.updated_at.desc())
-    )
     result = []
-    for story in stories:
-        chapter_count = await session.scalar(
-            select(func.count(Chapter.id)).where(Chapter.story_id == story.id)
+    rows = await session.execute(
+        select(
+            Story,
+            func.count(Chapter.id).label("chapter_count"),
+            func.coalesce(func.sum(Chapter.word_count), 0).label("word_count"),
         )
-        word_count = await session.scalar(
-            select(func.coalesce(func.sum(Chapter.word_count), 0)).where(Chapter.story_id == story.id)
+        .outerjoin(
+            Chapter,
+            (Chapter.story_id == Story.id) & Chapter.deleted_at.is_(None),
         )
+        .where(Story.owner_id == user.id, Story.deleted_at.is_(None))
+        .group_by(Story.id)
+        .order_by(Story.updated_at.desc())
+    )
+    for story, chapter_count, word_count in rows:
         data = _story_data(story)
         data.update({"chapter_count": chapter_count or 0, "word_count": word_count or 0})
         result.append(data)
@@ -161,7 +181,7 @@ async def delete_story(
     session: AsyncSession = Depends(get_async_session),
 ):
     story = await _owned_story(session, story_id, user.id)
-    await session.delete(story)
+    await trash_story(session, story)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -174,7 +194,11 @@ async def get_story(
 ):
     story = await session.scalar(
         select(Story)
-        .where(Story.id == story_id, Story.owner_id == user.id)
+        .where(
+            Story.id == story_id,
+            Story.owner_id == user.id,
+            Story.deleted_at.is_(None),
+        )
         .options(
             selectinload(Story.chapters).load_only(
                 Chapter.id,
@@ -188,16 +212,20 @@ async def get_story(
                 Chapter.index_status,
                 Chapter.index_error,
                 Chapter.updated_at,
+                Chapter.deleted_at,
             )
         )
     )
     if story is None:
         raise HTTPException(status_code=404, detail="Story not found.")
+    active_chapters = [chapter for chapter in story.chapters if chapter.deleted_at is None]
     return {
         **_story_data(story),
-        "chapter_count": len(story.chapters),
-        "word_count": sum(chapter.word_count for chapter in story.chapters),
-        "chapters": [_chapter_data(chapter, include_content=False) for chapter in story.chapters],
+        "chapter_count": len(active_chapters),
+        "word_count": sum(chapter.word_count for chapter in active_chapters),
+        "chapters": [
+            _chapter_data(chapter, include_content=False) for chapter in active_chapters
+        ],
     }
 
 
@@ -218,7 +246,7 @@ async def get_story_index_status(
             Chapter.bible_scan_revision,
             Chapter.bible_scan_error,
         )
-        .where(Chapter.story_id == story_id)
+        .where(Chapter.story_id == story_id, Chapter.deleted_at.is_(None))
         .order_by(Chapter.chapter_number)
     )
     return {
@@ -267,7 +295,9 @@ async def create_chapter(
 ):
     story = await _owned_story(session, story_id, user.id)
     last_number = await session.scalar(
-        select(func.max(Chapter.chapter_number)).where(Chapter.story_id == story.id)
+        select(func.max(Chapter.chapter_number)).where(
+            Chapter.story_id == story.id, Chapter.deleted_at.is_(None)
+        )
     )
     chapter = Chapter(
         story_id=story.id,
@@ -316,7 +346,9 @@ async def import_manuscript(
     if not parts:
         raise HTTPException(status_code=400, detail="No chapter text could be found in that manuscript.")
     last_number = await session.scalar(
-        select(func.max(Chapter.chapter_number)).where(Chapter.story_id == story.id)
+        select(func.max(Chapter.chapter_number)).where(
+            Chapter.story_id == story.id, Chapter.deleted_at.is_(None)
+        )
     )
     created = []
     for offset, (title, content) in enumerate(parts, start=1):
@@ -349,43 +381,48 @@ async def update_chapter(
 ):
     chapter = await session.scalar(
         select(Chapter).join(Story, Chapter.story_id == Story.id)
-        .where(Chapter.id == chapter_id, Story.owner_id == user.id)
+        .where(
+            Chapter.id == chapter_id,
+            Chapter.deleted_at.is_(None),
+            Story.deleted_at.is_(None),
+            Story.owner_id == user.id,
+        )
         .with_for_update(of=Chapter)
     )
     if chapter is None:
         raise HTTPException(status_code=404, detail="Chapter not found.")
+
+    # A retried save (timeout, flaky network) must not create a second revision.
+    if payload.client_save_id and chapter.last_client_save_id == payload.client_save_id:
+        return _chapter_data(chapter)
+
     if payload.expected_revision != chapter.revision:
-        raise HTTPException(status_code=409, detail="This chapter changed since it was loaded. Reload before saving.")
-    changes = payload.model_dump(exclude={"expected_revision"}, exclude_unset=True)
-    changed = False
-    for field, value in changes.items():
-        if field == "title":
-            value = (value or "").strip() or "Untitled chapter"
-        if getattr(chapter, field) != value:
-            setattr(chapter, field, value)
-            changed = True
+        # Return everything the conflict dialog needs so the writer does not wait
+        # for another round trip to see the saved version.
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "detail": "This chapter changed since it was loaded. Reload before saving.",
+                "current_revision": chapter.revision,
+                "current_title": chapter.title,
+                "current_content": chapter.content,
+                "updated_at": chapter.updated_at.isoformat(),
+            },
+        )
+
+    changes = payload.model_dump(
+        exclude={"expected_revision", "client_save_id"}, exclude_unset=True
+    )
+    if "title" in changes:
+        changes["title"] = (changes["title"] or "").strip() or "Untitled chapter"
+    changed = any(getattr(chapter, field) != value for field, value in changes.items())
     if changed:
-        latest_snapshot = await session.scalar(
-            select(ChapterRevision).where(
-                ChapterRevision.chapter_id == chapter.id,
-            ).order_by(ChapterRevision.created_at.desc()).limit(1)
-        )
-        current_revision_snapshot = await session.scalar(select(ChapterRevision.id).where(
-            ChapterRevision.chapter_id == chapter.id,
-            ChapterRevision.revision_number == chapter.revision,
-        ))
-        should_snapshot = latest_snapshot is None or (
-            datetime.now(UTC) - latest_snapshot.created_at >= timedelta(minutes=5)
-        )
-        if current_revision_snapshot is None and should_snapshot:
-            session.add(ChapterRevision(
-                chapter_id=chapter.id,
-                revision_number=chapter.revision,
-                title=chapter.title,
-                content=chapter.content,
-                word_count=chapter.word_count,
-            ))
+        # Snapshot the pre-change text, then apply the change.
+        await record_snapshot(session, chapter, kind="autosave")
+        for field, value in changes.items():
+            setattr(chapter, field, value)
         chapter.revision += 1
+        chapter.last_client_save_id = payload.client_save_id
         chapter.index_status = "pending"
         chapter.index_error = None
         if "content" in changes:
@@ -425,8 +462,68 @@ async def list_chapter_revisions(
         "revision_number": item.revision_number,
         "title": item.title,
         "word_count": item.word_count,
+        "kind": item.kind,
+        "char_count": item.char_count,
         "created_at": item.created_at.isoformat(),
     } for item in revisions]}
+
+
+@router.post("/chapters/{chapter_id}/checkpoint", status_code=status.HTTP_201_CREATED)
+async def create_chapter_checkpoint(
+    chapter_id: UUID,
+    payload: CheckpointCreate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    chapter = await _owned_chapter(session, chapter_id, user.id)
+    revision = await record_checkpoint(session, chapter)
+    await session.commit()
+    return {
+        "revision_number": revision.revision_number,
+        "kind": revision.kind,
+        "word_count": revision.word_count,
+        "char_count": revision.char_count,
+        "created_at": revision.created_at.isoformat(),
+        "label": payload.label,
+    }
+
+
+@router.get("/chapters/{chapter_id}/revisions/{older}/diff/{newer}")
+async def diff_chapter_revisions(
+    chapter_id: UUID,
+    older: int,
+    newer: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    await _owned_chapter(session, chapter_id, user.id)
+    revisions = {
+        item.revision_number: item
+        for item in await session.scalars(
+            select(ChapterRevision).where(
+                ChapterRevision.chapter_id == chapter_id,
+                ChapterRevision.revision_number.in_({older, newer}),
+            )
+        )
+    }
+    if older not in revisions or newer not in revisions:
+        raise HTTPException(status_code=404, detail="One of those versions could not be found.")
+    hunks = diff_revisions(revisions[older], revisions[newer])
+    return {
+        "older": {
+            "revision_number": older,
+            "word_count": revisions[older].word_count,
+            "kind": revisions[older].kind,
+            "created_at": revisions[older].created_at.isoformat(),
+        },
+        "newer": {
+            "revision_number": newer,
+            "word_count": revisions[newer].word_count,
+            "kind": revisions[newer].kind,
+            "created_at": revisions[newer].created_at.isoformat(),
+        },
+        "hunks": hunks,
+    }
 
 
 @router.post("/chapters/{chapter_id}/revisions/{revision_number}/restore")
@@ -439,7 +536,12 @@ async def restore_chapter_revision(
 ):
     chapter = await session.scalar(
         select(Chapter).join(Story, Chapter.story_id == Story.id)
-        .where(Chapter.id == chapter_id, Story.owner_id == user.id)
+        .where(
+            Chapter.id == chapter_id,
+            Chapter.deleted_at.is_(None),
+            Story.deleted_at.is_(None),
+            Story.owner_id == user.id,
+        )
         .with_for_update(of=Chapter)
     )
     if chapter is None:
@@ -450,18 +552,8 @@ async def restore_chapter_revision(
     ))
     if snapshot is None:
         raise HTTPException(status_code=404, detail="That saved version could not be found.")
-    current_snapshot = await session.scalar(select(ChapterRevision.id).where(
-        ChapterRevision.chapter_id == chapter.id,
-        ChapterRevision.revision_number == chapter.revision,
-    ))
-    if current_snapshot is None:
-        session.add(ChapterRevision(
-            chapter_id=chapter.id,
-            revision_number=chapter.revision,
-            title=chapter.title,
-            content=chapter.content,
-            word_count=chapter.word_count,
-        ))
+    # Keep the pre-restore draft, pinned so retention never prunes it.
+    await record_snapshot(session, chapter, kind="restore")
     chapter.title = snapshot.title
     chapter.content = snapshot.content
     chapter.word_count = snapshot.word_count
@@ -584,22 +676,17 @@ async def delete_chapter(
     chapter = await _owned_chapter(session, chapter_id, user.id)
     story_id = chapter.story_id
 
-    suggestions = await session.scalars(
-        select(StoryBibleEntry).where(
-            StoryBibleEntry.source_chapter_id == chapter.id,
-            StoryBibleEntry.status == "suggested",
-        )
-    )
-    for suggestion in suggestions:
-        await session.delete(suggestion)
+    # Soft delete: the text stays recoverable from the trash for 30 days.
+    await trash_chapter(session, chapter)
+    await session.flush()
     await session.execute(
         delete(ContinuityFinding).where(ContinuityFinding.earlier_chapter_id == chapter.id)
     )
-    await session.delete(chapter)
-    await session.flush()
 
     remaining = list(await session.scalars(
-        select(Chapter).where(Chapter.story_id == story_id).order_by(Chapter.chapter_number)
+        select(Chapter)
+        .where(Chapter.story_id == story_id, Chapter.deleted_at.is_(None))
+        .order_by(Chapter.chapter_number)
     ))
     for item in remaining:
         item.chapter_number = -item.chapter_number
@@ -976,6 +1063,7 @@ async def scan_story_bible_range(
         select(Chapter.id, Chapter.revision, Chapter.bible_scan_revision, Chapter.content)
         .where(
             Chapter.story_id == story.id,
+            Chapter.deleted_at.is_(None),
             Chapter.chapter_number >= payload.start_chapter,
             Chapter.chapter_number <= payload.end_chapter,
         )

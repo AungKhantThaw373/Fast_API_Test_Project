@@ -24,6 +24,13 @@ class ChapterUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     content: str | None = Field(default=None, max_length=1_000_000)
     expected_revision: int = Field(ge=1)
+    # Optional idempotency key: replaying the same save after a timeout returns
+    # the stored chapter instead of creating another revision.
+    client_save_id: UUID | None = None
+
+
+class CheckpointCreate(BaseModel):
+    label: str | None = Field(default=None, max_length=200)
 
 
 class BibleScanRange(BaseModel):

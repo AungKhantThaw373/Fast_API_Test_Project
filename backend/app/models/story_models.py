@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -42,6 +43,7 @@ class Story(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     owner: Mapped[User] = relationship("User", back_populates="stories")
     chapters: Mapped[list[Chapter]] = relationship(
@@ -54,7 +56,16 @@ class Story(Base):
 
 class Chapter(Base):
     __tablename__ = "story_chapters"
-    __table_args__ = (UniqueConstraint("story_id", "chapter_number", name="uq_story_chapter_number"),)
+    __table_args__ = (
+        Index(
+            "uq_story_chapter_number_active",
+            "story_id",
+            "chapter_number",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index("ix_chapters_story_deleted", "story_id", "deleted_at"),
+    )
 
     id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     story_id: Mapped[UUIDType] = mapped_column(
@@ -76,6 +87,9 @@ class Chapter(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Idempotency for retried autosaves: the last accepted client save id.
+    last_client_save_id: Mapped[UUIDType | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     story: Mapped[Story] = relationship("Story", back_populates="chapters")
     scenes: Mapped[list[SceneEmbedding]] = relationship(
@@ -99,6 +113,9 @@ class ChapterRevision(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     word_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="autosave", server_default="autosave")
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    char_count: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     chapter: Mapped[Chapter] = relationship("Chapter", back_populates="revisions")

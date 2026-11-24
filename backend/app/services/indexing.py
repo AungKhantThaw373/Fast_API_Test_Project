@@ -63,6 +63,36 @@ async def stop_index_jobs() -> None:
         await asyncio.gather(*jobs, return_exceptions=True)
 
 
+async def reconcile_indexing_state() -> dict:
+    """Repair chapters left mid-index by a crash or restart.
+
+    ``indexing`` is a transient state owned by the process that set it. If the
+    process dies, nothing will ever finish those chapters and the UI waits
+    forever. Reset them to ``pending`` and queue everything that is waiting.
+    """
+    async with async_session() as session:
+        stuck = list(
+            await session.scalars(
+                select(Chapter.id).where(Chapter.index_status == "indexing")
+            )
+        )
+        if stuck:
+            await session.execute(
+                update(Chapter)
+                .where(Chapter.id.in_(stuck))
+                .values(index_status="pending", index_error=None)
+            )
+            await session.commit()
+        pending = list(
+            await session.scalars(select(Chapter.id).where(Chapter.index_status == "pending"))
+        )
+    for chapter_id in stuck + pending:
+        await schedule_chapter_reindex(chapter_id)
+    summary = {"reset": len(stuck), "queued": len(pending)}
+    logger.info("[index] reconcile %s", fields(**summary))
+    return summary
+
+
 async def reindex_stale_embedding_models() -> None:
     """Queue chapters whose stored vectors were built with another model."""
     async with async_session() as session:
