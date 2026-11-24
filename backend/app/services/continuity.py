@@ -15,6 +15,7 @@ from app.models.story_models import Chapter, ContinuityFinding, ContinuityScan, 
 from app.services.ai_service import FINDINGS_SCHEMA, AIProviderHTTPError, embed_queries, structured_ai_json
 from app.services.finding_filter import DraftFinding, EvidenceRef, filter_findings
 from app.services.indexing import split_into_scenes
+from app.services.knowledge_context import build_fact_context, fact_system_note
 from app.services.pagination import (
     clamp_limit,
     cursor_uuid,
@@ -355,6 +356,10 @@ async def scan_chapter(
     )
     manuscript_lines = chapter.content.splitlines()
     numbered_draft = "\n".join(f"{line_number}: {line}" for line_number, line in enumerate(manuscript_lines, start=1))
+    canon_notes, canon_stats = await build_fact_context(
+        session, story_id, chapter.content, chapter.chapter_number
+    )
+    logger.info("[continuity] canon  %s", fields(chapter=chapter_ref, **canon_stats))
     earlier_context = "\n\n".join(
         f"EVIDENCE_ID: {item.id}\nEARLIER CHAPTER {item.chapter_number}, lines {item.start_line}-{item.end_line}:\n{item.text}"
         for item in evidence_by_id.values()
@@ -367,11 +372,17 @@ async def scan_chapter(
         "Return JSON with a findings array. Each finding must contain draft_line (1-based line number), draft_quote (an exact substring of at least 10 characters copied from that numbered line), "
         "evidence_id (one supplied ID), earlier_quote (an exact substring of at least 15 characters from that evidence), explanation (brief and neutral), and confidence (integer 0-100). "
         "Report at most 3 findings per draft line, and prefer an empty findings array over a speculative one. Do not write replacement prose."
+        + (fact_system_note() if canon_notes else "")
     )
     prompt = (
         f"Story chapter under review: {chapter.chapter_number}. Compare only against chapters with smaller numbers.\n\n"
         f"NUMBERED CURRENT DRAFT:\n<draft>\n{numbered_draft}\n</draft>\n\n"
         f"RETRIEVED EARLIER EXCERPTS:\n<evidence>\n{earlier_context}\n</evidence>"
+        + (
+            f"\n\nCANON NOTES (accepted facts, relationships, open threads):\n<canon>\n{canon_notes}\n</canon>"
+            if canon_notes
+            else ""
+        )
     )
     result: dict[str, Any] = await structured_ai_json(
         system,

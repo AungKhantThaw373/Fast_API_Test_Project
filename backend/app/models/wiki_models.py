@@ -390,3 +390,33 @@ __all__ = [
     "StoryEvent",
     "StoryThread",
 ]
+
+
+class EntityMerge(Base):
+    """Audit of a merge, recording exactly which rows moved so it can be undone.
+
+    The merge itself is soft and reversible: ``entities.merged_into_id`` points at
+    the target, and this row holds the ids of the facts, mentions, relationships,
+    aliases, and array memberships that were rewritten. Undo uses those ids
+    instead of guessing from names.
+    """
+
+    __tablename__ = "entity_merges"
+    __table_args__ = (Index("ix_entity_merges_source", "source_id", "created_at"),)
+
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
+    )
+    target_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
+    )
+    moved: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    created_by: Mapped[str] = mapped_column(String(20), nullable=False, default="human")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    reverted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

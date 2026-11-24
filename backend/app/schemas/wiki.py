@@ -89,6 +89,13 @@ class MergeResultOut(BaseModel):
     moved: dict[str, int]
 
 
+class UnmergeOut(BaseModel):
+    source_id: UUID
+    target_id: UUID
+    merge_id: UUID
+    reverted_at: datetime | None
+
+
 class AppearanceOut(BaseModel):
     chapter_id: UUID
     chapter_number: int

@@ -14,6 +14,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -27,6 +28,7 @@ from app.models.wiki_models import (
     EntityAlias,
     EntityFact,
     EntityMention,
+    EntityMerge,
     EntityRelationship,
 )
 from app.services.pagination import (
@@ -347,6 +349,7 @@ async def merge_entities(
     source_id: UUID,
     target_id: UUID,
     dry_run: bool = False,
+    created_by: str = "human",
 ) -> dict[str, int]:
     """Move everything from ``source`` onto ``target``; keep the source row."""
     if source_id == target_id:
@@ -377,6 +380,26 @@ async def merge_entities(
     }
     if dry_run:
         return counts
+
+    # Audit what is about to move, before it moves. Undo uses these ids, so it
+    # never has to guess which rows belonged to which side.
+    moved: dict[str, list] = {
+        "facts": await _ids_for(session, EntityFact, source_id),
+        "mentions": await _ids_for(session, EntityMention, source_id),
+        "relationships": await _relationship_ids(session, source_id),
+        "aliases": await _ids_for(session, EntityAlias, source_id),
+        "events": await _array_ids(session, "story_events", "participant_entity_ids", source_id),
+        "threads": await _array_ids(session, "story_threads", "linked_entity_ids", source_id),
+        "scene_meta": await _array_ids(session, "scene_meta", "character_entity_ids", source_id),
+        "chapter_meta": await _keyed_ids(
+            session, "chapter_meta", "pov_entity_id", "location_entity_id", source_id
+        ),
+        "scene_meta_pov": await _scalar_ids(session, "scene_meta", "pov_entity_id", source_id),
+        "scene_meta_location": await _scalar_ids(
+            session, "scene_meta", "location_entity_id", source_id
+        ),
+        "dropped_aliases": [],
+    }
 
     await session.execute(
         update(EntityFact).where(EntityFact.entity_id == source_id).values(entity_id=target_id)
@@ -434,13 +457,33 @@ async def merge_entities(
             {"source": source_id, "target": target_id},
         )
 
-    aliases = list(
+    # Re-point aliases in one statement; the ones that collide with an alias the
+    # target already owns are deleted but recorded so undo can re-create them.
+    await session.execute(
+        text(
+            "UPDATE entity_aliases SET entity_id = :target "
+            "WHERE entity_id = :source AND normalized_alias NOT IN ("
+            "  SELECT normalized_alias FROM entity_aliases WHERE entity_id = :target)"
+        ),
+        {"source": source_id, "target": target_id},
+    )
+    leftover = list(
         await session.scalars(select(EntityAlias).where(EntityAlias.entity_id == source_id))
     )
-    for alias in aliases:
+    moved["dropped_aliases"] = [
+        {
+            "id": str(alias.id),
+            "alias": alias.alias,
+            "normalized_alias": alias.normalized_alias,
+            "alias_type": alias.alias_type,
+        }
+        for alias in leftover
+    ]
+    for alias in leftover:
         await session.execute(delete(EntityAlias).where(EntityAlias.id == alias.id))
-        await add_alias(session, target, alias.alias, alias.alias_type)
-    await add_alias(session, target, source.name, "other")
+    source_name_alias = await _insert_alias(session, target, source.name, "other")
+    if source_name_alias is not None:
+        moved.setdefault("added_aliases", []).append(str(source_name_alias))
 
     source.status = "merged"
     source.merged_into_id = target.id
@@ -454,8 +497,225 @@ async def merge_entities(
             target.last_chapter_number or source.last_chapter_number,
             source.last_chapter_number,
         )
+    session.add(
+        EntityMerge(
+            story_id=story_id,
+            source_id=source_id,
+            target_id=target.id,
+            moved=moved,
+            created_by=created_by,
+        )
+    )
     await session.flush()
     return counts
+
+
+async def undo_merge(session: AsyncSession, *, story_id: UUID, source_id: UUID) -> EntityMerge:
+    """Reverse the most recent merge of ``source_id`` using its audit row."""
+    merge = await session.scalar(
+        select(EntityMerge)
+        .where(
+            EntityMerge.story_id == story_id,
+            EntityMerge.source_id == source_id,
+            EntityMerge.reverted_at.is_(None),
+        )
+        .order_by(EntityMerge.created_at.desc())
+        .limit(1)
+    )
+    if merge is None:
+        raise HTTPException(status_code=404, detail="This entity has no merge to undo.")
+    target = await session.get(Entity, merge.target_id)
+    source = await session.get(Entity, merge.source_id)
+    if target is None or source is None:
+        raise HTTPException(status_code=404, detail="Entity not found.")
+    if target.merged_into_id is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="The merge target was itself merged later; undo that merge first.",
+        )
+
+    moved = merge.moved or {}
+    fact_ids = _uuid_list(moved.get("facts"))
+    if fact_ids:
+        await session.execute(
+            update(EntityFact).where(EntityFact.id.in_(fact_ids)).values(entity_id=source.id)
+        )
+    mention_ids = _uuid_list(moved.get("mentions"))
+    if mention_ids:
+        await session.execute(
+            update(EntityMention)
+            .where(EntityMention.id.in_(mention_ids))
+            .values(entity_id=source.id)
+        )
+    relationship_ids = _uuid_list(moved.get("relationships"))
+    if relationship_ids:
+        await session.execute(
+            update(EntityRelationship)
+            .where(
+                EntityRelationship.id.in_(relationship_ids),
+                EntityRelationship.from_entity_id == target.id,
+            )
+            .values(from_entity_id=source.id)
+        )
+        await session.execute(
+            update(EntityRelationship)
+            .where(
+                EntityRelationship.id.in_(relationship_ids),
+                EntityRelationship.to_entity_id == target.id,
+            )
+            .values(to_entity_id=source.id)
+        )
+    alias_ids = _uuid_list(moved.get("aliases"))
+    if alias_ids:
+        await session.execute(
+            text(
+                "UPDATE entity_aliases SET entity_id = :source "
+                "WHERE id = ANY(:ids) AND entity_id = :target AND normalized_alias NOT IN ("
+                "  SELECT normalized_alias FROM entity_aliases WHERE entity_id = :source)"
+            ),
+            {"ids": alias_ids, "source": source.id, "target": target.id},
+        )
+    for dropped in moved.get("dropped_aliases", []):
+        if await session.scalar(
+            select(EntityAlias.id).where(
+                EntityAlias.normalized_alias == dropped["normalized_alias"]
+            )
+        ):
+            continue
+        session.add(
+            EntityAlias(
+                id=UUID(dropped["id"]),
+                entity_id=source.id,
+                alias=dropped["alias"],
+                normalized_alias=dropped["normalized_alias"],
+                alias_type=dropped["alias_type"],
+            )
+        )
+    added = _uuid_list(moved.get("added_aliases"))
+    if added:
+        await session.execute(
+            delete(EntityAlias).where(
+                EntityAlias.id.in_(added), EntityAlias.entity_id == target.id
+            )
+        )
+
+    array_rows = (
+        ("story_events", "participant_entity_ids", "events"),
+        ("story_threads", "linked_entity_ids", "threads"),
+        ("scene_meta", "character_entity_ids", "scene_meta"),
+    )
+    for table, column, key in array_rows:
+        ids = _uuid_list(moved.get(key))
+        if not ids:
+            continue
+        await session.execute(
+            text(
+                f"UPDATE {table} SET {column} = array_replace({column}, :target, :source) "
+                "WHERE id = ANY(:ids)"
+            ),
+            {"ids": ids, "source": source.id, "target": target.id},
+        )
+    chapter_ids = _uuid_list(moved.get("chapter_meta"))
+    if chapter_ids:
+        await session.execute(
+            text("UPDATE chapter_meta SET pov_entity_id = :source "
+                 "WHERE chapter_id = ANY(:ids) AND pov_entity_id = :target"),
+            {"ids": chapter_ids, "source": source.id, "target": target.id},
+        )
+        await session.execute(
+            text("UPDATE chapter_meta SET location_entity_id = :source "
+                 "WHERE chapter_id = ANY(:ids) AND location_entity_id = :target"),
+            {"ids": chapter_ids, "source": source.id, "target": target.id},
+        )
+    scene_pov = _uuid_list(moved.get("scene_meta_pov"))
+    if scene_pov:
+        await session.execute(
+            text("UPDATE scene_meta SET pov_entity_id = :source "
+                 "WHERE id = ANY(:ids) AND pov_entity_id = :target"),
+            {"ids": scene_pov, "source": source.id, "target": target.id},
+        )
+    scene_locations = _uuid_list(moved.get("scene_meta_location"))
+    if scene_locations:
+        await session.execute(
+            text("UPDATE scene_meta SET location_entity_id = :source "
+                 "WHERE id = ANY(:ids) AND location_entity_id = :target"),
+            {"ids": scene_locations, "source": source.id, "target": target.id},
+        )
+
+    source.status = "active"
+    source.merged_into_id = None
+    merge.reverted_at = datetime.now(UTC)
+    await session.flush()
+    return merge
+
+
+def _uuid_list(values: list | None) -> list[UUID]:
+    return [UUID(str(value)) for value in values or []]
+
+
+async def _ids_for(session: AsyncSession, model, source_id: UUID) -> list[str]:
+    rows = await session.scalars(select(model.id).where(model.entity_id == source_id))
+    return [str(value) for value in rows]
+
+
+async def _relationship_ids(session: AsyncSession, source_id: UUID) -> list[str]:
+    rows = await session.scalars(
+        select(EntityRelationship.id).where(
+            or_(
+                EntityRelationship.from_entity_id == source_id,
+                EntityRelationship.to_entity_id == source_id,
+            )
+        )
+    )
+    return [str(value) for value in rows]
+
+
+async def _array_ids(session: AsyncSession, table: str, column: str, source_id: UUID) -> list[str]:
+    rows = await session.scalars(
+        text(f"SELECT id FROM {table} WHERE :source = ANY({column})"), {"source": source_id}
+    )
+    return [str(value) for value in rows]
+
+
+async def _keyed_ids(
+    session: AsyncSession,
+    table: str,
+    first: str,
+    second: str,
+    source_id: UUID,
+) -> list[str]:
+    rows = await session.scalars(
+        text(f"SELECT chapter_id FROM {table} WHERE {first} = :source OR {second} = :source"),
+        {"source": source_id},
+    )
+    return [str(value) for value in rows]
+
+
+async def _scalar_ids(session: AsyncSession, table: str, column: str, source_id: UUID) -> list[str]:
+    rows = await session.scalars(
+        text(f"SELECT id FROM {table} WHERE {column} = :source"), {"source": source_id}
+    )
+    return [str(value) for value in rows]
+
+
+async def _insert_alias(
+    session: AsyncSession, entity: Entity, alias: str, alias_type: str
+) -> UUID | None:
+    clean = alias.strip()
+    if not clean:
+        return None
+    normalized = normalize_name(clean) or clean.casefold()
+    return await session.scalar(
+        insert(EntityAlias)
+        .values(
+            entity_id=entity.id,
+            alias=clean[:200],
+            normalized_alias=normalized[:220],
+            alias_type=alias_type,
+        )
+        .on_conflict_do_nothing(constraint="uq_entity_alias_normalized")
+        .returning(EntityAlias.id)
+    )
 
 
 async def _alias_count_for(session, model, source_id: UUID) -> int:

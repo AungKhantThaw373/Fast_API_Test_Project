@@ -399,3 +399,54 @@ async def test_other_users_cannot_touch_entities(make_client):
     ).status_code == 404
     own_facts = await alice.get(f"/entities/{entity['id']}/facts")
     assert own_facts.status_code == 200
+
+
+async def test_merge_can_be_undone_from_its_audit(user_client):
+    story_id = await _story(user_client)
+    keep = await _entity(user_client, story_id, name="Mira Voss")
+    gone = await _entity(
+        user_client, story_id, name="Captain Voss", aliases=[{"alias": "the captain"}]
+    )
+    chapter = await _chapter(user_client, story_id, content="Captain Voss gave the order.\n")
+    fact = await user_client.post(
+        f"/entities/{gone['id']}/facts",
+        json={
+            "predicate": "rank",
+            "value_text": "captain",
+            "chapter_id": chapter["id"],
+            "quote": "Captain Voss gave the order.",
+        },
+    )
+    assert fact.status_code == 201
+    relationship = await user_client.post(
+        f"/entities/{gone['id']}/relationships",
+        json={"to_entity_id": keep["id"], "relationship_type": "alias_of"},
+    )
+    assert relationship.status_code == 201
+
+    merged = await user_client.post(
+        f"/entities/{gone['id']}/merge", json={"target_id": keep["id"]}
+    )
+    assert merged.status_code == 200
+    assert (await user_client.get(f"/entities/{gone['id']}")).status_code == 409
+
+    undone = await user_client.post(f"/entities/{gone['id']}/unmerge")
+    assert undone.status_code == 200, undone.text
+    assert undone.json()["target_id"] == keep["id"]
+    assert undone.json()["reverted_at"] is not None
+
+    restored = await user_client.get(f"/entities/{gone['id']}")
+    assert restored.status_code == 200
+    assert restored.json()["merged_into_id"] is None
+    assert restored.json()["status"] == "active"
+    # The fact and the relationship came back with it.
+    facts = (await user_client.get(f"/entities/{gone['id']}/facts")).json()["facts"]
+    assert [row["id"] for row in facts] == [fact.json()["id"]]
+    rels = (await user_client.get(f"/entities/{gone['id']}/relationships")).json()
+    assert [row["id"] for row in rels["outgoing"]] == [relationship.json()["id"]]
+    target_facts = (await user_client.get(f"/entities/{keep['id']}/facts")).json()["facts"]
+    assert target_facts == []
+
+    # Only one merge exists, and it has been reverted.
+    twice = await user_client.post(f"/entities/{gone['id']}/unmerge")
+    assert twice.status_code == 404

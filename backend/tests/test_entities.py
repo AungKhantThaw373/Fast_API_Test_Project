@@ -319,3 +319,64 @@ async def test_backfill_preserves_ids_and_is_idempotent(user_client, session):
     assert second["threads"] == 0
     assert len(list(await session.scalars(select(EntityFact)))) == 1
     assert len(list(await session.scalars(select(StoryThread)))) == 1
+
+
+async def test_canon_notes_include_only_mentioned_accepted_facts(user_client, session):
+    from app.models.wiki_models import EntityRelationship, StoryThread
+    from app.services.knowledge_context import build_fact_context
+
+    story = await _story(session, user_client)
+    mira = await entity_service.create_entity(
+        session, story_id=story.id, entity_type="character", name="Mira Voss"
+    )
+    jax = await entity_service.create_entity(
+        session, story_id=story.id, entity_type="character", name="Jax"
+    )
+    editor = await entity_service.create_entity(
+        session, story_id=story.id, entity_type="character", name="Editor Only"
+    )
+    for entity, predicate, value, status in (
+        (mira, "eye_color", "grey", "accepted"),
+        (mira, "rank", "captain", "rejected"),
+        (jax, "role", "rival", "accepted"),
+        (editor, "secret", "unused", "accepted"),
+    ):
+        session.add(
+            EntityFact(
+                entity_id=entity.id,
+                predicate=predicate,
+                value_text=value,
+                status=status,
+                created_by="human",
+            )
+        )
+    session.add(
+        EntityRelationship(
+            story_id=story.id,
+            from_entity_id=mira.id,
+            to_entity_id=jax.id,
+            relationship_type="rival_of",
+            description="since chapter 1",
+        )
+    )
+    session.add(
+        StoryThread(story_id=story.id, title="Who betrayed the Watch?", state="open")
+    )
+    await session.commit()
+
+    notes, stats = await build_fact_context(
+        session, story.id, "Mira Voss met Jax at the gate.", 2
+    )
+    assert "Mira Voss | eye color: grey" in notes
+    assert "Jax | role: rival" in notes
+    assert "rank" not in notes  # rejected facts never enter canon notes
+    assert "Editor Only" not in notes  # not named in the draft
+    assert "rival of" in notes
+    assert "Who betrayed the Watch?" in notes
+    assert stats["facts"] == 2
+    assert stats["relationships"] == 1
+    assert stats["threads"] == 1
+
+    empty, empty_stats = await build_fact_context(session, story.id, "Nobody here.", 2)
+    assert empty == ""
+    assert empty_stats["facts"] == 0

@@ -27,6 +27,7 @@ from app.schemas.wiki import (
     RelationshipCreate,
     RelationshipListOut,
     RelationshipOut,
+    UnmergeOut,
 )
 from app.security import get_current_user
 from app.services import entities as entity_service
@@ -242,6 +243,28 @@ async def merge_entity(
         dry_run=payload.dry_run,
         moved=result,
     )
+
+
+@router.post("/entities/{entity_id}/unmerge", response_model=UnmergeOut)
+async def undo_merge(
+    entity_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> UnmergeOut:
+    entity = await entity_service.get_entity(session, entity_id)
+    await stories_service.owned_story(session, entity.story_id, user.id)
+    merge = await entity_service.undo_merge(
+        session, story_id=entity.story_id, source_id=entity_id
+    )
+    # Build the response before committing: ``commit`` expires every attribute.
+    result = UnmergeOut(
+        source_id=merge.source_id,
+        target_id=merge.target_id,
+        merge_id=merge.id,
+        reverted_at=merge.reverted_at,
+    )
+    await session.commit()
+    return result
 
 
 @router.get("/entities/{entity_id}/appearances", response_model=AppearanceListOut)
