@@ -297,3 +297,35 @@ permutations, OneDrive).
   the bulk-loaded table; the script now vacuums and warms up first, and
   `Docs/perf.md` explains the trap.
 - 91 backend tests pass; ruff, pyright, eslint, tsc, and 19 vitest tests clean.
+
+## Phase 3 - P3-1 schema, P3-2 backfill, P3-3 resolution
+
+- Migration `3a9c7d1f6b42` (additive) creates `entities`, `entity_aliases`,
+  `entity_facts`, `entity_relationships`, `story_events`, `story_threads`,
+  `entity_mentions`, `canon_exceptions`, `chapter_meta`, `scene_meta`, `ai_usage`,
+  with the partial unique index on active `(story_id, entity_type, canonical_name)`,
+  a soft `merged_into_id`, pg_trgm plus GIN trigram indexes on names and aliases,
+  and `ANALYZE` on the hot tables. `story_bible_entries` is untouched.
+- `app/models/wiki_models.py` holds the models with typed `Mapped` columns,
+  `UUID[]` columns for participants/characters/links, and JSONB `context`.
+- `app/services/entities.py`: `normalize_name` (NFKC, casefold, punctuation,
+  articles, honorifics), `find_candidates` (exact alias first, then
+  `similarity()` above 0.55, never auto-merging), `create_entity`, `add_alias`,
+  `resolve_entity` (follows merge chains), `merge_entities` with dry-run counts,
+  soft merge (`status='merged'`, `merged_into_id`), alias movement, and array
+  de-duplication for threads/events/scene meta, plus `extract_mentions`
+  (regex, longest alias wins, word boundaries, stoplist, zero LLM calls).
+- `app/backfill/bible.py` (`python -m app.backfill.bible [--mentions] [--story]`):
+  same UUIDs for entities, `story_bible_entries.category` mapped to
+  `entities.entity_type`, `plot_thread` rows become `story_threads`, summaries
+  become `summary` facts with located line numbers, statuses map
+  suggested->proposed / dismissed->rejected, and a second run reports only skips.
+- Ran it against the live `stillroom` database: 36 entities (all ids preserved),
+  36 aliases, 36 facts, 9 threads, 251 mentions; second run changed nothing.
+- Two fixes found by the tests: an alias whose normalization strips to nothing
+  ("the captain") is still stored and still matches mentions, and duplicate
+  mentions of one entity on one line collapse to a single row.
+- New `tests/test_entities.py` (8 tests): normalization, quote line location,
+  exact-vs-fuzzy candidates, mention ranges, dry-run merge, merge guards,
+  merged-id resolution, and backfill idempotency with preserved ids.
+- 99 backend tests pass; ruff and pyright clean.

@@ -10,6 +10,19 @@ from app.models.story_models import (
     Story,
     StoryBibleEntry,
 )
+from app.models.wiki_models import (
+    AIUsage,
+    CanonException,
+    ChapterMeta,
+    Entity,
+    EntityAlias,
+    EntityFact,
+    EntityMention,
+    EntityRelationship,
+    SceneMeta,
+    StoryEvent,
+    StoryThread,
+)
 
 __all__ = [
     "User",
@@ -25,4 +38,15 @@ __all__ = [
     "ContinuityFinding",
     "Job",
     "WorkerHeartbeat",
+    "Entity",
+    "EntityAlias",
+    "EntityFact",
+    "EntityRelationship",
+    "StoryEvent",
+    "StoryThread",
+    "EntityMention",
+    "CanonException",
+    "ChapterMeta",
+    "SceneMeta",
+    "AIUsage",
 ]
