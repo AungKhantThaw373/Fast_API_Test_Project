@@ -8,7 +8,7 @@ Read this first, then `Docs/build-log.md` for the chronological record.
 |---|---|
 | Repo | `C:\Users\ACER\OneDrive\Desktop\AI` (still inside OneDrive; see gotchas) |
 | Branch | `hardening/phase-0` (all work so far lives here) |
-| Tags | `pre-hardening`, `phase-0-complete`, `phase-1-complete` |
+| Tags | `pre-hardening`, `phase-0-complete`, `phase-1-complete`, `phase-2-complete` |
 | Backend | `backend/` — FastAPI + SQLAlchemy 2 async + Alembic + pgvector |
 | Frontend | `frontend/` — Next 16, React 19, npm |
 | Database | Native PostgreSQL 18 on `127.0.0.1:5432`, databases `stillroom` and `stillroom_test`, password `death373` (`backend/.env`) |
@@ -39,28 +39,29 @@ make lint typecheck   # ruff + eslint, pyright + tsc
 - **Phase 1 complete** (`Docs/qa-phase-1.md`): IndexedDB draft buffer, save state
   machine, idempotent saves + conflict dialog, soft delete/trash, snapshots with
   retention and diffs, startup reconciliation, `/system/status`.
-- **Phase 2 nearly complete**: stable `position` ordering, single-query story
-  list and continuity retrieval, split routers with response models, cursor
-  pagination + chapter ETags, the scan index and statement timeouts, and the
-  durable `jobs` worker (see `Docs/worker.md`). Remaining: P2-8 request ids and
-  `/ready`, P2-9 performance budget numbers.
+- **Phase 2 complete** (`Docs/perf.md`, `Docs/worker.md`): split routers with
+  response models, cursor pagination + chapter ETags, one-query story list and
+  continuity retrieval, scan index + statement timeouts, durable `jobs` worker
+  with `SKIP LOCKED` (no in-process AI work), request ids, `/ready`, and all
+  performance targets met. Server logs now carry `request_id=` and error bodies
+  include it.
 - Backend: 85 tests pass, ruff and pyright clean.
 - Frontend: lint, `tsc --noEmit`, `next build`, and 19 vitest tests pass.
 - CI workflow is committed but has never run on GitHub.
 
 ## Pick up here (in this order)
 
-1. **P2-8 request ids, `/ready`** — middleware + `contextvars` so logs and error
-   bodies carry a request id; `/ready` should check DB, pgvector, Ollama, schema
-   head, and a fresh worker heartbeat (`services/jobs.worker_is_alive` already
-   answers the last one).
-2. **P2-9 performance budget** — measure chapter save/open, story list,
-   continuity retrieval, one-chapter query count, and a 1,100-chapter reorder;
-   write `Docs/perf.md`, then tag `phase-2-complete`.
-3. **Phase 3** — knowledge model (`entities`, `entity_aliases`, `entity_facts`,
-   `entity_relationships`, `story_events`, `story_threads`, `entity_mentions`,
-   `canon_exceptions`, `chapter_meta`, `scene_meta`, `ai_usage`) per the manual.
-   Do not drop `story_bible_entries` in the same migration.
+1. **Phase 3, P3-1** - knowledge model v2. Add `entities`, `entity_aliases`,
+   `entity_facts`, `entity_relationships`, `story_events`, `story_threads`,
+   `entity_mentions`, `canon_exceptions`, `chapter_meta`, `scene_meta`, `ai_usage`
+   in one additive migration (do not drop `story_bible_entries`), plus models.
+2. **P3-2** - backfill from `story_bible_entries` keeping the same UUIDs;
+   `plot_thread` becomes `story_threads`. Make it idempotent.
+3. **P3-3** - `normalize_name`, entity resolution, soft merge with dry run,
+   zero-LLM mention extraction.
+4. **P3-4..P3-7** - entities/facts/threads/events/inbox API with response models
+   and ownership tests, compatibility serializer for the old `/bible` shape,
+   continuity context built from facts, then the ten Phase 3 tests.
 
 ## Gotchas that cost time
 
