@@ -66,3 +66,17 @@
   ORM models with no schema had been left behind after the route cleanup.
 - Added `pyrightconfig.json` and `[tool.pytest.ini_options]`.
 - Next: CI, backups, and the task runner.
+
+## Phase 0 CI, backups, tooling
+
+- `.github/workflows/ci.yml`: backend job (ruff, pyright, Alembic, pytest on a
+  `pgvector/pgvector:pg16` service) and frontend job (npm ci, lint, tsc, build).
+- Converted the frontend from pnpm to npm: removed `pnpm-lock.yaml`, generated
+  `package-lock.json`; `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- `scripts/backup.sh` and `scripts/restore.sh` read `backend/.env` and call
+  `pg_dump`/`pg_restore` directly (no Docker). Documented in `Docs/backups.md`.
+- Restore drill passed: backed up, inserted a throwaway story (count 2), restored
+  (count back to 1) with the original data intact.
+- Added a root `Makefile` (`install`, `dev-backend`, `dev-frontend`, `test`, `lint`,
+  `typecheck`, `migrate`, `backup`) and `Docs/versions.md`.
+- `uv.lock` and `package-lock.json` are the only lockfiles.
