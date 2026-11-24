@@ -1,0 +1,755 @@
+'use client';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { AIProviderSettingsForm } from '@/components/ai-provider-settings';
+import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type Story, type StoryDetails } from '@/lib/api';
+
+type Pane = 'ai' | 'bible' | 'setups' | 'continuity';
+type SaveSnapshot = { title: string; content: string };
+
+const CATEGORY_LABEL: Record<BibleEntry['category'], string> = {
+	character: 'Character', location: 'Place', item: 'Important item', world_rule: 'World rule', worldbuilding: 'Worldbuilding', power_system: 'Power system', plot_thread: 'Story thread',
+};
+
+function wordCount(text: string) {
+	return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
+export default function StoryStudio({ storyId }: { storyId: string }) {
+	const router = useRouter();
+	const editorRef = useRef<HTMLTextAreaElement>(null);
+	const revisionRef = useRef(new Map<string, number>());
+	const savedRef = useRef(new Map<string, SaveSnapshot>());
+	const saveQueueRef = useRef(new Map<string, Promise<void>>());
+	const scanBusyRef = useRef(false);
+	const lastScannedWordsRef = useRef(new Map<string, number>());
+	const draftEditVersionRef = useRef(0);
+
+	const [story, setStory] = useState<StoryDetails | null>(null);
+	const [chapters, setChapters] = useState<Chapter[]>([]);
+	const [otherStories, setOtherStories] = useState<Story[]>([]);
+	const [activeId, setActiveId] = useState('');
+	const [draftTitle, setDraftTitle] = useState('');
+	const [draftContent, setDraftContent] = useState('');
+	const [entries, setEntries] = useState<BibleEntry[]>([]);
+	const [findings, setFindings] = useState<ContinuityFinding[]>([]);
+	const [findingsChapterId, setFindingsChapterId] = useState('');
+	const [findingsTargetChapterId, setFindingsTargetChapterId] = useState('');
+	const [bibleScanStart, setBibleScanStart] = useState(1);
+	const [bibleScanEnd, setBibleScanEnd] = useState(1);
+	const [bibleScanForce, setBibleScanForce] = useState(false);
+	const [bibleScanPending, setBibleScanPending] = useState<Array<{ id: string; revision: number }>>([]);
+	const [scanningBible, setScanningBible] = useState(false);
+	const [bibleScanMessage, setBibleScanMessage] = useState('');
+	const [bibleScanFailed, setBibleScanFailed] = useState(false);
+	const [historyOpen, setHistoryOpen] = useState(false);
+	const [chapterHistory, setChapterHistory] = useState<ChapterRevisionSummary[]>([]);
+	const [historyLoading, setHistoryLoading] = useState(false);
+	const [bibleDraft, setBibleDraft] = useState<{ id?: string; category: BibleEntry['category']; name: string; description: string } | null>(null);
+	const [findingFilter, setFindingFilter] = useState<'open' | 'resolved' | 'dismissed' | 'all'>('open');
+	const [bibleSearch, setBibleSearch] = useState('');
+	const [bibleCategory, setBibleCategory] = useState<'all' | BibleEntry['category']>('all');
+	const [pane, setPane] = useState<Pane>('bible');
+	const [loading, setLoading] = useState(true);
+	const [saving, setSaving] = useState(false);
+	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+	const [checking, setChecking] = useState(false);
+	const [checkRetryCountdown, setCheckRetryCountdown] = useState(0);
+	const [lastScan, setLastScan] = useState<{ chapterId: string; revision: number } | null>(null);
+	const [focusMode, setFocusMode] = useState(false);
+	const [error, setError] = useState('');
+	const [notice, setNotice] = useState('');
+
+	const activeChapter = chapters.find((chapter) => chapter.id === activeId) ?? null;
+	const activeChapterId = activeChapter?.id;
+	const activeChapterRevision = activeChapter?.revision;
+	const words = wordCount(draftContent);
+	const earlierChapters = chapters.filter((chapter) => chapter.chapter_number < (activeChapter?.chapter_number ?? 0));
+	const earlierIndexedCount = earlierChapters.filter((chapter) => chapter.index_status === 'indexed').length;
+	const earlierChaptersReady = earlierChapters.length > 0 && earlierIndexedCount === earlierChapters.length;
+	const currentFindings = useMemo(() => findingsChapterId === findingsTargetChapterId ? findings : [], [findings, findingsChapterId, findingsTargetChapterId]);
+	const visibleFindings = useMemo(() => currentFindings.filter((finding) => findingFilter === 'all' || finding.review_status === findingFilter), [currentFindings, findingFilter]);
+
+	const refreshBible = useCallback(async () => {
+		try { setEntries(await api.bible(storyId)); } catch { /* Keep the draft available during brief reconnects. */ }
+	}, [storyId]);
+
+	useEffect(() => {
+		let alive = true;
+		async function load() {
+			try {
+				const [storyData, bible, storyList] = await Promise.all([api.story(storyId), api.bible(storyId), api.stories()]);
+				if (!alive) return;
+				setStory(storyData);
+				setChapters(storyData.chapters);
+				setEntries(bible);
+				setOtherStories(storyList.filter((item) => item.id !== storyId));
+				setBibleScanStart(1);
+				setBibleScanEnd(storyData.chapters.at(-1)?.chapter_number ?? 1);
+				const rememberedId = window.sessionStorage.getItem(`stillroom-active-chapter:${storyId}`);
+				const initialChapter = storyData.chapters.find((chapter) => chapter.id === rememberedId) ?? storyData.chapters[0];
+				if (initialChapter) {
+					const fullChapter = await api.chapter(initialChapter.id);
+					if (!alive) return;
+					setActiveId(initialChapter.id);
+					setFindingsTargetChapterId(initialChapter.id);
+					setHasUnsavedChanges(false);
+					setDraftTitle(fullChapter.title);
+					setDraftContent(fullChapter.content ?? '');
+					setChapters((current) => current.map((chapter) => chapter.id === fullChapter.id ? fullChapter : chapter));
+					for (const chapter of storyData.chapters) revisionRef.current.set(chapter.id, chapter.revision);
+					savedRef.current.set(initialChapter.id, { title: fullChapter.title, content: fullChapter.content ?? '' });
+					window.sessionStorage.setItem(`stillroom-active-chapter:${storyId}`, initialChapter.id);
+				}
+			} catch (cause) {
+				if (!alive) return;
+				if (cause instanceof Error && cause.message.includes('(401)')) router.replace('/login');
+				else setError(cause instanceof Error ? cause.message : 'This story could not be opened.');
+			} finally {
+				if (alive) setLoading(false);
+			}
+		}
+		void load();
+		return () => { alive = false; };
+	}, [storyId, router]);
+
+	useEffect(() => {
+		if (!hasUnsavedChanges) return;
+		const warnBeforeExit = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+		window.addEventListener('beforeunload', warnBeforeExit);
+		return () => window.removeEventListener('beforeunload', warnBeforeExit);
+	}, [hasUnsavedChanges]);
+
+	useEffect(() => {
+		if (checkRetryCountdown <= 0) return;
+		const timer = window.setTimeout(() => setCheckRetryCountdown((remaining) => Math.max(0, remaining - 1)), 1000);
+		return () => window.clearTimeout(timer);
+	}, [checkRetryCountdown]);
+
+	useEffect(() => {
+		if (!activeChapterId || activeChapterRevision === undefined || findingsTargetChapterId !== activeChapterId) return;
+		let alive = true;
+		api.latestScan(activeChapterId).then((result) => {
+			if (!alive) return;
+			setFindingsChapterId(activeChapterId);
+			setFindings(result.scan?.chapter_revision === activeChapterRevision ? result.findings : []);
+			setLastScan(result.scan ? { chapterId: activeChapterId, revision: result.scan.chapter_revision } : null);
+			lastScannedWordsRef.current.set(activeChapterId, result.scan?.chapter_word_count ?? 0);
+		}).catch(() => { if (alive) { setFindingsChapterId(activeChapterId); setFindings([]); setLastScan(null); } });
+		return () => { alive = false; };
+	}, [activeChapterId, activeChapterRevision, findingsTargetChapterId]);
+
+	async function changeFindingChapter(chapterId: string) {
+		if (!chapterId) return;
+		setFindingsTargetChapterId(chapterId);
+		setFindingsChapterId('');
+		setFindings([]);
+		try {
+			const latest = await api.latestScan(chapterId);
+			setFindingsChapterId(chapterId);
+			setFindings(latest.findings);
+			setLastScan(latest.scan ? { chapterId, revision: latest.scan.chapter_revision } : null);
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Continuity history could not be loaded.'); }
+	}
+
+	useEffect(() => {
+		const indexing = chapters.some((chapter) => chapter.index_status === 'pending' || chapter.index_status === 'indexing');
+		if (!indexing && !bibleScanPending.length) return;
+		let alive = true;
+		const timer = window.setInterval(async () => {
+			try {
+				const latest = await api.storyIndexStatus(storyId);
+				if (!alive) return;
+				setChapters((current) => current.map((chapter) => {
+					const updated = latest.chapters.find((item) => item.id === chapter.id);
+					return updated ? { ...chapter, index_status: updated.index_status, index_error: updated.index_error, bible_scan_revision: updated.bible_scan_revision } : chapter;
+				}));
+				const outcomes = bibleScanPending.map((target) => {
+					const updated = latest.chapters.find((chapter) => chapter.id === target.id);
+					if (!updated) return 'failed';
+					if (updated.revision !== target.revision) return 'changed';
+					if (updated.bible_scan_error) return 'failed';
+					return updated.bible_scan_revision === target.revision ? 'complete' : 'pending';
+				});
+				if (bibleScanPending.length && outcomes.every((outcome) => outcome !== 'pending')) {
+					const failedCount = outcomes.filter((outcome) => outcome === 'failed').length;
+					const changedCount = outcomes.filter((outcome) => outcome === 'changed').length;
+					const firstScanError = bibleScanPending
+						.map((target) => latest.chapters.find((chapter) => chapter.id === target.id)?.bible_scan_error)
+						.find(Boolean);
+					setBibleScanPending([]);
+					setBibleScanFailed(failedCount > 0);
+					setBibleScanMessage(failedCount
+						? `${failedCount} ${failedCount === 1 ? 'chapter scan failed' : 'chapter scans failed'}. ${firstScanError ?? 'Try again later.'}`
+						: changedCount
+							? `Scan finished, but ${changedCount} chapter ${changedCount === 1 ? 'changed' : 'chapters changed'} while it was running and was skipped. Scan again to review the latest text.`
+							: 'Story Bible scan complete. Suggestions have been refreshed.');
+					void refreshBible();
+				}
+			} catch { /* A later poll will retry. */ }
+		}, 3500);
+		return () => { alive = false; window.clearInterval(timer); };
+	}, [chapters, storyId, refreshBible, bibleScanPending]);
+
+	const persistChapter = useCallback((chapterId: string, title: string, content: string) => {
+		const previous = saveQueueRef.current.get(chapterId) ?? Promise.resolve();
+		const next = previous.catch(() => undefined).then(async () => {
+			const saved = savedRef.current.get(chapterId);
+		if (saved?.title === title && saved.content === content) { setHasUnsavedChanges(false); return; }
+			const revision = revisionRef.current.get(chapterId);
+			if (!revision) return;
+			const editVersion = draftEditVersionRef.current;
+			setSaving(true);
+			try {
+				const updated = await api.updateChapter(chapterId, title, content, revision);
+				revisionRef.current.set(chapterId, updated.revision);
+				const savedContent = updated.content ?? content;
+				savedRef.current.set(chapterId, { title: updated.title, content: savedContent });
+				if (chapterId === activeId && updated.title !== title) setDraftTitle(updated.title);
+				if (editVersion === draftEditVersionRef.current) setHasUnsavedChanges(false);
+				setChapters((current) => current.map((item) => item.id === chapterId ? { ...item, ...updated, content: savedContent } : item));
+				if (saved && saved.content !== savedContent) {
+					setEntries((current) => current.filter((entry) =>
+						!(entry.status === 'suggested' && entry.source_chapter_id === chapterId && entry.source_quote && !savedContent.includes(entry.source_quote))
+					));
+				}
+				setError('');
+			} catch (cause) {
+				setError(cause instanceof Error ? cause.message : 'This chapter could not be saved.');
+			} finally {
+				setSaving(false);
+			}
+		});
+		saveQueueRef.current.set(chapterId, next);
+		return next;
+	}, [activeId]);
+
+	useEffect(() => {
+		const saveShortcut = (event: KeyboardEvent) => {
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && activeChapterId) {
+				event.preventDefault();
+				void persistChapter(activeChapterId, draftTitle, draftContent);
+			}
+		};
+		window.addEventListener('keydown', saveShortcut);
+		return () => window.removeEventListener('keydown', saveShortcut);
+	}, [activeChapterId, draftTitle, draftContent, persistChapter]);
+
+	useEffect(() => {
+		if (!activeChapterId) return;
+		const saved = savedRef.current.get(activeChapterId);
+		if (saved?.title === draftTitle && saved.content === draftContent) return;
+		const timer = window.setTimeout(() => {
+			void persistChapter(activeChapterId, draftTitle, draftContent);
+		}, 800);
+		return () => window.clearTimeout(timer);
+	}, [activeChapterId, draftTitle, draftContent, persistChapter]);
+
+	const selectChapter = useCallback(async (chapter: Chapter) => {
+		if (activeChapter) {
+			await persistChapter(activeChapter.id, draftTitle, draftContent);
+			const saved = savedRef.current.get(activeChapter.id);
+			if (!saved || saved.title !== draftTitle || saved.content !== draftContent) return;
+		}
+		const fullChapter = await api.chapter(chapter.id);
+		revisionRef.current.set(chapter.id, fullChapter.revision);
+		savedRef.current.set(chapter.id, { title: fullChapter.title, content: fullChapter.content ?? '' });
+		setChapters((current) => current.map((item) => item.id === chapter.id ? fullChapter : item));
+		setActiveId(chapter.id);
+		setFindingsTargetChapterId(chapter.id);
+		setHasUnsavedChanges(false);
+		window.sessionStorage.setItem(`stillroom-active-chapter:${storyId}`, chapter.id);
+		setDraftTitle(fullChapter.title);
+		setDraftContent(fullChapter.content ?? '');
+		setError('');
+	}, [activeChapter, draftTitle, draftContent, persistChapter, storyId]);
+
+	async function addChapter() {
+		try {
+			if (activeChapter) {
+				await persistChapter(activeChapter.id, draftTitle, draftContent);
+				const saved = savedRef.current.get(activeChapter.id);
+				if (!saved || saved.title !== draftTitle || saved.content !== draftContent) return;
+			}
+			const chapter = await api.createChapter(storyId);
+			revisionRef.current.set(chapter.id, chapter.revision);
+			savedRef.current.set(chapter.id, { title: chapter.title, content: chapter.content ?? '' });
+			setChapters((current) => [...current, chapter]);
+			setActiveId(chapter.id); setDraftTitle(chapter.title); setDraftContent(''); setFindings([]);
+			setFindingsTargetChapterId(chapter.id); setHasUnsavedChanges(false);
+			window.sessionStorage.setItem(`stillroom-active-chapter:${storyId}`, chapter.id);
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Chapter could not be created.'); }
+	}
+
+	async function reorderChapter(chapterId: string, direction: -1 | 1) {
+		const currentIndex = chapters.findIndex((item) => item.id === chapterId);
+		const destinationIndex = currentIndex + direction;
+		if (currentIndex < 0 || destinationIndex < 0 || destinationIndex >= chapters.length) return;
+		const reordered = [...chapters];
+		[reordered[currentIndex], reordered[destinationIndex]] = [reordered[destinationIndex], reordered[currentIndex]];
+		try {
+			const result = await api.reorderChapters(storyId, reordered.map((item) => item.id));
+			setChapters(result.chapters);
+			setFindings([]);
+			setNotice('Chapter order updated. Run a new continuity check to refresh earlier chapter comparisons.');
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Chapter order could not be changed.'); }
+	}
+
+	async function moveActiveChapter(destinationStoryId: string) {
+		if (!activeChapter || destinationStoryId === storyId) return;
+		await persistChapter(activeChapter.id, draftTitle, draftContent);
+		const saved = savedRef.current.get(activeChapter.id);
+		if (!saved || saved.title !== draftTitle || saved.content !== draftContent) return;
+		if (!window.confirm(`Move “${activeChapter.title}” to another story? Previous continuity checks in this story will be cleared.`)) return;
+		try {
+			await api.moveChapter(activeChapter.id, destinationStoryId);
+			window.sessionStorage.removeItem(`stillroom-active-chapter:${storyId}`);
+			router.push(`/stories/${destinationStoryId}`);
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Chapter could not be moved.'); }
+	}
+
+	async function openChapterHistory() {
+		if (!activeChapter) return;
+		setHistoryOpen(true);
+		setHistoryLoading(true);
+		try { setChapterHistory(await api.chapterRevisions(activeChapter.id)); }
+		catch (cause) { setError(cause instanceof Error ? cause.message : 'Version history could not be loaded.'); }
+		finally { setHistoryLoading(false); }
+	}
+
+	async function restoreChapterHistory(revision: ChapterRevisionSummary) {
+		if (!activeChapter || !window.confirm(`Restore chapter version ${revision.revision_number}? Your current draft will be saved in history first.`)) return;
+		try {
+			if (hasUnsavedChanges) await persistChapter(activeChapter.id, draftTitle, draftContent);
+			const saved = savedRef.current.get(activeChapter.id);
+			if (!saved || saved.title !== draftTitle || saved.content !== draftContent) throw new Error('The current draft could not be saved before restoring.');
+			const updated = await api.restoreChapterRevision(activeChapter.id, revision.revision_number);
+			revisionRef.current.set(updated.id, updated.revision);
+			savedRef.current.set(updated.id, { title: updated.title, content: updated.content ?? '' });
+			setDraftTitle(updated.title); setDraftContent(updated.content ?? '');
+			setHasUnsavedChanges(false);
+			setFindingsTargetChapterId(updated.id); setFindingsChapterId('');
+			setChapters((current) => current.map((item) => item.id === updated.id ? updated : item));
+			setHistoryOpen(false); setNotice(`Restored version ${revision.revision_number}.`);
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'That version could not be restored.'); }
+	}
+
+	async function deleteChapter(chapter: Chapter) {
+		if (!window.confirm(`Delete “${chapter.title}” and its continuity scans? This cannot be undone.`)) return;
+		const deletedIndex = chapters.findIndex((item) => item.id === chapter.id);
+		if (activeChapter?.id === chapter.id) {
+			await persistChapter(chapter.id, draftTitle, draftContent);
+			const saved = savedRef.current.get(chapter.id);
+			if (!saved || saved.title !== draftTitle || saved.content !== draftContent) return;
+		}
+		try {
+			const result = await api.deleteChapter(chapter.id);
+			setChapters(result.chapters);
+			revisionRef.current.delete(chapter.id);
+			savedRef.current.delete(chapter.id);
+			const lastChapter = result.chapters.at(-1);
+			const maxNumber = lastChapter?.chapter_number ?? 1;
+			setBibleScanStart((current) => Math.min(current, maxNumber));
+			setBibleScanEnd((current) => Math.min(Math.max(current, bibleScanStart), maxNumber));
+			if (activeChapter?.id === chapter.id) {
+				const nextChapter = result.chapters[Math.min(deletedIndex, result.chapters.length - 1)];
+				setFindings([]);
+				if (nextChapter) {
+					window.sessionStorage.setItem(`stillroom-active-chapter:${storyId}`, nextChapter.id);
+					try {
+						const fullChapter = await api.chapter(nextChapter.id);
+						revisionRef.current.set(nextChapter.id, fullChapter.revision);
+						savedRef.current.set(nextChapter.id, { title: fullChapter.title, content: fullChapter.content ?? '' });
+						setChapters((current) => current.map((item) => item.id === nextChapter.id ? fullChapter : item));
+						setActiveId(nextChapter.id);
+						setFindingsTargetChapterId(nextChapter.id);
+						setHasUnsavedChanges(false);
+						setDraftTitle(fullChapter.title);
+						setDraftContent(fullChapter.content ?? '');
+					} catch {
+						setActiveId('');
+						setFindingsTargetChapterId('');
+						setDraftTitle('');
+						setDraftContent('');
+						setError('Chapter deleted, but the next chapter could not be loaded. Refresh to reopen it.');
+					}
+				} else {
+					setActiveId(''); setFindingsTargetChapterId(''); setDraftTitle(''); setDraftContent(''); setHasUnsavedChanges(false);
+					window.sessionStorage.removeItem(`stillroom-active-chapter:${storyId}`);
+				}
+			}
+			await refreshBible();
+			setNotice('Chapter deleted. Remaining chapters were renumbered.');
+			setError('');
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : 'The chapter could not be deleted.');
+		}
+	}
+
+	async function importManuscript(event: ChangeEvent<HTMLInputElement>) {
+		const file = event.target.files?.[0];
+		event.target.value = '';
+		if (!file) return;
+		try {
+			if (activeChapter) {
+				await persistChapter(activeChapter.id, draftTitle, draftContent);
+				const saved = savedRef.current.get(activeChapter.id);
+				if (!saved || saved.title !== draftTitle || saved.content !== draftContent) return;
+			}
+			const result = await api.importManuscript(storyId, file.name, await file.text());
+			for (const chapter of result.chapters) {
+				revisionRef.current.set(chapter.id, chapter.revision);
+			}
+			setChapters((current) => [...current, ...result.chapters]);
+			if (result.chapters[0]) await selectChapter(result.chapters[0]);
+			setNotice('Manuscript imported. Story memory is updating in the background.');
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'The manuscript could not be imported.'); }
+	}
+
+	async function exportManuscript() {
+		if (!story) return;
+		if (activeChapter) await persistChapter(activeChapter.id, draftTitle, draftContent);
+		const chaptersToExport = await Promise.all(chapters.map(async (chapter) => {
+			if (chapter.id === activeId) return { ...chapter, title: draftTitle, content: draftContent };
+			return api.chapter(chapter.id);
+		}));
+		const body = ['# ' + story.title, '', ...chaptersToExport.sort((a, b) => a.chapter_number - b.chapter_number).flatMap((chapter) => [
+			'## Chapter ' + chapter.chapter_number + ': ' + chapter.title, '', chapter.content ?? '', '',
+		])].join('\n');
+		const url = URL.createObjectURL(new Blob([body], { type: 'text/markdown;charset=utf-8' }));
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = (story.title || 'manuscript').replace(/[\\/:*?"<>|]+/g, '-').trim() + '.md';
+		anchor.click();
+		window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	async function changeStorySetting(changes: { external_analysis_enabled?: boolean; scan_interval_words?: number }): Promise<boolean> {
+		if (!story) return false;
+		try { setStory({ ...story, ...await api.updateStory(storyId, changes) }); setError(''); return true; }
+		catch (cause) { setError(cause instanceof Error ? cause.message : 'Story settings could not be saved.'); return false; }
+	}
+
+	async function scanBibleRange() {
+		if (!chapters.length || scanningBible || bibleScanPending.length) return;
+		setScanningBible(true);
+		setBibleScanMessage('');
+		setBibleScanFailed(false);
+		setError('');
+		try {
+			const result = await api.scanBibleRange(storyId, bibleScanStart, bibleScanEnd, bibleScanForce);
+			setBibleScanPending(result.scheduled_chapters);
+			setBibleScanMessage(result.scheduled_count
+				? `Scanning ${result.scheduled_count} ${result.scheduled_count === 1 ? 'chapter' : 'chapters'}; ${result.skipped_count} skipped. No scans run automatically when you edit.`
+				: `Nothing to scan. All ${result.skipped_count} chapters in this range are already up to date.`);
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : 'The Story Bible scan could not be started.');
+		} finally {
+			setScanningBible(false);
+		}
+	}
+
+	async function retryIndex() {
+		if (!activeChapter) return;
+		try {
+			await api.retryChapterIndex(activeChapter.id);
+			setChapters((current) => current.map((item) => item.id === activeChapter.id ? { ...item, index_status: 'pending', index_error: null } : item));
+			setError('');
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Story memory could not be restarted.'); }
+	}
+
+	const showStoredScan = useCallback(async (chapterId: string, revision: number | undefined) => {
+		if (revision === undefined) return false;
+		try {
+			const latest = await api.latestScan(chapterId);
+			if (!latest.scan || latest.scan.chapter_revision !== revision) return false;
+			setFindingsTargetChapterId(chapterId);
+			setFindingsChapterId(chapterId);
+			setFindings(latest.findings);
+			setLastScan({ chapterId, revision: latest.scan.chapter_revision });
+			lastScannedWordsRef.current.set(chapterId, latest.scan.chapter_word_count);
+			return true;
+		} catch { return false; }
+	}, []);
+
+	async function runCheck(automatic = false, force = false) {
+		if (!activeChapter || scanBusyRef.current) return;
+		const chapterId = activeChapter.id;
+		let scannedRevision: number | undefined;
+		scanBusyRef.current = true; setChecking(true); setError(''); setNotice('');
+		try {
+			if (savedRef.current.get(chapterId)?.content !== draftContent || savedRef.current.get(chapterId)?.title !== draftTitle) {
+				await persistChapter(chapterId, draftTitle, draftContent);
+			}
+			const saved = savedRef.current.get(chapterId);
+			if (!saved || saved.content !== draftContent || saved.title !== draftTitle) {
+				throw new Error('The latest draft could not be saved, so no check was run.');
+			}
+			let ready = false;
+			for (let attempt = 0; attempt < 30; attempt += 1) {
+				const status = await api.chapterStatus(chapterId);
+				setChapters((current) => current.map((item) => item.id === status.id ? { ...item, ...status } : item));
+				if (status.index_status === 'indexed') { ready = true; break; }
+				if (status.index_status === 'failed') throw new Error('Story memory could not be updated. Check the local Ollama embedding service.');
+				await new Promise<void>((resolve) => window.setTimeout(resolve, 500));
+			}
+			if (!ready) throw new Error('Story memory is taking longer than expected. Try the check again shortly.');
+			scannedRevision = revisionRef.current.get(chapterId);
+			const result = await api.scanChapter(chapterId, force);
+			const latest = await api.latestScan(chapterId);
+			setFindingsTargetChapterId(chapterId);
+			setFindingsChapterId(chapterId);
+			setFindings(latest.findings);
+			setLastScan(latest.scan ? { chapterId, revision: latest.scan.chapter_revision } : null);
+			lastScannedWordsRef.current.set(chapterId, latest.scan?.chapter_word_count ?? words);
+			setNotice(automatic
+				? 'Your scheduled continuity check is complete.'
+				: result.reused
+					? 'This saved draft was already checked, so the stored findings are shown. Use Run again for a fresh provider request.'
+					: latest.scan?.chapter_revision === revisionRef.current.get(chapterId)
+						? latest.findings.length ? 'A few details may be worth another look.' : 'No clear continuity conflicts found in earlier chapters.'
+						: 'The chapter changed while it was being checked. Run the check again to review the latest text.');
+		} catch (cause) {
+			// The provider may have answered and saved the scan even when the browser
+			// lost the response, so look for a stored result before reporting a failure.
+			let recovered = await showStoredScan(chapterId, scannedRevision ?? revisionRef.current.get(chapterId));
+			for (let attempt = 0; !recovered && attempt < 3; attempt += 1) {
+				await new Promise<void>((resolve) => window.setTimeout(resolve, 1500));
+				recovered = await showStoredScan(chapterId, scannedRevision ?? revisionRef.current.get(chapterId));
+			}
+			if (recovered) {
+				setNotice('The check finished and its findings were saved, but the browser lost the response. They are shown below.');
+			} else {
+				if (cause instanceof ApiRequestError && cause.status === 429 && !cause.message.includes('daily free-model allowance')) {
+					setCheckRetryCountdown(cause.retryAfterSeconds ?? 8);
+				}
+				setError(cause instanceof Error ? cause.message.replace(/ \(\d+\)$/, '') : 'The continuity check could not be completed.');
+			}
+		} finally { scanBusyRef.current = false; setChecking(false); }
+	}
+
+	useEffect(() => {
+		if (!story?.external_analysis_enabled || !activeChapter || activeChapter.index_status !== 'indexed' || !earlierChaptersReady || story.scan_interval_words <= 0) return;
+		const last = lastScannedWordsRef.current.get(activeChapter.id) ?? 0;
+		if (words - last >= story.scan_interval_words) void runCheck(true);
+		// Checking is intentionally tied to the selected chapter's word-count interval.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [words, activeChapter?.id, activeChapter?.index_status, earlierChaptersReady, story?.scan_interval_words, story?.external_analysis_enabled]);
+
+	async function decideEntry(entry: BibleEntry, decision: 'accepted' | 'dismissed') {
+		try {
+			const updated = await api.decideBibleEntry(entry.id, decision);
+			setEntries((current) => current.map((item) => item.id === entry.id ? updated : item));
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'That suggestion could not be saved.'); }
+	}
+
+	function startBibleEdit(entry?: BibleEntry) {
+		setBibleDraft(entry
+			? { id: entry.id, category: entry.category, name: entry.name, description: entry.description }
+			: { category: 'character', name: '', description: '' });
+	}
+
+	async function saveBibleDraft() {
+		if (!bibleDraft || !bibleDraft.name.trim() || !bibleDraft.description.trim()) return;
+		try {
+			const payload = { category: bibleDraft.category, name: bibleDraft.name.trim(), description: bibleDraft.description.trim(), details: bibleDraft.id ? entries.find((entry) => entry.id === bibleDraft.id)?.details ?? {} : {} };
+			const updated = bibleDraft.id ? await api.editBibleEntry(bibleDraft.id, payload) : await api.createBibleEntry(storyId, payload);
+			setEntries((current) => bibleDraft.id ? current.map((entry) => entry.id === updated.id ? updated : entry) : [...current, updated]);
+			setBibleDraft(null);
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'The Story Bible entry could not be saved.'); }
+	}
+
+	async function deleteBibleEntry(entry: BibleEntry) {
+		if (!window.confirm(`Delete “${entry.name}” from the Story Bible?`)) return;
+		try { await api.deleteBibleEntry(entry.id); setEntries((current) => current.filter((item) => item.id !== entry.id)); }
+		catch (cause) { setError(cause instanceof Error ? cause.message : 'The Story Bible entry could not be deleted.'); }
+	}
+
+	async function openBibleSource(entry: BibleEntry) {
+		if (!entry.source_chapter_id) return;
+		const source = chapters.find((item) => item.id === entry.source_chapter_id);
+		if (!source) return;
+		try {
+			const full = await api.chapter(source.id);
+			await selectChapter(source);
+			if (!entry.source_quote) return;
+			window.setTimeout(() => {
+				const editor = editorRef.current;
+				const offset = (full.content ?? '').indexOf(entry.source_quote ?? '');
+				if (!editor || offset < 0) return;
+				editor.focus(); editor.setSelectionRange(offset, offset + (entry.source_quote?.length ?? 0));
+			}, 0);
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Source chapter could not be opened.'); }
+	}
+
+	async function setThread(entry: BibleEntry, state: 'open' | 'resolved') {
+		try {
+			const updated = await api.updateThread(entry.id, state);
+			setEntries((current) => current.map((item) => item.id === entry.id ? updated : item));
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'The thread status could not be changed.'); }
+	}
+
+	async function markIntentional(finding: ContinuityFinding) {
+		try {
+			await api.markIntentional(finding.id);
+			setFindings((current) => current.map((item) => item.id === finding.id ? { ...item, intentional: true, review_status: 'dismissed' } : item));
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'The flag could not be updated.'); }
+	}
+
+	async function reviewFinding(finding: ContinuityFinding, reviewStatus: 'open' | 'resolved' | 'dismissed') {
+		try {
+			const updated = await api.reviewFinding(finding.id, reviewStatus);
+			setFindings((current) => current.map((item) => item.id === finding.id ? { ...item, ...updated } : item));
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Finding status could not be changed.'); }
+	}
+
+	function locateLine(lineNumber: number) {
+		const editor = editorRef.current;
+		if (!editor) return;
+		const lines = draftContent.split('\n');
+		const offset = lines.slice(0, Math.max(0, lineNumber - 1)).reduce((sum, line) => sum + line.length + 1, 0);
+		editor.focus(); editor.setSelectionRange(offset, offset + (lines[lineNumber - 1]?.length ?? 0));
+	}
+
+	async function openFindingLine(finding: ContinuityFinding) {
+		if (findingsTargetChapterId !== activeId) {
+			const target = chapters.find((item) => item.id === findingsTargetChapterId);
+			if (!target) return;
+			await selectChapter(target);
+		}
+		window.setTimeout(() => locateLine(finding.draft_line), 0);
+	}
+
+	if (loading) return <main className="quiet-loading"><span className="loading-mark" /><p>Opening your writing desk…</p></main>;
+	if (!story) return <main className="quiet-loading"><p>{error || 'This story is not available.'}</p><Link className="text-button" href="/dashboard">Back to stories</Link></main>;
+
+	const suggestions = entries.filter((entry) => entry.status === 'suggested');
+	const savedScanReady = lastScan !== null && activeChapter !== null && lastScan.chapterId === activeChapter.id && lastScan.revision === activeChapter.revision;
+	const bible = entries.filter((entry) => entry.status === 'accepted' && entry.category !== 'plot_thread')
+		.filter((entry) => bibleCategory === 'all' || entry.category === bibleCategory)
+		.filter((entry) => !bibleSearch.trim() || `${entry.name} ${entry.description}`.toLocaleLowerCase().includes(bibleSearch.trim().toLocaleLowerCase()));
+	const threads = entries.filter((entry) => entry.category === 'plot_thread' && entry.status !== 'dismissed');
+
+	return (
+		<main className={'studio-shell' + (focusMode ? ' focus-mode' : '')}>
+			<aside className="chapter-rail">
+				<div className="rail-brand-row"><Link className="wordmark" href="/dashboard"><span className="wordmark-icon">s</span>stillroom</Link><Link className="back-link" href="/dashboard" aria-label="Back to stories">←</Link></div>
+				<div className="book-label">YOUR STORY</div><div className="rail-story-title" title={story.title}>{story.title}</div>
+				<div className="chapter-list-heading"><span>CHAPTERS</span><span>{chapters.length}</span></div>
+				<nav className="chapter-list" aria-label="Chapters">
+					{chapters.map((chapter) => <div key={chapter.id} className="chapter-nav-row">
+						<button className={'chapter-nav-item' + (activeId === chapter.id ? ' selected' : '')} onClick={() => void selectChapter(chapter)}>
+							<span className="chapter-nav-number">{String(chapter.chapter_number).padStart(2, '0')}</span><span className="chapter-nav-copy"><strong>{chapter.title}</strong><small>{chapter.word_count.toLocaleString()} words</small></span>
+						</button>
+						<div className="chapter-row-actions">
+							<button className="chapter-order-button" onClick={() => void reorderChapter(chapter.id, -1)} disabled={chapter.chapter_number === 1} aria-label={`Move ${chapter.title} up`} title="Move up">↑</button>
+							<button className="chapter-order-button" onClick={() => void reorderChapter(chapter.id, 1)} disabled={chapter.chapter_number === chapters.length} aria-label={`Move ${chapter.title} down`} title="Move down">↓</button>
+							<button className="chapter-delete-button" onClick={() => void deleteChapter(chapter)} aria-label={`Delete ${chapter.title}`} title="Delete chapter">×</button>
+						</div>
+					</div>)}
+				</nav>
+				<button className="new-chapter-button" onClick={() => void addChapter()}>＋ <span>New chapter</span></button>
+				{activeChapter && otherStories.length > 0 && <label className="move-chapter-control"><span>Move active chapter</span><select defaultValue="" onChange={(event) => { if (event.target.value) void moveActiveChapter(event.target.value); event.target.value = ''; }}><option value="">Choose a story…</option>{otherStories.map((item) => <option value={item.id} key={item.id}>{item.title}</option>)}</select></label>}
+				<label className="import-button">↥ <span>Import .txt or .md</span><input type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(event) => void importManuscript(event)} /></label>
+				<button className="import-button" onClick={() => void exportManuscript()}>↓ <span>Export manuscript</span></button>
+				<div className="rail-footer"><span className="quiet-dot" /> Your words stay yours</div>
+			</aside>
+
+			<section className="writing-column">
+				<header className="studio-topbar">
+					<div className="studio-breadcrumb"><Link href="/dashboard">Stories</Link><span>/</span><span>{story.title}</span></div>
+					<div className="studio-actions"><Link className="studio-section-link" href="/editing">Editing files</Link><span className={'save-state' + (saving || hasUnsavedChanges ? ' is-saving' : '')} role="status">{saving ? 'Saving…' : hasUnsavedChanges ? 'Unsaved changes' : activeChapter?.index_status === 'indexing' ? 'Story memory updating' : 'Saved'}</span><button className="quiet-button focus-toggle" onClick={() => setFocusMode((value) => !value)}>{focusMode ? 'Show notes' : 'Quiet view'}</button></div>
+				</header>
+				{error && <div className="studio-notice error-notice" role="alert">{error}</div>}
+				{notice && <div className="studio-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice('')}>×</button></div>}
+				{!activeChapter ? <div className="first-chapter"><div className="first-chapter-flower">✳</div><div className="eyebrow">A BLANK PAGE, ON PURPOSE</div><h1>Begin wherever you are.</h1><p>No prompts, no generated prose. Just your manuscript and a careful memory for its details.</p><button className="button button-primary" onClick={() => void addChapter()}>Start the first chapter</button></div> : <>
+					<div className="editor-toolbar"><div className="chapter-kicker">CHAPTER {String(activeChapter.chapter_number).padStart(2, '0')}</div><div className="editor-toolbar-right"><span>{words.toLocaleString()} words</span><button className="text-button history-trigger" onClick={() => void openChapterHistory()}>Version history</button><span className={'index-indicator index-' + activeChapter.index_status}>{activeChapter.index_status === 'indexed' ? 'Memory ready' : activeChapter.index_status === 'failed' ? 'Memory paused' : 'Updating memory'}</span></div></div>
+					{activeChapter.index_status === 'failed' && <div className="index-error">Story memory could not update. Check that the local Ollama embedding service is running. <button className="text-button" onClick={() => void retryIndex()}>Try again</button></div>}
+					<div className="editor-page">
+						<input className="chapter-title-input" aria-label="Chapter title" value={draftTitle} onChange={(event) => { draftEditVersionRef.current += 1; setHasUnsavedChanges(true); setDraftTitle(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Chapter title" maxLength={200} />
+						<div className="editor-rule" />
+						<textarea ref={editorRef} className="manuscript-editor" value={draftContent} onChange={(event) => { draftEditVersionRef.current += 1; setHasUnsavedChanges(true); setDraftContent(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Let the first sentence arrive in its own time." aria-label="Chapter manuscript" spellCheck />
+						{activeChapter.index_status === 'indexing' && <div className="indexing-note"><span className="tiny-spinner" /> Story memory is quietly catching up.</div>}
+					</div>
+					<footer className="editor-footer"><span>Autosaves after a short pause · Ctrl/Cmd+S saves now</span><span>Stillroom does not generate story text.</span></footer>
+				</>}
+			</section>
+
+			{!focusMode && <aside className="insights-pane">
+				<div className="insights-heading"><div><div className="eyebrow">THE STORY, REMEMBERED</div><h2>Continuity desk</h2></div><span className="provider-status">{story.external_analysis_enabled ? 'AI checks on' : 'AI checks off'}</span></div>
+				<div className="pane-tabs" role="tablist" aria-label="Continuity desk pages"><button role="tab" aria-selected={pane === 'ai'} className={pane === 'ai' ? 'active' : ''} onClick={() => setPane('ai')}>AI settings</button><button role="tab" aria-selected={pane === 'bible'} className={pane === 'bible' ? 'active' : ''} onClick={() => setPane('bible')}>Story Bible</button><button role="tab" aria-selected={pane === 'setups'} className={pane === 'setups' ? 'active' : ''} onClick={() => setPane('setups')}>Threads <span>{threads.filter((item) => item.thread_state === 'open').length}</span></button><button role="tab" aria-selected={pane === 'continuity'} className={pane === 'continuity' ? 'active' : ''} onClick={() => setPane('continuity')}>Continuity <span>{currentFindings.length}</span></button></div>
+				<div className="pane-content">
+					<section hidden={pane !== 'ai'} className="ai-pane-page">
+						<div>
+							<p className="pane-hint">Choose the service used for story analysis. Stillroom never generates manuscript prose.</p>
+							<AIProviderSettingsForm />
+						</div>
+						<div className="ai-story-settings-inline">
+							<div className="pane-section-title"><strong>Checks for this story</strong><span>{story.external_analysis_enabled ? 'Enabled' : 'Paused'}</span></div>
+							<label className="story-analysis-toggle">
+								<span><strong>Allow external AI analysis</strong><small>Chapter text and relevant earlier passages go to your selected API host.</small></span>
+								<input type="checkbox" checked={story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ external_analysis_enabled: event.target.checked })} />
+							</label>
+							<label className="ai-field">
+								<span>Automatic check interval</span>
+								<select value={story.scan_interval_words} disabled={!story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ scan_interval_words: Number(event.target.value) })}>
+									<option value={0}>Off · check manually</option>
+									<option value={500}>Every 500 new words</option>
+									<option value={1000}>Every 1,000 new words</option>
+									<option value={1500}>Every 1,500 new words</option>
+									<option value={3000}>Every 3,000 new words</option>
+								</select>
+								<small>Automatic checks are optional. You can also check a draft manually.</small>
+							</label>
+							<div className="ai-privacy-note"><strong>Privacy</strong><p>External analysis is limited to this story. Local indexing stays on Ollama.</p></div>
+						</div>
+					</section>
+					{pane === 'bible' && <>
+						<section className="bible-scan-panel">
+							<div className="pane-section-title"><strong>Scan chapters</strong><span>Story Bible</span></div>
+							<p className="pane-hint">Choose a chapter range to find details for your approval.</p>
+							<div className="bible-scan-range">
+								<label><span>From</span><select value={bibleScanStart} onChange={(event) => setBibleScanStart(Number(event.target.value))}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.title}</option>)}</select></label>
+								<label><span>Through</span><select value={bibleScanEnd} onChange={(event) => setBibleScanEnd(Number(event.target.value))}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.title}</option>)}</select></label>
+							</div>
+							<button className="button button-bible-scan" onClick={() => void scanBibleRange()} disabled={!chapters.length || hasUnsavedChanges || scanningBible || bibleScanPending.length > 0 || bibleScanStart > bibleScanEnd}>
+								{scanningBible ? 'Queueing scan…' : 'Scan range'}
+							</button>
+							<label className="bible-scan-force"><input type="checkbox" checked={bibleScanForce} onChange={(event) => setBibleScanForce(event.target.checked)} /><span>Re-scan unchanged chapters</span></label>
+							<small className="bible-scan-help">Save your latest edits before scanning. Only chapters not scanned since their latest edit are sent unless you choose to re-scan. Your selected AI provider receives the chapter text. Editing and local indexing do not trigger Story Bible suggestions.</small>
+							{bibleScanMessage && <p className={`bible-scan-message${bibleScanFailed ? ' is-error' : ''}`} role="status">{bibleScanMessage}</p>}
+						</section>
+						<div className="bible-section-heading"><div className="pane-section-title"><strong>Story Bible</strong><span>{bible.length} shown</span></div><button className="text-button" onClick={() => startBibleEdit()}>Add entry</button></div>
+						<div className="bible-filters"><input value={bibleSearch} onChange={(event) => setBibleSearch(event.target.value)} placeholder="Search details" aria-label="Search Story Bible" /><select value={bibleCategory} onChange={(event) => setBibleCategory(event.target.value as typeof bibleCategory)} aria-label="Filter Story Bible category"><option value="all">All types</option>{Object.entries(CATEGORY_LABEL).filter(([key]) => key !== 'plot_thread').map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div>
+						{bibleDraft && <form className="bible-edit-form" onSubmit={(event) => { event.preventDefault(); void saveBibleDraft(); }}>
+							<label>Type<select value={bibleDraft.category} onChange={(event) => setBibleDraft({ ...bibleDraft, category: event.target.value as BibleEntry['category'] })}>{Object.entries(CATEGORY_LABEL).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+							<label>Name<input value={bibleDraft.name} onChange={(event) => setBibleDraft({ ...bibleDraft, name: event.target.value })} maxLength={200} required /></label>
+							<label>Details<textarea value={bibleDraft.description} onChange={(event) => setBibleDraft({ ...bibleDraft, description: event.target.value })} maxLength={10000} rows={3} required /></label>
+							<div className="suggestion-actions"><button className="button button-approve" type="submit">Save entry</button><button type="button" className="text-button subtle" onClick={() => setBibleDraft(null)}>Cancel</button></div>
+						</form>}
+						{suggestions.length > 0 && <section className="suggestion-section"><div className="pane-section-title"><strong>For your approval</strong><span>{suggestions.length}</span></div><p className="pane-hint">New details found in your pages. Add only what belongs.</p>{suggestions.map((entry) => <article className="suggestion-card" key={entry.id}><div className="suggestion-category">{CATEGORY_LABEL[entry.category]}</div><h3>{entry.name}</h3><p>{entry.description}</p>{entry.source_quote && <blockquote>“{entry.source_quote}”</blockquote>}<div className="suggestion-actions"><button className="button button-approve" onClick={() => void decideEntry(entry, 'accepted')}>Add to Bible</button><button className="text-button subtle" onClick={() => void decideEntry(entry, 'dismissed')}>Ignore</button><button className="text-button subtle" onClick={() => startBibleEdit(entry)}>Edit</button><button className="text-button subtle" onClick={() => void deleteBibleEntry(entry)}>Delete</button>{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Source</button>}</div></article>)}</section>}
+						<section className="bible-section"><div className="pane-section-title"><strong>Established details</strong><span>{bible.length}</span></div>{bible.length ? bible.map((entry) => <article className="bible-entry" key={entry.id}><span className="bible-entry-type">{CATEGORY_LABEL[entry.category]}</span><strong>{entry.name}</strong><p>{entry.description}</p><div className="bible-entry-actions"><button className="text-button" onClick={() => startBibleEdit(entry)}>Edit</button><button className="text-button subtle" onClick={() => void deleteBibleEntry(entry)}>Delete</button>{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Open source</button>}</div></article>) : <div className="pane-empty">Approved character details, places, objects, and rules will gather here.</div>}</section>
+					</>}
+					{pane === 'setups' && <section><div className="pane-section-title"><strong>Open story threads</strong><span>{threads.filter((item) => item.thread_state === 'open').length}</span></div><p className="pane-hint">Specific questions and promises the story may return to.</p>{threads.length ? threads.map((entry) => <article className={'thread-card' + (entry.thread_state === 'resolved' ? ' resolved' : '')} key={entry.id}><div className="thread-status">{entry.thread_state === 'resolved' ? 'Resolved' : 'Still open'}</div><h3>{entry.name}</h3><p>{entry.description}</p>{entry.source_quote && <blockquote>“{entry.source_quote}”</blockquote>}<div className="bible-entry-actions"><button className="text-button" onClick={() => void setThread(entry, entry.thread_state === 'resolved' ? 'open' : 'resolved')}>{entry.thread_state === 'resolved' ? 'Reopen thread' : 'Mark resolved'}</button><button className="text-button" onClick={() => startBibleEdit(entry)}>Edit</button>{entry.status === 'suggested' && <><button className="text-button" onClick={() => void decideEntry(entry, 'accepted')}>Add to Bible</button><button className="text-button subtle" onClick={() => void decideEntry(entry, 'dismissed')}>Ignore</button></>}{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Open source</button>}<button className="text-button subtle" onClick={() => void deleteBibleEntry(entry)}>Delete</button></div></article>) : <div className="pane-empty">Unresolved setups and questions will appear here when they are noticed in your chapters.</div>}</section>}
+					{pane === 'continuity' && <section>
+						<div className="pane-section-title continuity-title">
+							<strong>Continuity findings <span className="finding-count">{currentFindings.filter((item) => item.review_status === 'open').length}</span></strong>
+							<select className="finding-filter" aria-label="Choose chapter findings" value={findingsTargetChapterId || activeId} onChange={(event) => void changeFindingChapter(event.target.value)}><option value="" disabled>Select chapter</option>{chapters.map((item) => <option key={item.id} value={item.id}>Ch. {item.chapter_number}</option>)}</select>
+							<select className="finding-filter" aria-label="Filter continuity findings" value={findingFilter} onChange={(event) => setFindingFilter(event.target.value as typeof findingFilter)}><option value="open">Open</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option><option value="all">All</option></select>
+							<button className="button button-check" disabled={!activeChapter || findingsTargetChapterId !== activeId || !story.external_analysis_enabled || !earlierChaptersReady || activeChapter.index_status !== 'indexed' || checking || checkRetryCountdown > 0} onClick={() => void runCheck()}>
+								{checking ? <><span className="tiny-spinner" /> Checking…</> : checkRetryCountdown > 0 ? `Retry in ${checkRetryCountdown}s` : 'Check draft'}
+							</button>
+						</div>
+						<p className="pane-hint">{findingsTargetChapterId !== activeId ? 'You are viewing saved findings for another chapter. Select the open chapter to run a new check.' : !story.external_analysis_enabled ? 'Enable AI checks in AI settings to review this draft.' : !earlierChapters.length ? 'Add an earlier chapter to compare against.' : !earlierChaptersReady ? 'Waiting for earlier chapters to finish indexing.' : activeChapter?.index_status !== 'indexed' ? 'This chapter is still being indexed.' : 'Potential conflicts pair a line in this draft with evidence from earlier chapters only.'}</p>
+						{savedScanReady && <div className="reuse-hint"><span>These findings are already stored for this saved draft. Check draft reuses them at no provider cost.</span><button className="text-button" title="Send this draft to your provider again" disabled={findingsTargetChapterId !== activeId || !story.external_analysis_enabled || !earlierChaptersReady || activeChapter.index_status !== 'indexed' || checking || checkRetryCountdown > 0} onClick={() => void runCheck(false, true)}>Run again</button></div>}
+						{visibleFindings.length ? visibleFindings.map((finding) => <article className={'finding-card status-' + finding.review_status} key={finding.id}><div className="finding-card-top"><span>LINE {finding.draft_line} · {finding.review_status.toUpperCase()}</span><span>{finding.confidence}% confidence</span></div><p className="finding-explanation">{finding.explanation}</p><div className="evidence-pair"><div className="draft-evidence"><small>THIS DRAFT · LINE {finding.draft_line}</small><button onClick={() => void openFindingLine(finding)}>“{finding.draft_quote}”</button></div><div className="earlier-evidence"><small>EARLIER · CHAPTER {finding.earlier_chapter_number} · {finding.earlier_chapter_title}</small><blockquote>“{finding.earlier_quote}”</blockquote></div></div><div className="finding-review-actions">{finding.review_status !== 'resolved' && <button onClick={() => void reviewFinding(finding, 'resolved')}>Resolve</button>}{finding.review_status !== 'open' && <button onClick={() => void reviewFinding(finding, 'open')}>Reopen</button>}{finding.review_status !== 'dismissed' && <button onClick={() => void reviewFinding(finding, 'dismissed')}>Dismiss</button>}</div>{finding.review_status === 'open' && <button className="intentional-button" onClick={() => void markIntentional(finding)}>Mark as intentional</button>}</article>) : <div className="pane-empty">{currentFindings.length ? 'No findings match this filter.' : findingsChapterId === findingsTargetChapterId ? 'No conflicts to review. Run a draft check when you’re ready.' : 'Loading saved findings…'}</div>}
+					</section>}
+				</div>
+				<div className="pane-bottom-note">Suggestions are drafts for your approval. Nothing becomes canon without you.</div>
+			</aside>}
+			{historyOpen && <div className="history-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setHistoryOpen(false); }}><section className="history-dialog" role="dialog" aria-modal="true" aria-label="Chapter version history"><header><div><div className="eyebrow">DRAFT SAFETY</div><h2>Version history</h2><p>Restore a saved version. Your current draft is kept as a version too.</p></div><button className="quiet-button" onClick={() => setHistoryOpen(false)}>Close</button></header>{historyLoading ? <div className="pane-empty">Loading saved versions…</div> : chapterHistory.length ? <div className="history-list">{chapterHistory.map((revision) => <article key={revision.revision_number}><div><strong>Version {revision.revision_number}</strong><span>{revision.title} · {revision.word_count.toLocaleString()} words</span><time>{new Date(revision.created_at).toLocaleString()}</time></div><button className="button button-approve" onClick={() => void restoreChapterHistory(revision)}>Restore</button></article>)}</div> : <div className="pane-empty">Older versions appear here after the chapter is edited.</div>}</section></div>}
+		</main>
+	);
+}

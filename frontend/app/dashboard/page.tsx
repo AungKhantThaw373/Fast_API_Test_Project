@@ -1,228 +1,115 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
-const API_BASE_URL = 'http://localhost:8000';
-
-interface User {
-	id: string;
-	email: string;
-	created_at: string;
-}
+import { useEffect, useState, type FormEvent } from 'react';
+import { api, type CurrentUser, type Story } from '@/lib/api';
 
 export default function DashboardPage() {
 	const router = useRouter();
-	const [users, setUsers] = useState<User[]>([]);
-	const [currentUser, setCurrentUser] = useState<string | null>(null);
+	const [user, setUser] = useState<CurrentUser | null>(null);
+	const [stories, setStories] = useState<Story[]>([]);
+	const [title, setTitle] = useState('');
 	const [loading, setLoading] = useState(true);
+	const [busy, setBusy] = useState(false);
+	const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null);
+	const [search, setSearch] = useState('');
+	const [collectionFilter, setCollectionFilter] = useState('all');
 	const [error, setError] = useState('');
 
 	useEffect(() => {
-		const fetchDashboardData = async () => {
-			try {
-				// 1. Verify user session
-				const meResponse = await fetch(`${API_BASE_URL}/me`, { credentials: 'include' });
-
-				if (!meResponse.ok) {
-					// Not authenticated, redirect to login
-					router.push('/login');
-					return;
-				}
-
-				const meData = await meResponse.json();
-				setCurrentUser(meData.username);
-
-				// 2. Fetch the user list
-				const usersResponse = await fetch(`${API_BASE_URL}/users`, { credentials: 'include' });
-
-				if (usersResponse.ok) {
-					const usersData = await usersResponse.json();
-					setUsers(usersData.users);
-				} else {
-					setError('Failed to load user list');
-				}
-
-				setLoading(false);
-
-			} catch (err) {
-				setError('Network error. Cannot connect to backend.');
-				setLoading(false);
-			}
-		};
-
-		fetchDashboardData();
+		let active = true;
+		Promise.all([api.me(), api.stories()]).then(([account, items]) => {
+			if (active) { setUser(account); setStories(items); }
+		}).catch((cause: unknown) => {
+			if (!active) return;
+			if (cause instanceof Error && cause.message.includes('(401)')) router.replace('/login');
+			else setError(cause instanceof Error ? cause.message : 'Your stories could not be loaded.');
+		}).finally(() => { if (active) setLoading(false); });
+		return () => { active = false; };
 	}, [router]);
 
-	// Added a simple frontend-only logout handler for the UI
-	const handleLogout = async () => {
+	async function createStory(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		if (!title.trim()) return;
+		setBusy(true); setError('');
 		try {
-			await fetch(`${API_BASE_URL}/logout`, {
-				method: 'POST',
-				credentials: 'include',
-			});
-
-		} catch (err) {
-			setError('Failed to logout');
-		} finally {
-			// Clear user data and redirect to login
-			setCurrentUser(null);
-			router.push('/login');
+			const story = await api.createStory(title.trim());
+			router.push(`/stories/${story.id}`);
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : 'The story could not be created.');
+			setBusy(false);
 		}
-	};
-
-	if (loading) {
-		return (
-			<div style={styles.container}>
-				<div style={styles.center}>Loading...</div>
-			</div>
-		);
 	}
 
+	async function logout() {
+		try { await api.logout(); } finally { router.replace('/login'); }
+	}
+
+	async function deleteStory(story: Story) {
+		if (!window.confirm(`Delete “${story.title}” and all of its chapters? This cannot be undone.`)) return;
+		setDeletingStoryId(story.id);
+		setError('');
+		try {
+			await api.deleteStory(story.id);
+			setStories((current) => current.filter((item) => item.id !== story.id));
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : 'The story could not be deleted.');
+		} finally {
+			setDeletingStoryId(null);
+		}
+	}
+
+	async function editStory(story: Story, field: 'title' | 'collection_name') {
+		const promptText = field === 'title' ? 'Rename story' : 'Move to collection (leave blank for no collection)';
+		const value = window.prompt(promptText, field === 'title' ? story.title : story.collection_name)?.trim();
+		if (value === undefined || (field === 'title' && !value) || value === story[field]) return;
+		try {
+			const updated = await api.updateStory(story.id, { [field]: value });
+			setStories((current) => current.map((item) => item.id === story.id ? { ...item, ...updated } : item));
+		} catch (cause) { setError(cause instanceof Error ? cause.message : 'The story could not be updated.'); }
+	}
+
+	if (loading) return <main className="quiet-loading"><span className="loading-mark" /><p>Opening your desk…</p></main>;
+	const collections = [...new Set(stories.map((story) => story.collection_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+	const visibleStories = stories.filter((story) =>
+		story.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()) &&
+		(collectionFilter === 'all' || story.collection_name === collectionFilter),
+	);
+
 	return (
-		<div style={styles.container}>
-			<div style={styles.header}>
-				<h1 style={styles.title}>Dashboard</h1>
-				<div style={styles.userInfo}>
-					{currentUser && <span>Welcome, {currentUser}</span>}
-					<button onClick={handleLogout} style={styles.logoutButton}>
-						Logout
-					</button>
+		<main className="library-page">
+			<header className="library-header">
+				<div className="app-header-left">
+					<Link className="wordmark" href="/dashboard"><span className="wordmark-icon">s</span>stillroom</Link>
+					<nav className="product-nav" aria-label="Workspace">
+						<Link href="/dashboard" aria-current="page">Writing</Link>
+						<Link href="/editing">Editing</Link>
+						<Link href="/settings">Settings</Link>
+					</nav>
 				</div>
-			</div>
-
-			<div style={styles.content}>
-				{error && <div style={styles.error}>{error}</div>}
-
-				<div style={styles.section}>
-					<h2 style={styles.sectionTitle}>Users</h2>
-					{users.length === 0 ? (
-						<p style={styles.noData}>No users found</p>
-					) : (
-						<div style={styles.table}>
-							<div style={styles.tableHeader}>
-								<div style={styles.tableCell}>ID</div>
-								<div style={styles.tableCell}>Email</div>
-								<div style={styles.tableCell}>Created At</div>
-							</div>
-							{users.map((user) => (
-								<div key={user.id} style={styles.tableRow}>
-									<div style={styles.tableCell}>{user.id.substring(0, 8)}...</div>
-									<div style={styles.tableCell}>{user.email}</div>
-									<div style={styles.tableCell}>
-										{new Date(user.created_at).toLocaleDateString()}
-									</div>
-								</div>
-							))}
-						</div>
-					)}
-				</div>
-			</div>
-		</div>
+				<div className="header-account"><Link className="profile-link" href="/settings">{user?.username}</Link><button className="quiet-button" onClick={() => void logout()}>Sign out</button></div>
+			</header>
+			<section className="library-content">
+				<div className="welcome-block"><div className="eyebrow">YOUR WRITING DESK</div><h1>Make room for a story.</h1><p>A quiet place for the pages, and a careful eye on the details.</p></div>
+				{error && <div className="notice" role="alert">{error}</div>}
+				<form className="new-story-card" onSubmit={createStory}>
+					<div className="new-story-mark">+</div>
+					<div className="new-story-copy"><strong>Begin a new story</strong><span>Start with a title. You can change it whenever you like.</span></div>
+					<div className="new-story-controls"><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="A working title" maxLength={200} aria-label="Story title" required /><button className="button button-primary" disabled={busy}>{busy ? 'Opening…' : 'Open writing desk'}</button></div>
+				</form>
+				<div className="library-heading"><div><div className="eyebrow">YOUR WORK</div><h2>Stories</h2></div><span>{visibleStories.length} of {stories.length}</span></div>
+				{stories.length > 0 && <div className="story-library-tools"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a story" aria-label="Search stories" /><select value={collectionFilter} onChange={(event) => setCollectionFilter(event.target.value)} aria-label="Filter by collection"><option value="all">All collections</option>{collections.map((collection) => <option key={collection} value={collection}>{collection}</option>)}</select></div>}
+				{visibleStories.length ? <div className="story-grid">{visibleStories.map((story) => <article className="story-card" key={story.id}>
+					<Link className="story-card-link" href={`/stories/${story.id}`}>
+						<div className="story-card-top"><span className="story-card-mark">✳</span><span className="story-open">{story.collection_name || 'Unsorted'} · Open ↗</span></div>
+						<h3>{story.title}</h3><p>{story.chapter_count ?? 0} {(story.chapter_count ?? 0) === 1 ? 'chapter' : 'chapters'} <span>·</span> {(story.word_count ?? 0).toLocaleString()} words</p>
+						<div className="story-card-foot"><span>Last tended</span><time>{new Date(story.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</time></div>
+					</Link>
+					<div className="story-card-actions"><button className="story-delete-button" onClick={() => void editStory(story, 'title')}>Rename</button><button className="story-delete-button" onClick={() => void editStory(story, 'collection_name')}>Collection</button><button className="story-delete-button" onClick={() => void deleteStory(story)} disabled={deletingStoryId === story.id}>{deletingStoryId === story.id ? 'Deleting…' : 'Delete'}</button></div>
+				</article>)}</div> : <div className="library-empty"><span>✳</span><h3>{stories.length ? 'No stories match that filter.' : 'Your first page is waiting.'}</h3><p>{stories.length ? 'Try another search or collection.' : 'Create a story above to open your writing desk.'}</p></div>}
+				<footer className="library-footer">Stillroom keeps the details. The story stays yours.</footer>
+			</section>
+		</main>
 	);
 }
-
-
-const styles = {
-	container: {
-		minHeight: '100vh',
-		backgroundColor: '#f5f5f5',
-		fontFamily: 'Arial, sans-serif',
-	},
-	center: {
-		display: 'flex',
-		justifyContent: 'center',
-		alignItems: 'center',
-		minHeight: '100vh',
-		fontSize: '18px',
-		color: '#666',
-	},
-	header: {
-		backgroundColor: 'white',
-		padding: '20px 40px',
-		display: 'flex',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-	},
-	title: {
-		margin: 0,
-		fontSize: '28px',
-		color: '#333',
-	},
-	userInfo: {
-		display: 'flex',
-		alignItems: 'center',
-		gap: '20px',
-		fontSize: '14px',
-		color: '#666',
-	},
-	logoutButton: {
-		padding: '8px 16px',
-		fontSize: '14px',
-		fontWeight: 'bold' as const,
-		color: 'white',
-		backgroundColor: '#dc3545',
-		border: 'none',
-		borderRadius: '4px',
-		cursor: 'pointer',
-	},
-	content: {
-		padding: '40px',
-		maxWidth: '1200px',
-		margin: '0 auto',
-	},
-	error: {
-		padding: '15px',
-		backgroundColor: '#f8d7da',
-		color: '#721c24',
-		borderRadius: '4px',
-		marginBottom: '20px',
-		border: '1px solid #f5c6cb',
-	},
-	section: {
-		backgroundColor: 'white',
-		padding: '20px',
-		borderRadius: '8px',
-		boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-	},
-	sectionTitle: {
-		marginTop: 0,
-		marginBottom: '20px',
-		fontSize: '20px',
-		color: '#333',
-	},
-	noData: {
-		color: '#999',
-		fontStyle: 'italic',
-		textAlign: 'center' as const,
-	},
-	table: {
-		display: 'flex',
-		flexDirection: 'column' as const,
-		gap: '0',
-		border: '1px solid #ddd',
-		borderRadius: '4px',
-		overflow: 'hidden',
-	},
-	tableHeader: {
-		display: 'grid',
-		gridTemplateColumns: '1fr 2fr 2fr',
-		backgroundColor: '#f9f9f9',
-		fontWeight: 'bold' as const,
-		borderBottom: '2px solid #ddd',
-	},
-	tableRow: {
-		display: 'grid',
-		gridTemplateColumns: '1fr 2fr 2fr',
-		borderBottom: '1px solid #ddd',
-		'&:lastChild': {
-			borderBottom: 'none',
-		},
-	},
-	tableCell: {
-		padding: '12px',
-		color: '#333',
-		fontSize: '14px',
-	},
-};
