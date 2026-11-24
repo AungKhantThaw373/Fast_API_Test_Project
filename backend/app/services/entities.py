@@ -29,6 +29,14 @@ from app.models.wiki_models import (
     EntityMention,
     EntityRelationship,
 )
+from app.services.pagination import (
+    clamp_limit,
+    cursor_timestamp,
+    cursor_uuid,
+    decode_cursor,
+    encode_cursor,
+    keyset_predicate,
+)
 
 ARTICLES = ("the", "a", "an")
 HONORIFICS = (
@@ -500,3 +508,180 @@ async def _alias_count(session: AsyncSession, source_id: UUID) -> int:
         )
         or 0
     )
+
+
+async def list_entities(
+    session: AsyncSession,
+    story_id: UUID,
+    *,
+    entity_type: str | None = None,
+    status: str | None = None,
+    query: str | None = None,
+    limit: int | None = None,
+    cursor: str | None = None,
+) -> tuple[list[Entity], str | None]:
+    """Newest-edited first, keyset paginated, never including merged rows."""
+    page_size = clamp_limit(limit, default=100, maximum=500)
+    statement = select(Entity).where(
+        Entity.story_id == story_id,
+        Entity.merged_into_id.is_(None),
+        Entity.status != "merged",
+    )
+    if entity_type:
+        statement = statement.where(Entity.entity_type == entity_type)
+    if status:
+        statement = statement.where(Entity.status == status)
+    if query and query.strip():
+        needle = f"%{query.strip().lower()}%"
+        statement = statement.where(
+            or_(Entity.name.ilike(needle), Entity.canonical_name.ilike(needle))
+        )
+    if cursor:
+        updated_at, entity_id = decode_cursor(cursor, (cursor_timestamp, cursor_uuid))
+        statement = statement.where(
+            keyset_predicate(
+                (Entity.updated_at, Entity.id), (updated_at, entity_id), descending=True
+            )
+        )
+    rows = list(
+        await session.scalars(
+            statement.order_by(Entity.updated_at.desc(), Entity.id.desc()).limit(page_size + 1)
+        )
+    )
+    next_cursor = None
+    if len(rows) > page_size:
+        rows = rows[:page_size]
+        next_cursor = encode_cursor((rows[-1].updated_at, rows[-1].id))
+    return rows, next_cursor
+
+
+async def search_entities(
+    session: AsyncSession, story_id: UUID, query: str, limit: int = 20
+) -> list[Entity]:
+    """Trigram search over names and aliases; exact and prefix hits rank first."""
+    needle = query.strip()
+    if not needle:
+        return []
+    normalized = normalize_name(needle)
+    rows = (
+        await session.execute(
+            select(Entity, func.max(EntityAlias.normalized_alias).label("alias_hit"))
+            .join(EntityAlias, EntityAlias.entity_id == Entity.id)
+            .where(
+                Entity.story_id == story_id,
+                Entity.merged_into_id.is_(None),
+                or_(
+                    Entity.name.ilike(f"%{needle}%"),
+                    EntityAlias.alias.ilike(f"%{needle}%"),
+                    func.similarity(Entity.canonical_name, normalized) > 0.25,
+                    func.similarity(EntityAlias.normalized_alias, normalized) > 0.25,
+                ),
+            )
+            .group_by(Entity.id)
+            .limit(max(1, min(limit, 50)))
+        )
+    ).all()
+    return [entity for entity, _alias in rows]
+
+
+async def get_entity(session: AsyncSession, entity_id: UUID) -> Entity:
+    entity = await session.get(Entity, entity_id)
+    if entity is None:
+        raise HTTPException(status_code=404, detail="Entity not found.")
+    return entity
+
+
+async def update_entity(
+    session: AsyncSession,
+    entity: Entity,
+    *,
+    name: str | None = None,
+    entity_type: str | None = None,
+    summary: str | None = None,
+) -> Entity:
+    if entity_type is not None and entity_type != entity.entity_type:
+        entity.entity_type = entity_type
+    if name is not None:
+        clean = name.strip()
+        if not clean:
+            raise HTTPException(status_code=422, detail="An entity needs a name.")
+        entity.name = clean
+        entity.canonical_name = normalize_name(clean)[:220]
+        await add_alias(session, entity, clean, "name")
+    if summary is not None:
+        entity.summary = summary
+    await session.flush()
+    return entity
+
+
+async def archive_entity(session: AsyncSession, entity: Entity) -> None:
+    entity.status = "archived"
+    await session.flush()
+
+
+async def delete_alias(session: AsyncSession, entity_id: UUID, alias_id: UUID) -> bool:
+    deleted = await session.scalar(
+        delete(EntityAlias)
+        .where(EntityAlias.id == alias_id, EntityAlias.entity_id == entity_id)
+        .returning(EntityAlias.id)
+    )
+    return deleted is not None
+
+
+async def aliases_for(session: AsyncSession, entity_ids: list[UUID]) -> dict[UUID, list[EntityAlias]]:
+    if not entity_ids:
+        return {}
+    rows = await session.scalars(
+        select(EntityAlias)
+        .where(EntityAlias.entity_id.in_(entity_ids))
+        .order_by(EntityAlias.created_at, EntityAlias.alias)
+    )
+    grouped: dict[UUID, list[EntityAlias]] = {}
+    for alias in rows:
+        grouped.setdefault(alias.entity_id, []).append(alias)
+    return grouped
+
+
+async def appearances(
+    session: AsyncSession,
+    story_id: UUID,
+    entity_id: UUID,
+    *,
+    limit: int | None = None,
+    cursor: str | None = None,
+) -> tuple[list[tuple[EntityMention, Chapter]], str | None]:
+    """Where an entity is mentioned, in chapter then line order."""
+    page_size = clamp_limit(limit, default=50, maximum=200)
+    statement = (
+        select(EntityMention, Chapter)
+        .join(Chapter, Chapter.id == EntityMention.chapter_id)
+        .where(
+            EntityMention.entity_id == entity_id,
+            Chapter.story_id == story_id,
+            Chapter.deleted_at.is_(None),
+        )
+    )
+    if cursor:
+        chapter_number, line_start, mention_id = decode_cursor(
+            cursor, (int, int, cursor_uuid)
+        )
+        statement = statement.where(
+            keyset_predicate(
+                (Chapter.chapter_number, EntityMention.line_start, EntityMention.id),
+                (chapter_number, line_start, mention_id),
+                descending=False,
+            )
+        )
+    rows = (
+        await session.execute(
+            statement.order_by(
+                Chapter.chapter_number, EntityMention.line_start, EntityMention.id
+            ).limit(page_size + 1)
+        )
+    ).all()
+    next_cursor = None
+    if len(rows) > page_size:
+        rows = rows[:page_size]
+        mention, chapter = rows[-1]
+        next_cursor = encode_cursor((chapter.chapter_number, mention.line_start, mention.id))
+    return [(mention, chapter) for mention, chapter in rows], next_cursor

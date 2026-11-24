@@ -15,12 +15,14 @@ from app.routes.bible import router as bible_router
 from app.routes.chapters import router as chapter_router
 from app.routes.continuity import router as continuity_router
 from app.routes.editing_routes import router as editing_router
+from app.routes.entities import router as entities_router
 from app.routes.health import router as health_router
 from app.routes.jobs import router as job_router
 from app.routes.stories import router as story_router
 from app.routes.system_routes import router as system_router
 from app.routes.trash_routes import router as trash_router
 from app.routes.user_routes import router as user_router
+from app.routes.wiki import router as wiki_router
 from app.schema_check import assert_schema_at_head
 from app.services.indexing import reconcile_indexing_state, reindex_stale_embedding_models
 from app.services.trash import purge_expired_trash
@@ -79,9 +81,19 @@ async def http_error(request: Request, exc: StarletteHTTPException) -> JSONRespo
 async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     from app.middleware import current_request_id
 
+    # ``errors()`` can carry exception objects in ``ctx`` (model validators raise
+    # ValueError), which JSON cannot encode. Keep the message and drop the rest.
+    detail = [
+        {
+            "type": error.get("type"),
+            "loc": list(error.get("loc", ())),
+            "msg": error.get("msg"),
+        }
+        for error in exc.errors()
+    ]
     return JSONResponse(
         status_code=422,
-        content={"detail": exc.errors(), "request_id": current_request_id()},
+        content={"detail": detail, "request_id": current_request_id()},
     )
 
 
@@ -111,3 +123,5 @@ app.include_router(job_router)
 app.include_router(trash_router)
 app.include_router(system_router)
 app.include_router(editing_router)
+app.include_router(entities_router)
+app.include_router(wiki_router)

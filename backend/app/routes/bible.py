@@ -22,6 +22,7 @@ from app.schemas.bible import (
 )
 from app.security import get_current_user
 from app.services import bible as bible_service
+from app.services import compat as compat_service
 from app.services import indexing
 from app.services import stories as stories_service
 
@@ -38,11 +39,13 @@ async def get_story_bible(
     session: AsyncSession = Depends(get_async_session),
 ) -> BibleListOut:
     await stories_service.owned_story(session, story_id, user.id)
-    entries, next_cursor = await bible_service.list_entries(
+    # Phase 3 compatibility view: the knowledge model is canonical, and any
+    # legacy rows without an entity yet are appended so nothing disappears.
+    rows, next_cursor = await compat_service.bible_view(
         session, story_id, limit=limit, cursor=cursor
     )
     return BibleListOut(
-        entries=[BibleEntryOut.model_validate(entry) for entry in entries],
+        entries=[BibleEntryOut.model_validate(row) for row in rows],
         next_cursor=next_cursor,
     )
 

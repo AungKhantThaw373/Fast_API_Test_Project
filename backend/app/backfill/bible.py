@@ -91,6 +91,7 @@ async def backfill_story(
                 continue
             session.add(
                 StoryThread(
+                    id=entry.id,
                     story_id=story_id,
                     title=entry.name[:300],
                     description=entry.description,
