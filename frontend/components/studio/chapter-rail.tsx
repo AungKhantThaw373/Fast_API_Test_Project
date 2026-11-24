@@ -88,7 +88,8 @@ export function ChapterRail({
 						)}
 						{!isCollapsed &&
 							group.chapters.map((chapter) => (
-								<div key={chapter.id} className="chapter-nav-row">
+								<div key={chapter.id} className="chapter-nav-block">
+									<div className="chapter-nav-row">
 									<button
 										className={"chapter-nav-item" + (activeId === chapter.id ? " selected" : "")}
 										onClick={() => onSelect(chapter)}
@@ -102,22 +103,6 @@ export function ChapterRail({
 										</span>
 									</button>
 									<div className="chapter-row-actions">
-										{arcs.length > 0 && (
-											<select
-												className="chapter-arc-select"
-												aria-label={`Arc for ${chapter.title}`}
-												title="Put this chapter in an arc"
-												value={chapter.arc_id ?? ""}
-												onChange={(event) => onAssign(chapter.id, event.target.value || null)}
-											>
-												<option value="">No arc</option>
-												{arcs.map((arc) => (
-													<option key={arc.id} value={arc.id}>
-														{arc.name}
-													</option>
-												))}
-											</select>
-										)}
 										<button
 											className="chapter-order-button"
 											onClick={() => onMove(chapter.id, -1)}
@@ -144,7 +129,29 @@ export function ChapterRail({
 										>
 											×
 										</button>
+										</div>
 									</div>
+									{arcs.length > 0 && (
+										<div className="chapter-arc-line">
+											<label>
+												<span className="sr-only">Arc for {chapter.title}</span>
+												<select
+													className="chapter-arc-select"
+													aria-label={`Arc for ${chapter.title}`}
+													title="Put this chapter in an arc"
+													value={chapter.arc_id ?? ""}
+													onChange={(event) => onAssign(chapter.id, event.target.value || null)}
+												>
+													<option value="">Not in an arc</option>
+													{arcs.map((arc) => (
+														<option key={arc.id} value={arc.id}>
+															{arc.name}
+														</option>
+													))}
+												</select>
+											</label>
+										</div>
+									)}
 								</div>
 							))}
 					</section>

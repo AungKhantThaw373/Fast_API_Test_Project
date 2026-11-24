@@ -166,9 +166,6 @@ class SceneEmbedding(Base):
         UUID(as_uuid=True), ForeignKey("story_chapters.id", ondelete="CASCADE"), nullable=False, index=True
     )
     chapter_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    arc_id: Mapped[UUIDType | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("arcs.id", ondelete="SET NULL"), nullable=True, index=True
-    )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     start_line: Mapped[int] = mapped_column(Integer, nullable=False)

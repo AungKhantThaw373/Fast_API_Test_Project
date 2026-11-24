@@ -561,14 +561,18 @@ export const api = {
 			body: JSON.stringify({ intentional }),
 		}),
 	reviewFinding: (findingId: string, reviewStatus: "open" | "resolved" | "dismissed") => request<{ id: string; review_status: ContinuityFinding["review_status"]; intentional: boolean }>(`/stories/findings/${findingId}/review`, { method: "PATCH", body: JSON.stringify({ review_status: reviewStatus }) }),
-	entities: async (storyId: string, filters: { type?: string; status?: string; q?: string } = {}) => {
+	entities: async (
+		storyId: string,
+		filters: { type?: string; status?: string; q?: string; arc_id?: string; limit?: number } = {},
+	) => {
 		const entities: WikiEntity[] = [];
 		let cursor: string | undefined;
 		do {
-			const params = new URLSearchParams({ limit: "200" });
+			const params = new URLSearchParams({ limit: String(filters.limit ?? 200) });
 			if (filters.type) params.set("type", filters.type);
 			if (filters.status) params.set("status", filters.status);
 			if (filters.q) params.set("q", filters.q);
+			if (filters.arc_id) params.set("arc_id", filters.arc_id);
 			if (cursor) params.set("cursor", cursor);
 			const page = await request<{ entities: WikiEntity[]; next_cursor?: string | null }>(
 				`/stories/${storyId}/entities?${params.toString()}`,

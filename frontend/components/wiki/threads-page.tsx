@@ -20,6 +20,8 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 	const [filter, setFilter] = useState<StateFilter>("open");
 	// Resolving a thread means naming the chapter that paid it off.
 	const [resolving, setResolving] = useState<{ id: string; chapterId: string } | null>(null);
+	const [creating, setCreating] = useState(false);
+	const [draft, setDraft] = useState({ title: "", description: "", chapterId: "" });
 
 	const rows = useMemo(() => {
 		const all = threads.data ?? [];
@@ -36,6 +38,22 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 			all: all.length,
 		};
 	}, [threads.data]);
+
+	const createThread = useMutation({
+		mutationFn: () =>
+			api.createThread(storyId, {
+				title: draft.title.trim(),
+				description: draft.description.trim(),
+				setup_chapter_id: draft.chapterId || null,
+			}),
+		onSuccess: async () => {
+			setCreating(false);
+			setDraft({ title: "", description: "", chapterId: "" });
+			toast.success("Thread added.");
+			await queryClient.invalidateQueries({ queryKey: qk.threads(storyId) });
+		},
+		onError: (error) => toast.error(error instanceof Error ? error.message : "That thread could not be saved."),
+	});
 
 	const setState = useMutation({
 		mutationFn: ({ id, state, payoff }: { id: string; state: WikiThread["state"]; payoff?: string }) =>
@@ -58,6 +76,9 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 					<div className="eyebrow">WHAT THE STORY OWES</div>
 					<h1>Threads</h1>
 				</div>
+				<button className="quiet-button" onClick={() => setCreating((value) => !value)}>
+					{creating ? "Cancel" : "＋ New thread"}
+				</button>
 				<div className="inbox-tabs" role="tablist" aria-label="Thread state">
 					{(["open", "resolved", "all"] as StateFilter[]).map((value) => (
 						<button
@@ -73,6 +94,50 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 					))}
 				</div>
 			</header>
+
+			{creating && (
+				<form
+					className="thread-create"
+					onSubmit={(event) => {
+						event.preventDefault();
+						if (draft.title.trim()) createThread.mutate();
+					}}
+				>
+					<label>
+						<span>Question or promise</span>
+						<input
+							autoFocus
+							value={draft.title}
+							onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+							placeholder="Who lit the lantern?"
+							maxLength={300}
+						/>
+					</label>
+					<label>
+						<span>What is still unknown</span>
+						<textarea
+							rows={2}
+							value={draft.description}
+							onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+							maxLength={20000}
+						/>
+					</label>
+					<label>
+						<span>Set up in</span>
+						<select value={draft.chapterId} onChange={(event) => setDraft({ ...draft, chapterId: event.target.value })}>
+							<option value="">No chapter yet</option>
+							{(chapters.data ?? []).map((chapter) => (
+								<option key={chapter.id} value={chapter.id}>
+									{chapter.chapter_number}. {chapter.title}
+								</option>
+							))}
+						</select>
+					</label>
+					<button className="button button-approve" type="submit" disabled={!draft.title.trim() || createThread.isPending}>
+						Add thread
+					</button>
+				</form>
+			)}
 
 			{threads.isPending ? (
 				<p className="wiki-quiet">Gathering open questions…</p>

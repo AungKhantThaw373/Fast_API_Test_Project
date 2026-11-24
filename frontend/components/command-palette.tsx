@@ -162,6 +162,12 @@ export function CommandPalette({ storyId, chapters = [], onChapter, onQuietView,
 				)}
 
 				<Command.Group heading="Start" className="command-group">
+					<Command.Item onSelect={() => go(`/stories/${storyId}/wiki?new=character`)} className="command-item">
+						New character
+					</Command.Item>
+					<Command.Item onSelect={() => go(`/stories/${storyId}/wiki?new=location`)} className="command-item">
+						New place
+					</Command.Item>
 					<Command.Item onSelect={() => go(`/stories/${storyId}/wiki?new=1`)} className="command-item">
 						New wiki entry
 					</Command.Item>

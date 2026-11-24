@@ -362,3 +362,87 @@ permutations, OneDrive).
 - `Tests: tests/test_entities.py` (9), `tests/test_wiki_api.py` (15). 115 backend
   tests; ruff, pyright, frontend lint, tsc, build, and 19 vitest tests pass.
 - `Docs/phase-3-acceptance.md` maps each manual acceptance line to its test.
+
+## Phase 4 — wiki UX
+
+### P4-1 — Frontend data layer
+
+- Installed TanStack Query/Virtual, Radix primitives, `cmdk`, `sonner`,
+  `react-hook-form`, `zod`, `diff`; no UI kit. `lib/query-client.ts` holds one
+  client (30 s stale, 5 min gc, retry 1 for queries and 0 for mutations) with a
+  one-shot 401 redirect; `app/providers.tsx` wraps the app.
+- `lib/query-keys.ts` is the single key factory, including the `entityList`
+  prefix used to invalidate every filtered list at once.
+- `lib/api-types.ts` is generated from `/openapi.json` by `npm run gen:api`;
+  the hand-written wrappers in `lib/api.ts` keep their ergonomics.
+- `Docs/frontend-data.md` documents the keys, the invalidation table, the
+  optimistic-update policy (only decisions and deletes), and why the manuscript
+  editor stays outside the cache.
+
+### P4-2/P4-3 — Wiki list, entity detail, provenance
+
+- `components/wiki/` gained `wiki-shell`, `entity-list` (virtualised past 100
+  rows, `j`/`k`/`Enter`), `entity-detail`, `fact-section`, `fact-dialog`,
+  `merge-dialog`, `provenance-chip`, and `wiki-filters` (URL state so a filtered
+  view survives a refresh).
+- Provenance chips link to `/stories/{id}?chapter=…&line=…`; the studio reads
+  the search params and selects the cited line.
+
+### P4-4 — Capture and name candidates
+
+- Backend `app/services/name_candidates.py` finds repeated capitalised words that
+  are not aliases yet — zero tokens, refuses common words, and accepts a
+  candidate straight into an entity + alias + mention + appearance range.
+- Studio: a selection toolbar opens `capture-dialog` (entry / fact / thread) with
+  the quote and line prefilled; the desk shows the candidate list.
+
+### P4-5 — Review inbox
+
+- `app/services/inbox.py` now returns three kinds behind one envelope
+  (`fact`, `merge`, `finding`) with counts, `why_held`, source, and actions.
+  Every pending item explains itself even when there is no conflict.
+- `POST /stories/{id}/inbox/decide` decides many ids in one transaction;
+  `GET/PUT /inbox/rules`, `GET /inbox/rules/preview`, `POST /inbox/auto-accept`
+  implement the rules (quote required, confidence floor, existing entity,
+  conflict blocking, per-chapter cap) and a dry run that counts what they would
+  do before anything is accepted.
+- `MergeProposal` + `AutoAcceptRules` (migration `6d1f4b8c2e09`): near-duplicate
+  entity pairs are proposed from one self-join `similarity()` query, dismissed
+  opinions are remembered, and applying one runs the audited merge.
+- `components/wiki/inbox-page.tsx`: kind tabs with counts, chapter/entry/
+  confidence filters, select-all, batch accept/reject, `j`/`k`/`a`/`x`/`e`, and
+  an auto-accept panel whose "Apply now" is a separate step from saving rules.
+
+### P4-6 — Arcs, saved views, layout, accessibility
+
+- `arcs` table plus `story_chapters.arc_id` (migration `7c2e5a9d4b31`); the
+  migration gives every story with chapters a default "Act one" arc. Endpoints
+  list, create, rename/delete, and assign chapters; `/stories/{id}/entities`
+  accepts `arc_id` and matches either the appearance range **or** a fact recorded
+  in an arc chapter, so the filter works before mention extraction exists.
+- `components/studio/chapter-rail.tsx` groups chapters by collapsible arc
+  headers and assigns each chapter from its own line; `components/wiki/arc-page.tsx`
+  is the arc summary (chapters, open threads, entities, editable summary).
+- The studio desk is now a collapsible, resizable context panel
+  (`Cmd/Ctrl+.`, drag handle, width remembered) with three tabs — Notes,
+  Findings, Mentions. AI provider settings live on `/settings`; the story-level
+  toggles stayed in the Notes tab, and `Cmd/Ctrl+Shift+W` opens the wiki.
+- `components/command-palette.tsx` (`cmdk`, `Cmd/Ctrl+K`) jumps to chapters and
+  entries, starts a character/place/entry/thread, opens the inbox or settings,
+  and toggles quiet view.
+- `components/wiki/saved-views.tsx` keeps named filter sets and three presets in
+  localStorage — no table yet, per the manual.
+- Accessibility pass: no UI text below 12 px, muted text darkened to pass
+  contrast (#6b6f66 family), Radix dialogs trap and restore focus, `aria-live`
+  on save state and result counts, reduced-motion rules kept.
+
+### P4-7 — Verification
+
+- `frontend/scripts/wiki-qa.mjs` runs 24 Playwright checks covering the eight
+  required flows plus arcs, threads, the inbox keyboard path, and the palette.
+- `backend/scripts/seed_wiki.py` + `frontend/scripts/wiki-perf.mjs` measure the
+  manual's performance targets on 1,000 entities: search 17 ms, list first paint
+  430 ms, detail API 13 ms, detail render 173 ms, layout shift 21/1000.
+- 129 backend tests, 31 frontend tests; ruff, pyright, eslint, tsc, and
+  `next build` pass. `Docs/qa-phase-4.md` is the runbook;
+  `Docs/phase-4-acceptance.md` maps each acceptance line to its evidence.

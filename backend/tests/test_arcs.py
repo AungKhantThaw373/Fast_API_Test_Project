@@ -1,6 +1,5 @@
 """Arcs group chapters and filter the wiki."""
 
-from uuid import UUID
 
 
 async def _story(client) -> str:
@@ -89,10 +88,18 @@ async def test_wiki_can_filter_entities_by_arc(user_client, session):
     )
     entity_id = entity.json()["id"]
 
-    from app.services.entities import extract_mentions
-
-    async with session.begin():
-        await extract_mentions(session, UUID(story_id), UUID(chapters[0]), "Mira Voss crossed the yard.")
+    # A fact recorded in an arc chapter puts the entity in that arc, even before
+    # mention extraction has run.
+    created = await user_client.post(
+        f"/entities/{entity_id}/facts",
+        json={
+            "predicate": "role",
+            "value_text": "gatekeeper",
+            "chapter_id": chapters[0],
+            "quote": "Mira Voss crossed the yard.",
+        },
+    )
+    assert created.status_code == 201, created.text
 
     inside = (await user_client.get(f"/stories/{story_id}/entities?arc_id={early['id']}")).json()
     assert [row["id"] for row in inside["entities"]] == [entity_id]

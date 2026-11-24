@@ -514,10 +514,14 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				event.preventDefault();
 				setPaneOpen((value) => !value);
 			}
+			if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'w') {
+				event.preventDefault();
+				void go(`/stories/${storyId}/wiki`);
+			}
 		};
 		window.addEventListener('keydown', onKeyDown);
 		return () => window.removeEventListener('keydown', onKeyDown);
-	}, []);
+	}, [go, storyId]);
 
 	useEffect(() => {
 		if (!activeChapterId) return;
@@ -985,7 +989,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 
 	const savedScanReady = lastScan !== null && activeChapter !== null && lastScan.chapterId === activeChapter.id && lastScan.revision === activeChapter.revision;
 	const threads = entries.filter((entry) => entry.category === 'plot_thread' && entry.status !== 'dismissed');
-	const chapterMentions = activeChapter ? entries.filter((entry) => entry.source_chapter_id === activeChapter.id) : [];
+	const chapterMentions = activeChapter ? entries.filter((entry) => entry.source_chapter_id === activeChapter.id && entry.category !== 'plot_thread') : [];
 	const openThreads = threads.filter((item) => item.thread_state === 'open').length;
 
 	// A selection in the manuscript is enough to start an entry, a fact, or a thread.

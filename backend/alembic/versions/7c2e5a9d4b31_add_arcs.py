@@ -5,8 +5,9 @@ Revises: 6d1f4b8c2e09
 """
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "7c2e5a9d4b31"
 down_revision = "6d1f4b8c2e09"

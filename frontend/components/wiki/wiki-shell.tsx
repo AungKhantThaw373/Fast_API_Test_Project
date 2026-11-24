@@ -29,7 +29,8 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 	const [addOpen, setAddOpen] = useState(false);
 	const [newDismissed, setNewDismissed] = useState(false);
 	// ?new=1 is the deep link the command palette uses; closing clears it.
-	const newFromUrl = searchParams.get("new") === "1" && !newDismissed;
+	const newParam = searchParams.get("new");
+	const newFromUrl = Boolean(newParam) && !newDismissed;
 	const dialogOpen = addOpen || newFromUrl;
 	const closeDialog = () => {
 		setAddOpen(false);
@@ -140,14 +141,17 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 					</label>
 				</div>
 
-				<select value={filters.arc} onChange={(event) => apply({ ...filters, arc: event.target.value })} aria-label="Filter by arc">
-					<option value="">Every arc</option>
-					{(arcs.data ?? []).map((arc) => (
-						<option key={arc.id} value={arc.id}>
-							{arc.name}
-						</option>
-					))}
-				</select>
+				<label className="wiki-select">
+					<span>Arc</span>
+					<select value={filters.arc} onChange={(event) => apply({ ...filters, arc: event.target.value })} aria-label="Filter by arc">
+						<option value="">Every arc</option>
+						{(arcs.data ?? []).map((arc) => (
+							<option key={arc.id} value={arc.id}>
+								{arc.name}
+							</option>
+						))}
+					</select>
+				</label>
 				<div className="wiki-result-count" role="status" aria-live="polite">
 					{entities.isPending ? "Counting…" : `${rows.length} ${rows.length === 1 ? "entry" : "entries"}`}
 					{hasActiveFilters(filters) && (

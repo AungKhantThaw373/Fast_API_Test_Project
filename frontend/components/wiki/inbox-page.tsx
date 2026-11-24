@@ -33,18 +33,23 @@ export function InboxPage({ storyId }: { storyId: string }) {
 	const inbox = useInbox(storyId);
 	const [kind, setKind] = useState<KindFilter>("all");
 	const [chapterFilter, setChapterFilter] = useState("");
+	const [entityQuery, setEntityQuery] = useState("");
+	const [minConfidence, setMinConfidence] = useState(0);
 	const [selected, setSelected] = useState<string[]>([]);
 	const [cursor, setCursor] = useState(0);
 	const [showRules, setShowRules] = useState(false);
 
 	const items = useMemo(() => {
 		const all = inbox.data?.items ?? [];
+		const needle = entityQuery.trim().toLocaleLowerCase();
 		return all.filter((item) => {
 			if (kind !== "all" && item.kind !== kind) return false;
 			if (chapterFilter && item.source.chapter_number !== Number(chapterFilter)) return false;
+			if (minConfidence && item.confidence < minConfidence) return false;
+			if (needle && !`${item.title} ${item.summary}`.toLocaleLowerCase().includes(needle)) return false;
 			return true;
 		});
-	}, [inbox.data, kind, chapterFilter]);
+	}, [inbox.data, kind, chapterFilter, entityQuery, minConfidence]);
 
 	const chapterOptions = useMemo(() => {
 		const numbers = new Set<number>();
@@ -124,6 +129,9 @@ export function InboxPage({ storyId }: { storyId: string }) {
 			} else if (event.key === "x" && current) {
 				event.preventDefault();
 				decide.mutate({ ids: [current.id], action: "dismiss" });
+			} else if (event.key === "e" && current && current.entity_id) {
+				event.preventDefault();
+				window.location.assign(`/stories/${storyId}/wiki/${current.entity_id}`);
 			} else if (event.key === " " && current) {
 				event.preventDefault();
 				setSelected((value) => (value.includes(current.id) ? value.filter((id) => id !== current.id) : [...value, current.id]));
@@ -166,6 +174,13 @@ export function InboxPage({ storyId }: { storyId: string }) {
 					))}
 				</div>
 				<label className="inbox-chapter-filter">
+					<input
+						type="search"
+						value={entityQuery}
+						onChange={(event) => setEntityQuery(event.target.value)}
+						placeholder="Entry or wording"
+						aria-label="Filter by entry"
+					/>
 					<span>Chapter</span>
 					<select value={chapterFilter} onChange={(event) => setChapterFilter(event.target.value)}>
 						<option value="">Every chapter</option>
@@ -176,6 +191,21 @@ export function InboxPage({ storyId }: { storyId: string }) {
 						))}
 					</select>
 				</label>
+				<label className="inbox-chapter-filter">
+					<span>At least</span>
+					<select value={minConfidence} onChange={(event) => setMinConfidence(Number(event.target.value))}>
+						<option value={0}>Any confidence</option>
+						<option value={50}>50%</option>
+						<option value={80}>80%</option>
+						<option value={90}>90%</option>
+					</select>
+				</label>
+				<button
+					className="text-button subtle"
+					onClick={() => setSelected(selected.length === items.length ? [] : items.map((item) => item.id))}
+				>
+					{selected.length === items.length && items.length > 0 ? "Clear selection" : "Select all shown"}
+				</button>
 			</div>
 
 			{selected.length > 0 && (
@@ -280,7 +310,7 @@ export function InboxPage({ storyId }: { storyId: string }) {
 				</ul>
 			)}
 			<p className="wiki-keys-hint">
-				<kbd>j</kbd>/<kbd>k</kbd> move · <kbd>a</kbd> accept · <kbd>x</kbd> reject · <kbd>space</kbd> select
+				<kbd>j</kbd>/<kbd>k</kbd> move · <kbd>a</kbd> accept · <kbd>x</kbd> reject · <kbd>e</kbd> edit · <kbd>space</kbd> select
 			</p>
 			<p className="wiki-quiet">
 				{story.data ? `Story: ${story.data.title}. ` : ""}Nothing becomes canon without a decision unless auto-accept rules say otherwise.

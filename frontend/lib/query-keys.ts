@@ -9,6 +9,8 @@ export interface EntityFilters {
 	type?: string;
 	status?: string;
 	q?: string;
+	arc_id?: string;
+	limit?: number;
 }
 
 export const qk = {

@@ -286,9 +286,14 @@ async function main() {
 	check("arc groups collapse", (await page.locator(".arc-group-toggle", { hasText: "The watch" }).getAttribute("aria-expanded")) === "false");
 
 	await page.goto(`${WEB}/stories/${story.id}/wiki?arc=${arcsNow[0].id}`);
-	await page.waitForSelector(".wiki-row-main");
-	const arcNames = await page.locator(".wiki-row-title strong").allInnerTexts();
-	check("the wiki filters by arc", arcNames.length >= 0, `${arcNames.length} entries in the arc`);
+	await page.waitForSelector(".wiki-row-main, .wiki-empty");
+	const arcNames = await page.locator(".wiki-row-head strong").allInnerTexts();
+	const inArc = await request(`/stories/${story.id}/entities?arc_id=${arcsNow[0].id}`, {}, cookie);
+	check(
+		"the wiki filters by arc",
+		arcNames.length === inArc.entities.length,
+		`${arcNames.join(", ") || "none"} (server: ${inArc.entities.length})`,
+	);
 
 	// 6d. Threads answer "what is unresolved?".
 	const thread = await request(

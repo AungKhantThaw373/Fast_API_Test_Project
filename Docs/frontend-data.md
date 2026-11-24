@@ -55,3 +55,24 @@ The chapter editor is not a query. Its local state is driven by the save-state
 machine (`lib/save-state.ts`) and the IndexedDB draft buffer, because losing a
 keystroke to a cache refetch is unacceptable. Reads that the editor does not own
 (story, chapter list, findings, inbox counts) go through the query cache.
+
+## Phase 4 additions
+
+| Module | What it owns |
+|---|---|
+| `lib/query-keys.ts` `arcs(storyId)` | arc list per story, invalidated after create/rename/assign |
+| `components/wiki/use-wiki.ts` `useChapters`, `useArcs` | read-only hooks for the palette, the threads page, and the arc filter |
+| `components/wiki/threads-page.tsx` | `threads(storyId)`; resolving also invalidates `inbox(storyId)` |
+| `components/wiki/inbox-page.tsx` | `inbox(storyId)` for every kind, plus local keys `[…, "rules"]` and `[…, "rules", "preview"]` under the same prefix so one invalidation clears all three |
+| `components/wiki/arc-page.tsx` | `entities(storyId, { arc_id })` under its own key suffix, and `arcs(storyId)` for the header |
+| `components/wiki/saved-views.tsx` | localStorage only — no query, no server state |
+| `components/command-palette.tsx` | `api.searchEntities` on a 200 ms debounce; results are component state, not cache (they are ephemeral by design) |
+
+Inbox decisions are the one place where an optimistic update matters most: the
+cached list drops the decided ids immediately and restores the previous list if
+the request fails, because a review list that lags behind the keyboard is
+unusable. Everything else follows the invalidate-after-success rule.
+
+The desk panel's width, the collapsed state, and the saved wiki views are all
+local UI state persisted in `localStorage` (`stillroom:pane-width`,
+`stillroom:saved-views`). Nothing about them belongs in the query cache.

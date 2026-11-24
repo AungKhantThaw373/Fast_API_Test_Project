@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import delete, func, or_, select, text, update
+from sqlalchemy import and_, delete, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -814,12 +814,25 @@ async def list_entities(
         if low is None or high is None:
             # An empty arc matches nothing, rather than matching everything.
             return [], None
-        statement = statement.where(
+        # Either the entity appears in the arc, or one of its facts was recorded
+        # in an arc chapter. Facts exist long before mention extraction runs.
+        fact_in_arc = (
+            select(EntityFact.id)
+            .join(Chapter, Chapter.id == EntityFact.chapter_id)
+            .where(
+                EntityFact.entity_id == Entity.id,
+                Chapter.chapter_number >= low,
+                Chapter.chapter_number <= high,
+            )
+            .exists()
+        )
+        appears = and_(
             Entity.last_chapter_number.is_not(None),
             Entity.last_chapter_number >= low,
             Entity.first_chapter_number.is_not(None),
             Entity.first_chapter_number <= high,
         )
+        statement = statement.where(or_(appears, fact_in_arc))
     if cursor:
         updated_at, entity_id = decode_cursor(cursor, (cursor_timestamp, cursor_uuid))
         statement = statement.where(

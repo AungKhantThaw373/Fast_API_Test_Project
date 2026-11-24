@@ -8,7 +8,7 @@ Read this first, then `Docs/build-log.md` for the chronological record.
 |---|---|
 | Repo | `C:\Users\ACER\OneDrive\Desktop\AI` (still inside OneDrive; see gotchas) |
 | Branch | `hardening/phase-0` (all work so far lives here) |
-| Tags | `pre-hardening`, `phase-0-complete`, `phase-1-complete`, `phase-2-complete`, `phase-3-complete` |
+| Tags | `pre-hardening`, `phase-0-complete`, `phase-1-complete`, `phase-2-complete`, `phase-3-complete`, `phase-4-complete` |
 | Backend | `backend/` — FastAPI + SQLAlchemy 2 async + Alembic + pgvector |
 | Frontend | `frontend/` — Next 16, React 19, npm |
 | Database | Native PostgreSQL 18 on `127.0.0.1:5432`, databases `stillroom` and `stillroom_test`, password `death373` (`backend/.env`) |
@@ -26,8 +26,8 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (85 tests)
-make test-frontend    # vitest (19 tests)
+make test             # backend pytest (129 tests)
+make test-frontend    # vitest (31 tests)
 make lint typecheck   # ruff + eslint, pyright + tsc
 ./scripts/backup.sh   # pg_dump, no Docker
 ```
@@ -45,6 +45,16 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   with `SKIP LOCKED` (no in-process AI work), request ids, `/ready`, and all
   performance targets met. Server logs now carry `request_id=` and error bodies
   include it.
+- **Phase 4 complete** (`Docs/phase-4-acceptance.md`, runbook `Docs/qa-phase-4.md`):
+  TanStack Query data layer with generated OpenAPI types, wiki list/detail with
+  virtualised rows and provenance deep links, capture + zero-token name
+  candidates, a unified review inbox (facts, merge proposals, findings) with
+  batch decisions and previewable auto-accept rules, arcs (rail grouping, wiki
+  filter, arc summary page), the collapsible/resizable three-tab chapter desk,
+  a `Ctrl/Cmd+K` command palette, localStorage saved views, and an accessibility
+  pass (12 px floor, contrast, focus traps, `aria-live`).
+  24/24 Playwright checks in `frontend/scripts/wiki-qa.mjs`; perf on 1,000
+  entities via `backend/scripts/seed_wiki.py` + `frontend/scripts/wiki-perf.mjs`.
 - **Phase 3 complete** (`Docs/phase-3-acceptance.md`): knowledge model v2
   (`entities`, `entity_aliases`, `entity_facts`, `entity_relationships`,
   `story_events`, `story_threads`, `entity_mentions`, `canon_exceptions`,
@@ -53,8 +63,8 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   extraction, merge with dry run + audit + unmerge, the wiki/inbox/exceptions
   API, canon notes in the continuity prompt, and a compatibility `/bible` view
   that also routes the old UI's writes to entities.
-- Backend: 115 tests pass, ruff and pyright clean.
-- Frontend: lint, `tsc --noEmit`, `next build`, and 19 vitest tests pass.
+- Backend: 129 tests pass, ruff and pyright clean.
+- Frontend: lint, `tsc --noEmit`, `next build`, and 31 vitest tests pass.
 - CI workflow is committed but has never run on GitHub.
 
 ## Pick up here (in this order)
@@ -92,6 +102,16 @@ make lint typecheck   # ruff + eslint, pyright + tsc
 - **OneDrive** syncs `node_modules`, `.next`, `.venv`. Builds can be slow and file
   locks appear. Moving the repo to `C:\dev\stillroom` is still recommended.
 - **`ACCESS_TOKEN_EXPIRE_MINUTES=30`** in `backend/.env` — sessions are short.
+- **Two uvicorn processes can fight over :8000** on this machine (one on
+  `0.0.0.0`, one on `127.0.0.1`). After restarting, check
+  `netstat -ano | grep ":8000" | grep LISTENING` for more than one PID; the
+  stale socket from a killed parent can linger and answer with old code.
+- **`uv run uvicorn` does not reload** in the way `make dev-backend` does when
+  started with `nohup`; restart it after backend changes or the UI will 404/500
+  on new routes.
+- **Wiki QA must run against a build** (`npm run build && npx next start`).
+  `node scripts/wiki-qa.mjs` assumes both servers are up and the API has the
+  latest code.
 - **Supabase credentials** are preserved in `backend/.env.supabase-backup`
   (git-ignored). The live project is still reachable and was the dump source;
   `backups/supabase-data.sql` holds that data.
