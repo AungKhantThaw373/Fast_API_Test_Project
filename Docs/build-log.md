@@ -149,3 +149,10 @@ Frontend:
   P2-3 batched continuity retrieval, P2-4 index/statement-timeout migration,
   P2-6 durable worker, P2-7 worker concurrency, P2-8 request ids and `/ready`,
   and all of Phase 3.
+
+## Handoff
+
+Added a root `AGENTS.md` with the environment, commands, verified state, the
+ordered list of remaining Phase 2/3 tasks, and the gotchas that cost time
+(dev-server hydration, `MissingGreenlet` after commit, partial unique index
+permutations, OneDrive).

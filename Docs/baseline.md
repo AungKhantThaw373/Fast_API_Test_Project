@@ -27,3 +27,7 @@ Recorded before hardening on `hardening/phase-0`; starting commit `01f0e17` (`pr
 ## Manual smoke test
 
 Not run: configured database cannot be reached with its existing credentials. Register, login, story creation, chapter creation, autosave, import, and draft check remain unverified.
+
+> Historical snapshot, kept for comparison. Phase 0 outcomes are in
+> `Docs/build-log.md`, `Docs/database.md`, and `Docs/phase-0-acceptance.md`;
+> current state and next tasks are in the root `AGENTS.md`.
