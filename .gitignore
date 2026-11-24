@@ -127,11 +127,8 @@ sandbox/
 
 # ---------- Personal research material ----------
 # Notebooks, PDFs and datasets kept locally, not shipped or
-# versioned with the application.
+# versioned with the application. Project documentation in Docs/ IS versioned.
 Jupyter/
-/Docs/*
-!/Docs/baseline.md
-!/Docs/build-log.md
 data/
 datasets/
 
