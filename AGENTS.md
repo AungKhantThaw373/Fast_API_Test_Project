@@ -8,7 +8,7 @@ Read this first, then `Docs/build-log.md` for the chronological record.
 |---|---|
 | Repo | `C:\Users\ACER\OneDrive\Desktop\AI` (still inside OneDrive; see gotchas) |
 | Branch | `hardening/phase-0` (all work so far lives here) |
-| Tags | `pre-hardening`, `phase-0-complete`, `phase-1-complete`, `phase-2-complete` |
+| Tags | `pre-hardening`, `phase-0-complete`, `phase-1-complete`, `phase-2-complete`, `phase-3-complete` |
 | Backend | `backend/` — FastAPI + SQLAlchemy 2 async + Alembic + pgvector |
 | Frontend | `frontend/` — Next 16, React 19, npm |
 | Database | Native PostgreSQL 18 on `127.0.0.1:5432`, databases `stillroom` and `stillroom_test`, password `death373` (`backend/.env`) |
@@ -45,23 +45,35 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   with `SKIP LOCKED` (no in-process AI work), request ids, `/ready`, and all
   performance targets met. Server logs now carry `request_id=` and error bodies
   include it.
-- Backend: 85 tests pass, ruff and pyright clean.
+- **Phase 3 complete** (`Docs/phase-3-acceptance.md`): knowledge model v2
+  (`entities`, `entity_aliases`, `entity_facts`, `entity_relationships`,
+  `story_events`, `story_threads`, `entity_mentions`, `canon_exceptions`,
+  `chapter_meta`, `scene_meta`, `ai_usage`, `entity_merges`), an idempotent
+  backfill from `story_bible_entries` that keeps UUIDs, zero-LLM mention
+  extraction, merge with dry run + audit + unmerge, the wiki/inbox/exceptions
+  API, canon notes in the continuity prompt, and a compatibility `/bible` view
+  that also routes the old UI's writes to entities.
+- Backend: 115 tests pass, ruff and pyright clean.
 - Frontend: lint, `tsc --noEmit`, `next build`, and 19 vitest tests pass.
 - CI workflow is committed but has never run on GitHub.
 
 ## Pick up here (in this order)
 
-1. **Phase 3, P3-1** - knowledge model v2. Add `entities`, `entity_aliases`,
-   `entity_facts`, `entity_relationships`, `story_events`, `story_threads`,
-   `entity_mentions`, `canon_exceptions`, `chapter_meta`, `scene_meta`, `ai_usage`
-   in one additive migration (do not drop `story_bible_entries`), plus models.
-2. **P3-2** - backfill from `story_bible_entries` keeping the same UUIDs;
-   `plot_thread` becomes `story_threads`. Make it idempotent.
-3. **P3-3** - `normalize_name`, entity resolution, soft merge with dry run,
-   zero-LLM mention extraction.
-4. **P3-4..P3-7** - entities/facts/threads/events/inbox API with response models
-   and ownership tests, compatibility serializer for the old `/bible` shape,
-   continuity context built from facts, then the ten Phase 3 tests.
+1. **P6-2 extraction rewrite** - Bible scan and chapter indexing still write
+  `story_bible_entries`. Change extraction to propose `entity_facts` (status
+  `proposed`, chapter + verified quote) through `services/facts.py`, resolve
+  against existing aliases with `find_candidates`, and let the inbox do the
+  deciding. Then stop writing the legacy table (keep reading it in `compat.py`
+  until the Phase 4 UI ships).
+2. **Phase 4** - the wiki UI (entities list/detail, facts timeline, relationships,
+   threads, events), using `/stories/{id}/entities`, `/entities/{id}/facts`,
+   `/appearances`, `/relationships`, `/threads`, `/events`, and `/inbox`.
+   TanStack Query + virtualised lists per the manual.
+3. **Entity-scoped exceptions** - findings carry only quotes today, so only
+  pattern exceptions can suppress them. Once findings know the entity and
+  predicate, `canon_exceptions.matches` should also honour those scopes.
+4. **Phase 5+** - see the manual. `Docs/phase-3-acceptance.md` lists what was
+   deliberately left out of Phase 3.
 
 ## Gotchas that cost time
 

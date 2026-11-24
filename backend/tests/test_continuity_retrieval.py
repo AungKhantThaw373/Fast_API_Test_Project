@@ -89,8 +89,9 @@ async def test_scan_retrieves_all_scenes_in_one_vector_query(
     vector_queries = [item for item in statements if "jsonb_array_elements_text" in item]
     assert len(vector_queries) == 1, statements
     assert "LATERAL" in vector_queries[0]
-    # Vector search, one evidence load, one story-settings read.
-    assert len(statements) <= 4, statements
+    # Vector search, one evidence load, one story-settings read, and the canon
+    # exception list - a fixed count, independent of the number of scenes.
+    assert len(statements) <= 5, statements
 
 
 async def test_evidence_is_deduplicated_and_ordered_by_distance(

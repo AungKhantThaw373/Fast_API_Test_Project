@@ -13,6 +13,7 @@ from app.config import settings
 from app.logging_config import fields, get_logger
 from app.models.story_models import Chapter, ContinuityFinding, ContinuityScan, SceneEmbedding, Story
 from app.services.ai_service import FINDINGS_SCHEMA, AIProviderHTTPError, embed_queries, structured_ai_json
+from app.services.canon_exceptions import filter_exceptions
 from app.services.finding_filter import DraftFinding, EvidenceRef, filter_findings
 from app.services.indexing import split_into_scenes
 from app.services.knowledge_context import build_fact_context, fact_system_note
@@ -409,6 +410,12 @@ async def scan_chapter(
         for key, item in evidence_by_id.items()
     }
     findings = filter_findings(candidates, manuscript_lines, evidence_refs)
+    findings, suppressed = await filter_exceptions(session, story_id, findings)
+    if suppressed:
+        logger.info(
+            "[continuity] exception %s",
+            fields(chapter=chapter_ref, suppressed=suppressed),
+        )
     logger.info(
         "[continuity] done   %s",
         fields(

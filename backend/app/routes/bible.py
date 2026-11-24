@@ -109,9 +109,16 @@ async def decide_bible_entry(
     payload: BibleDecision,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
-) -> StoryBibleEntry:
+) -> BibleEntryOut:
+    entity = await compat_service.entity_entry(session, entry_id, user.id)
+    if entity is not None:
+        row = await compat_service.decide_entity_entry(session, entity, payload.status)
+        await session.commit()
+        return BibleEntryOut.model_validate(row)
     entry = await bible_service.owned_entry(session, entry_id, user.id)
-    return await bible_service.decide_entry(session, entry, payload.status)
+    return BibleEntryOut.model_validate(
+        await bible_service.decide_entry(session, entry, payload.status)
+    )
 
 
 @router.put("/bible/{entry_id}", response_model=BibleEntryOut)
@@ -120,9 +127,16 @@ async def edit_bible_entry(
     payload: BibleEntryUpdate,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
-) -> StoryBibleEntry:
+) -> BibleEntryOut:
+    entity = await compat_service.entity_entry(session, entry_id, user.id)
+    if entity is not None:
+        row = await compat_service.update_entity_entry(session, entity, payload)
+        await session.commit()
+        return BibleEntryOut.model_validate(row)
     entry = await bible_service.owned_entry(session, entry_id, user.id)
-    return await bible_service.update_entry(session, entry, payload)
+    return BibleEntryOut.model_validate(
+        await bible_service.update_entry(session, entry, payload)
+    )
 
 
 @router.delete("/bible/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -131,6 +145,11 @@ async def delete_bible_entry(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> Response:
+    entity = await compat_service.entity_entry(session, entry_id, user.id)
+    if entity is not None:
+        await compat_service.archive_entity_entry(session, entity)
+        await session.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     entry = await bible_service.owned_entry(session, entry_id, user.id)
     await bible_service.delete_entry(session, entry)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -142,6 +161,13 @@ async def update_plot_thread(
     payload: ThreadUpdate,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
-) -> StoryBibleEntry:
+) -> BibleEntryOut:
+    thread = await compat_service.thread_entry(session, entry_id, user.id)
+    if thread is not None:
+        row = await compat_service.set_thread_state_entry(session, thread, payload.thread_state)
+        await session.commit()
+        return BibleEntryOut.model_validate(row)
     entry = await bible_service.owned_thread(session, entry_id, user.id)
-    return await bible_service.set_thread_state(session, entry, payload.thread_state)
+    return BibleEntryOut.model_validate(
+        await bible_service.set_thread_state(session, entry, payload.thread_state)
+    )

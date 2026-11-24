@@ -154,6 +154,11 @@ async def test_fact_requires_a_value_and_owned_chapter(user_client):
         f"/entities/{entity['id']}/facts", json={"predicate": "eye_color"}
     )
     assert empty.status_code == 422
+    no_chapter = await user_client.post(
+        f"/entities/{entity['id']}/facts", json={"predicate": "eye_color", "value_text": "grey"}
+    )
+    assert no_chapter.status_code == 422
+    assert "chapter" in no_chapter.json()["detail"]
 
     foreign = await _story(user_client, "Other")
     other_chapter = await _chapter(user_client, foreign)
@@ -168,7 +173,8 @@ async def test_ai_fact_requires_provenance(user_client, session):
     from app.schemas.wiki import FactCreate
     from app.services import facts as fact_service
 
-    story_uuid = UUID(await _story(user_client))
+    story_id = await _story(user_client)
+    story_uuid = UUID(story_id)
     with pytest.raises(Exception) as error:
         await entity_service.create_entity(
             session, story_id=story_uuid, entity_type="character", name=" "
@@ -180,6 +186,7 @@ async def test_ai_fact_requires_provenance(user_client, session):
     )
     await session.commit()
 
+    chapter = await _chapter(user_client, story_id, content="Her eyes were grey.")
     with pytest.raises(Exception) as provenance:
         await fact_service.create_fact(
             session,
@@ -188,17 +195,32 @@ async def test_ai_fact_requires_provenance(user_client, session):
             created_by="ai",
         )
     assert getattr(provenance.value, "status_code", None) == 422
+    with pytest.raises(Exception) as unverified:
+        await fact_service.create_fact(
+            session,
+            entity,
+            FactCreate(
+                predicate="eye_color",
+                value_text="grey",
+                chapter_id=UUID(chapter["id"]),
+                quote="Her eyes were green.",
+            ),
+            created_by="ai",
+        )
+    assert getattr(unverified.value, "status_code", None) == 422
+    assert "does not appear" in str(getattr(unverified.value, "detail", ""))
 
 
 async def test_merge_endpoint_moves_facts_and_honours_dry_run(user_client):
     story_id = await _story(user_client)
     keep = await _entity(user_client, story_id, name="Mira Voss")
     gone = await _entity(user_client, story_id, name="Captain Voss")
+    chapter = await _chapter(user_client, story_id, content="The captain gave the order.")
     fact = await user_client.post(
         f"/entities/{gone['id']}/facts",
-        json={"predicate": "rank", "value_text": "captain"},
+        json={"predicate": "rank", "value_text": "captain", "chapter_id": chapter["id"]},
     )
-    assert fact.status_code == 201
+    assert fact.status_code == 201, fact.text
 
     preview = await user_client.post(
         f"/entities/{gone['id']}/merge", json={"target_id": keep["id"], "dry_run": True}
@@ -386,7 +408,7 @@ async def test_other_users_cannot_touch_entities(make_client):
     assert (
         await bob.post(
             f"/entities/{entity['id']}/facts",
-            json={"predicate": "eye_color", "value_text": "grey"},
+            json={"predicate": "eye_color", "value_text": "grey", "chapter_id": str(UUID(int=0))},
         )
     ).status_code == 404
     assert (
@@ -450,3 +472,119 @@ async def test_merge_can_be_undone_from_its_audit(user_client):
     # Only one merge exists, and it has been reverted.
     twice = await user_client.post(f"/entities/{gone['id']}/unmerge")
     assert twice.status_code == 404
+
+
+async def test_canon_exceptions_suppress_matching_findings(user_client):
+    from app.services.canon_exceptions import filter_exceptions
+    from app.services.finding_filter import DraftFinding
+
+    story_id = await _story(user_client)
+    created = await user_client.post(
+        f"/stories/{story_id}/exceptions",
+        json={
+            "scope": "pattern",
+            "pattern": "eye colour",
+            "reason": "Her eyes change colour after the trial in chapter 7.",
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    finding = DraftFinding(
+        draft_quote="Her eyes were bright green now.",
+        draft_line=3,
+        earlier_quote="Her eyes were grey in the morning light.",
+        earlier_chapter_id=UUID(int=1),
+        earlier_chapter_number=1,
+        explanation="Eye colour contradicts chapter 1.",
+        confidence=80,
+    )
+    other = DraftFinding(
+        draft_quote="The gate stood open.",
+        draft_line=9,
+        earlier_quote="The gate was barred and locked at dusk.",
+        earlier_chapter_id=UUID(int=1),
+        earlier_chapter_number=2,
+        explanation="The gate state contradicts chapter 2.",
+        confidence=70,
+    )
+    from app.db import async_session
+
+    async with async_session() as session:
+        kept, suppressed = await filter_exceptions(
+            session, UUID(story_id), [finding, other]
+        )
+    assert suppressed == 1
+    assert [item.draft_line for item in kept] == [9]
+
+    listed = await user_client.get(f"/stories/{story_id}/exceptions")
+    assert len(listed.json()["exceptions"]) == 1
+
+    bad_scope = await user_client.post(
+        f"/stories/{story_id}/exceptions", json={"scope": "pattern", "reason": "no pattern"}
+    )
+    assert bad_scope.status_code == 422
+
+    removed = await user_client.delete(f"/exceptions/{created.json()['id']}")
+    assert removed.status_code == 204
+    assert (await user_client.get(f"/stories/{story_id}/exceptions")).json()["exceptions"] == []
+
+
+async def test_old_bible_endpoints_edit_entities(user_client):
+    """The pre-Phase-4 studio UI edits ids that now belong to entities/threads."""
+    story_id = await _story(user_client)
+    entity = await _entity(user_client, story_id, name="Mira Voss")
+    chapter = await _chapter(user_client, story_id, content="Mira Voss has grey eyes.")
+    proposal = await user_client.post(
+        f"/entities/{entity['id']}/facts",
+        json={
+            "predicate": "summary",
+            "value_text": "A captain.",
+            "chapter_id": chapter["id"],
+            "quote": "Mira Voss has grey eyes.",
+            "status": "proposed",
+        },
+    )
+    assert proposal.status_code == 201
+
+    decision = await user_client.patch(
+        f"/stories/bible/{entity['id']}/decision", json={"status": "accepted"}
+    )
+    assert decision.status_code == 200, decision.text
+    assert decision.json()["status"] == "accepted"
+    # A second decision is refused, exactly like the legacy flow.
+    again = await user_client.patch(
+        f"/stories/bible/{entity['id']}/decision", json={"status": "accepted"}
+    )
+    assert again.status_code == 409
+
+    edited = await user_client.put(
+        f"/stories/bible/{entity['id']}",
+        json={
+            "category": "character",
+            "name": "Mira Voss",
+            "description": "A captain with grey eyes.",
+            "details": {},
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["description"] == "A captain with grey eyes."
+    entity_now = await user_client.get(f"/entities/{entity['id']}")
+    assert entity_now.json()["summary"] == "A captain with grey eyes."
+
+    thread = await user_client.post(
+        f"/stories/{story_id}/threads", json={"title": "Who opened the gate?"}
+    )
+    resolved = await user_client.patch(
+        f"/stories/bible/{thread.json()['id']}/thread", json={"thread_state": "resolved"}
+    )
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["thread_state"] == "resolved"
+    assert resolved.json()["category"] == "plot_thread"
+
+    deleted = await user_client.delete(f"/stories/bible/{entity['id']}")
+    assert deleted.status_code == 204
+    archived = await user_client.get(f"/entities/{entity['id']}")
+    assert archived.status_code == 200
+    assert archived.json()["status"] == "archived"
+    listed = await user_client.get(f"/stories/{story_id}/entities")
+    assert listed.json()["entities"] == []

@@ -302,6 +302,32 @@ class EventListOut(BaseModel):
     events: list[EventOut]
 
 
+class ExceptionCreate(BaseModel):
+    scope: Literal["pattern", "entity", "predicate"]
+    reason: str = Field(min_length=1, max_length=2000)
+    pattern: str | None = Field(default=None, max_length=500)
+    entity_id: UUID | None = None
+    predicate: str | None = Field(default=None, max_length=100)
+
+
+class ExceptionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    story_id: UUID
+    scope: str
+    entity_id: UUID | None
+    predicate: str | None
+    pattern: str | None
+    reason: str
+    created_by: str
+    created_at: datetime
+
+
+class ExceptionListOut(BaseModel):
+    exceptions: list[ExceptionOut]
+
+
 class InboxSourceOut(BaseModel):
     chapter_id: UUID | None = None
     chapter_number: int | None = None

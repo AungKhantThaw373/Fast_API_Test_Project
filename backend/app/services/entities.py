@@ -791,6 +791,9 @@ async def list_entities(
         statement = statement.where(Entity.entity_type == entity_type)
     if status:
         statement = statement.where(Entity.status == status)
+    else:
+        # Archived entities are soft-deleted: visible only when asked for.
+        statement = statement.where(Entity.status != "archived")
     if query and query.strip():
         needle = f"%{query.strip().lower()}%"
         statement = statement.where(

@@ -12,11 +12,13 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.story_models import Chapter, StoryBibleEntry
+from app.models.story_models import Chapter, Story, StoryBibleEntry
 from app.models.wiki_models import Entity, EntityFact, StoryThread
+from app.services.entities import normalize_name
 from app.services.pagination import (
     clamp_limit,
     cursor_text,
@@ -37,6 +39,17 @@ TYPE_TO_CATEGORY = {
     "organization": "worldbuilding",
     "creature": "worldbuilding",
     "other": "worldbuilding",
+}
+
+# legacy category -> entity_type, for writes that still arrive in the old shape.
+CATEGORY_TO_TYPE = {
+    "character": "character",
+    "location": "location",
+    "item": "item",
+    "world_rule": "world_rule",
+    "power_system": "power_system",
+    "worldbuilding": "concept",
+    "plot_thread": "concept",
 }
 
 FACT_TO_STATUS = {
@@ -64,7 +77,7 @@ async def bible_view(
             .where(
                 Entity.story_id == story_id,
                 Entity.merged_into_id.is_(None),
-                Entity.status != "merged",
+                Entity.status.notin_(("merged", "archived")),
             )
             .order_by(Entity.created_at)
         )
@@ -201,3 +214,106 @@ async def chapter_number(session: AsyncSession, chapter_id: UUID | None) -> int 
 
 
 __all__ = ["bible_view", "legacy_ids", "chapter_number", "TYPE_TO_CATEGORY"]
+
+
+async def entity_entry(session: AsyncSession, entry_id: UUID, user_id: UUID) -> Entity | None:
+    """The entity behind a Bible id, if this id came from the knowledge model."""
+    entity = await session.get(Entity, entry_id)
+    if entity is None:
+        return None
+    story = await session.scalar(
+        select(Story).where(Story.id == entity.story_id, Story.owner_id == user_id)
+    )
+    if story is None:
+        raise HTTPException(status_code=404, detail="Story Bible entry not found.")
+    return entity
+
+
+async def thread_entry(session: AsyncSession, entry_id: UUID, user_id: UUID) -> StoryThread | None:
+    thread = await session.get(StoryThread, entry_id)
+    if thread is None:
+        return None
+    story = await session.scalar(
+        select(Story).where(Story.id == thread.story_id, Story.owner_id == user_id)
+    )
+    if story is None:
+        raise HTTPException(status_code=404, detail="Story Bible entry not found.")
+    return thread
+
+
+async def _summary_fact(session: AsyncSession, entity_id: UUID) -> EntityFact | None:
+    return await session.scalar(
+        select(EntityFact)
+        .where(EntityFact.entity_id == entity_id, EntityFact.predicate == "summary")
+        .order_by(EntityFact.created_at.desc())
+        .limit(1)
+    )
+
+
+async def _entity_row(session: AsyncSession, entity: Entity) -> dict[str, Any]:
+    rows, _next = await bible_view_rows(session, entity.story_id, only_ids=[entity.id])
+    return rows[0]
+
+
+async def bible_view_rows(
+    session: AsyncSession, story_id: UUID, *, only_ids: list[UUID] | None = None
+) -> tuple[list[dict[str, Any]], str | None]:
+    rows, next_cursor = await bible_view(session, story_id)
+    if only_ids is None:
+        return rows, next_cursor
+    wanted = {str(value) for value in only_ids}
+    return [row for row in rows if str(row["id"]) in wanted], None
+
+
+async def update_entity_entry(
+    session: AsyncSession, entity: Entity, payload: Any
+) -> dict[str, Any]:
+    """Apply an old-shape edit to the entity and its summary fact."""
+    entity.entity_type = CATEGORY_TO_TYPE.get(payload.category, "concept")
+    entity.name = payload.name.strip()
+    entity.canonical_name = normalize_name(entity.name)[:220]
+    entity.summary = payload.description.strip()
+    fact = await _summary_fact(session, entity.id)
+    if fact is None:
+        fact = EntityFact(
+            entity_id=entity.id,
+            predicate="summary",
+            value_type="text",
+            confidence=100,
+            status="accepted",
+            created_by="human",
+            context={},
+        )
+        session.add(fact)
+    fact.value_text = payload.description.strip()
+    await session.flush()
+    return await _entity_row(session, entity)
+
+
+async def decide_entity_entry(
+    session: AsyncSession, entity: Entity, status: str
+) -> dict[str, Any]:
+    fact = await _summary_fact(session, entity.id)
+    if fact is None:
+        raise HTTPException(status_code=409, detail="This entry has no summary to review.")
+    if fact.status != "proposed":
+        raise HTTPException(
+            status_code=409, detail="This suggestion has already been reviewed."
+        )
+    fact.status = "accepted" if status == "accepted" else "rejected"
+    await session.flush()
+    return await _entity_row(session, entity)
+
+
+async def archive_entity_entry(session: AsyncSession, entity: Entity) -> None:
+    entity.status = "archived"
+    await session.flush()
+
+
+async def set_thread_state_entry(
+    session: AsyncSession, thread: StoryThread, state: str
+) -> dict[str, Any]:
+    thread.state = "open" if state == "open" else "resolved"
+    await session.flush()
+    rows, _next = await bible_view_rows(session, thread.story_id, only_ids=[thread.id])
+    return rows[0]

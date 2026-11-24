@@ -32,6 +32,10 @@ async def chapter_numbers(session: AsyncSession, chapter_ids: set[UUID]) -> dict
     return {chapter_id: number for chapter_id, number in rows}
 
 
+def _quote_in_chapter(chapter: Chapter, quote: str) -> bool:
+    return " ".join(quote.split()) in " ".join(chapter.content.split())
+
+
 async def _owned_chapter(session: AsyncSession, story_id: UUID, chapter_id: UUID) -> Chapter:
     chapter = await session.get(Chapter, chapter_id)
     if chapter is None or chapter.story_id != story_id or chapter.deleted_at is not None:
@@ -77,21 +81,27 @@ async def get_fact(session: AsyncSession, fact_id: UUID) -> EntityFact:
 async def create_fact(
     session: AsyncSession, entity: Entity, payload: FactCreate, *, created_by: str = "human"
 ) -> EntityFact:
-    chapter_number = None
+    # A fact without a chapter is an opinion. Human and AI facts both carry one;
+    # AI facts must also carry a quote that is really in that chapter.
+    if payload.chapter_id is None:
+        raise HTTPException(
+            status_code=422, detail="A fact needs the chapter it comes from."
+        )
+    chapter = await _owned_chapter(session, entity.story_id, payload.chapter_id)
+    chapter_number = chapter.chapter_number
     line_start, line_end = payload.line_start, payload.line_end
-    if payload.chapter_id is not None:
-        chapter = await _owned_chapter(session, entity.story_id, payload.chapter_id)
-        chapter_number = chapter.chapter_number
-        if payload.quote and line_start is None:
-            line_start, line_end = _locate(chapter, payload.quote)
-    elif created_by == "ai":
-        raise HTTPException(
-            status_code=422, detail="AI facts need a chapter and a quote for provenance."
-        )
-    if created_by == "ai" and not payload.quote:
-        raise HTTPException(
-            status_code=422, detail="AI facts need a chapter and a quote for provenance."
-        )
+    if payload.quote and line_start is None:
+        line_start, line_end = _locate(chapter, payload.quote)
+    if created_by == "ai":
+        if not payload.quote:
+            raise HTTPException(
+                status_code=422, detail="AI facts need a chapter and a quote for provenance."
+            )
+        if not _quote_in_chapter(chapter, payload.quote) or line_start is None:
+            raise HTTPException(
+                status_code=422,
+                detail="The quote does not appear in that chapter.",
+            )
     if payload.value_entity_id is not None:
         other = await resolve_entity(session, payload.value_entity_id)
         if other is None or other.story_id != entity.story_id:

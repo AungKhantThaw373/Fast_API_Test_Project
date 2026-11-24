@@ -329,3 +329,36 @@ permutations, OneDrive).
   exact-vs-fuzzy candidates, mention ranges, dry-run merge, merge guards,
   merged-id resolution, and backfill idempotency with preserved ids.
 - 99 backend tests pass; ruff and pyright clean.
+
+## Phase 3 - P3-4 wiki API, P3-5 compat writes, P3-6 canon context, P3-7 checks
+
+- `app/schemas/wiki.py` and two routers: `routes/entities.py` (entity CRUD,
+  aliases, merge/unmerge, appearances, search, facts and decisions including
+  accept-supersedes-previous, relationships) and `routes/wiki.py` (threads,
+  events, inbox, canon exceptions). Every endpoint has a response model; every
+  one checks story ownership, so another user's id is a 404.
+- `routes/bible.py` now serves the compatibility view and routes old-shaped
+  writes to entities: decision moves the summary fact, edit updates name and
+  summary, delete archives, plot-thread toggle updates the thread.
+- `app/services/facts.py` requires the chapter on every fact, verifies AI quotes
+  against chapter text, and locates line numbers server-side. Accepting a value
+  supersedes the previous accepted one and records `supersedes_id`.
+- `app/services/inbox.py` merges proposed facts and open findings into one
+  ordered list with source, actions, and `why_held` ("Already recorded as
+  'grey'.").
+- `app/services/knowledge_context.py` builds `CANON NOTES` for continuity from
+  accepted facts about entities named in the draft, their relationships, and
+  open threads - regex only, no tokens. `app/services/canon_exceptions.py`
+  suppresses findings whose quotes or explanation match a recorded exception.
+- `entity_merges` (migration `0b5e2c7d9a64`) records every moved id; `undo_merge`
+  reverses a merge from that audit, including aliases that were dropped at merge
+  time and array memberships in threads, events, and scene meta.
+- Bug found by the new tests: `RequestValidationError` handlers put validator
+  exceptions in `ctx`, which is not JSON serializable, so any `model_validator`
+  failure returned 500. The handler now returns type/loc/msg only.
+- Also: aliases whose normalization strips to nothing ("the captain") are kept
+  and matched; duplicates of the same entity on one line collapse to one mention;
+  archived entities are hidden from lists and from the Bible view.
+- `Tests: tests/test_entities.py` (9), `tests/test_wiki_api.py` (15). 115 backend
+  tests; ruff, pyright, frontend lint, tsc, build, and 19 vitest tests pass.
+- `Docs/phase-3-acceptance.md` maps each manual acceptance line to its test.

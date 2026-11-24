@@ -2,16 +2,20 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
 from app.models.app_models import User
+from app.models.wiki_models import CanonException
 from app.schemas.wiki import (
     EventCreate,
     EventListOut,
     EventOut,
     EventUpdate,
+    ExceptionCreate,
+    ExceptionListOut,
+    ExceptionOut,
     InboxOut,
     ThreadCreate,
     ThreadListOut,
@@ -19,6 +23,7 @@ from app.schemas.wiki import (
     ThreadUpdate,
 )
 from app.security import get_current_user
+from app.services import canon_exceptions as exceptions_service
 from app.services import inbox as inbox_service
 from app.services import stories as stories_service
 from app.services import threads as threads_service
@@ -143,6 +148,59 @@ async def delete_event(
     event = await threads_service.get_event(session, event_id)
     await stories_service.owned_story(session, event.story_id, user.id)
     await threads_service.delete_event(session, event)
+    await session.commit()
+
+
+@router.get("/stories/{story_id}/exceptions", response_model=ExceptionListOut)
+async def list_exceptions(
+    story_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> ExceptionListOut:
+    await stories_service.owned_story(session, story_id, user.id)
+    rows = await exceptions_service.list_exceptions(session, story_id)
+    return ExceptionListOut(exceptions=[ExceptionOut.model_validate(row) for row in rows])
+
+
+@router.post(
+    "/stories/{story_id}/exceptions",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ExceptionOut,
+)
+async def create_exception(
+    story_id: UUID,
+    payload: ExceptionCreate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> ExceptionOut:
+    await stories_service.owned_story(session, story_id, user.id)
+    exception = await exceptions_service.create_exception(
+        session,
+        story_id,
+        exceptions_service.ExceptionCreate(
+            scope=payload.scope,
+            reason=payload.reason,
+            pattern=payload.pattern,
+            entity_id=payload.entity_id,
+            predicate=payload.predicate,
+        ),
+    )
+    await session.commit()
+    await session.refresh(exception)
+    return ExceptionOut.model_validate(exception)
+
+
+@router.delete("/exceptions/{exception_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_exception(
+    exception_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    exception = await session.get(CanonException, exception_id)
+    if exception is None:
+        raise HTTPException(status_code=404, detail="Exception not found.")
+    await stories_service.owned_story(session, exception.story_id, user.id)
+    await exceptions_service.delete_exception(session, exception.story_id, exception_id)
     await session.commit()
 
 
