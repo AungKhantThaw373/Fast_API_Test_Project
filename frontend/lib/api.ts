@@ -178,6 +178,172 @@ export interface ChapterScan {
 	findings: ContinuityFinding[];
 }
 
+export type EntityType =
+	| "character"
+	| "location"
+	| "item"
+	| "organization"
+	| "concept"
+	| "world_rule"
+	| "power_system"
+	| "creature"
+	| "other";
+
+export type FactStatus = "proposed" | "accepted" | "rejected" | "superseded";
+export type FactValueType = "text" | "number" | "date" | "entity" | "boolean";
+
+export interface EntityAlias {
+	id: string;
+	alias: string;
+	normalized_alias: string;
+	alias_type: "name" | "title" | "epithet" | "disguise" | "translation" | "other";
+}
+
+export interface WikiEntity {
+	id: string;
+	story_id: string;
+	entity_type: EntityType;
+	name: string;
+	summary: string;
+	status: "active" | "merged" | "archived";
+	merged_into_id: string | null;
+	first_chapter_number: number | null;
+	last_chapter_number: number | null;
+	created_at: string;
+	updated_at: string;
+	aliases: EntityAlias[];
+}
+
+export interface EntityFact {
+	id: string;
+	entity_id: string;
+	predicate: string;
+	value_text: string | null;
+	value_number: number | null;
+	value_date: string | null;
+	value_entity_id: string | null;
+	value_type: FactValueType;
+	chapter_id: string | null;
+	scene_index: number | null;
+	line_start: number | null;
+	line_end: number | null;
+	quote: string | null;
+	confidence: number;
+	status: FactStatus;
+	valid_from_chapter: number | null;
+	valid_to_chapter: number | null;
+	supersedes_id: string | null;
+	context: Record<string, unknown>;
+	created_by: "human" | "ai";
+	created_at: string;
+	updated_at: string;
+}
+
+export interface EntityRelationship {
+	id: string;
+	story_id: string;
+	from_entity_id: string;
+	to_entity_id: string;
+	relationship_type: string;
+	description: string;
+	since_chapter: number | null;
+	until_chapter: number | null;
+	chapter_id: string | null;
+	quote: string | null;
+	status: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface EntityAppearance {
+	chapter_id: string;
+	chapter_number: number;
+	chapter_title: string;
+	line_start: number;
+	line_end: number;
+	quote: string;
+}
+
+export interface WikiThread {
+	id: string;
+	story_id: string;
+	title: string;
+	description: string;
+	setup_chapter_id: string | null;
+	setup_quote: string | null;
+	payoff_chapter_id: string | null;
+	state: "open" | "touched" | "resolved" | "abandoned";
+	linked_entity_ids: string[];
+	created_at: string;
+	updated_at: string;
+}
+
+export interface WikiEvent {
+	id: string;
+	story_id: string;
+	chapter_id: string;
+	scene_index: number | null;
+	timeline_order: number | null;
+	summary: string;
+	location_entity_id: string | null;
+	participant_entity_ids: string[];
+	quote: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface InboxSource {
+	chapter_id: string | null;
+	chapter_number: number | null;
+	line: number | null;
+	quote: string | null;
+}
+
+export interface InboxItem {
+	id: string;
+	kind: "fact" | "finding";
+	title: string;
+	summary: string;
+	confidence: number;
+	source: InboxSource;
+	actions: string[];
+	why_held: string | null;
+	entity_id: string | null;
+	chapter_id: string | null;
+}
+
+export interface CanonException {
+	id: string;
+	story_id: string;
+	scope: "pattern" | "entity" | "predicate";
+	entity_id: string | null;
+	predicate: string | null;
+	pattern: string | null;
+	reason: string;
+	created_by: string;
+	created_at: string;
+}
+
+export interface FactInput {
+	predicate: string;
+	value_text?: string | null;
+	value_number?: number | null;
+	value_date?: string | null;
+	value_entity_id?: string | null;
+	value_type?: FactValueType;
+	chapter_id?: string | null;
+	scene_index?: number | null;
+	line_start?: number | null;
+	line_end?: number | null;
+	quote?: string | null;
+	confidence?: number;
+	status?: FactStatus;
+	valid_from_chapter?: number | null;
+	valid_to_chapter?: number | null;
+	supersedes_id?: string | null;
+	context?: Record<string, unknown>;
+}
+
 export interface DraftFolder {
 	id: string;
 	name: string;
@@ -372,6 +538,176 @@ export const api = {
 			body: JSON.stringify({ intentional }),
 		}),
 	reviewFinding: (findingId: string, reviewStatus: "open" | "resolved" | "dismissed") => request<{ id: string; review_status: ContinuityFinding["review_status"]; intentional: boolean }>(`/stories/findings/${findingId}/review`, { method: "PATCH", body: JSON.stringify({ review_status: reviewStatus }) }),
+	entities: async (storyId: string, filters: { type?: string; status?: string; q?: string } = {}) => {
+		const entities: WikiEntity[] = [];
+		let cursor: string | undefined;
+		do {
+			const params = new URLSearchParams({ limit: "200" });
+			if (filters.type) params.set("type", filters.type);
+			if (filters.status) params.set("status", filters.status);
+			if (filters.q) params.set("q", filters.q);
+			if (cursor) params.set("cursor", cursor);
+			const page = await request<{ entities: WikiEntity[]; next_cursor?: string | null }>(
+				`/stories/${storyId}/entities?${params.toString()}`,
+			);
+			entities.push(...page.entities);
+			cursor = page.next_cursor ?? undefined;
+		} while (cursor);
+		return entities;
+	},
+	searchEntities: async (storyId: string, q: string) =>
+		(await request<{ entities: WikiEntity[] }>(
+			`/entities/search?story_id=${storyId}&q=${encodeURIComponent(q)}`,
+		)).entities,
+	entity: (entityId: string) => request<WikiEntity>(`/entities/${entityId}`),
+	createEntity: (
+		storyId: string,
+		input: { name: string; entity_type: EntityType; summary?: string; aliases?: Array<{ alias: string; alias_type?: string }> },
+	) => request<WikiEntity>(`/stories/${storyId}/entities`, { method: "POST", body: JSON.stringify(input) }),
+	updateEntity: (entityId: string, changes: { name?: string; entity_type?: EntityType; summary?: string }) =>
+		request<WikiEntity>(`/entities/${entityId}`, { method: "PUT", body: JSON.stringify(changes) }),
+	archiveEntity: (entityId: string) => request<void>(`/entities/${entityId}`, { method: "DELETE" }),
+	addEntityAlias: (entityId: string, alias: string, aliasType = "name") =>
+		request<EntityAlias>(`/entities/${entityId}/aliases`, {
+			method: "POST",
+			body: JSON.stringify({ alias, alias_type: aliasType }),
+		}),
+	deleteEntityAlias: (entityId: string, aliasId: string) =>
+		request<void>(`/entities/${entityId}/aliases/${aliasId}`, { method: "DELETE" }),
+	mergeEntity: (entityId: string, targetId: string, dryRun = false) =>
+		request<{ source_id: string; target_id: string; dry_run: boolean; moved: Record<string, number> }>(
+			`/entities/${entityId}/merge`,
+			{ method: "POST", body: JSON.stringify({ target_id: targetId, dry_run: dryRun }) },
+		),
+	unmergeEntity: (entityId: string) =>
+		request<{ source_id: string; target_id: string; merge_id: string; reverted_at: string | null }>(
+			`/entities/${entityId}/unmerge`,
+			{ method: "POST" },
+		),
+	entityAppearances: async (entityId: string, limit = 100) => {
+		const appearances: EntityAppearance[] = [];
+		let cursor: string | undefined;
+		do {
+			const params = new URLSearchParams({ limit: String(limit) });
+			if (cursor) params.set("cursor", cursor);
+			const page = await request<{ appearances: EntityAppearance[]; next_cursor?: string | null }>(
+				`/entities/${entityId}/appearances?${params.toString()}`,
+			);
+			appearances.push(...page.appearances);
+			cursor = page.next_cursor ?? undefined;
+		} while (cursor);
+		return appearances;
+	},
+	entityFacts: async (entityId: string, filters: { status?: string; predicate?: string } = {}) => {
+		const params = new URLSearchParams();
+		if (filters.status) params.set("status", filters.status);
+		if (filters.predicate) params.set("predicate", filters.predicate);
+		const query = params.toString();
+		return (
+			await request<{ facts: EntityFact[] }>(`/entities/${entityId}/facts${query ? `?${query}` : ""}`)
+		).facts;
+	},
+	createFact: (entityId: string, input: FactInput) =>
+		request<EntityFact>(`/entities/${entityId}/facts`, { method: "POST", body: JSON.stringify(input) }),
+	updateFact: (factId: string, changes: Partial<FactInput>) =>
+		request<EntityFact>(`/facts/${factId}`, { method: "PUT", body: JSON.stringify(changes) }),
+	deleteFact: (factId: string) => request<void>(`/facts/${factId}`, { method: "DELETE" }),
+	acceptFact: (factId: string) => request<EntityFact>(`/facts/${factId}/accept`, { method: "POST" }),
+	rejectFact: (factId: string) => request<EntityFact>(`/facts/${factId}/reject`, { method: "POST" }),
+	entityRelationships: (entityId: string) =>
+		request<{ outgoing: EntityRelationship[]; incoming: EntityRelationship[] }>(
+			`/entities/${entityId}/relationships`,
+		),
+	createRelationship: (
+		entityId: string,
+		input: {
+			to_entity_id: string;
+			relationship_type: string;
+			description?: string;
+			since_chapter?: number | null;
+			chapter_id?: string | null;
+			quote?: string | null;
+		},
+	) =>
+		request<EntityRelationship>(`/entities/${entityId}/relationships`, {
+			method: "POST",
+			body: JSON.stringify(input),
+		}),
+	deleteRelationship: (relationshipId: string) =>
+		request<void>(`/relationships/${relationshipId}`, { method: "DELETE" }),
+	threads: async (storyId: string, state?: string) => {
+		const query = state ? `?state=${state}` : "";
+		return (await request<{ threads: WikiThread[] }>(`/stories/${storyId}/threads${query}`)).threads;
+	},
+	createThread: (
+		storyId: string,
+		input: {
+			title: string;
+			description?: string;
+			setup_chapter_id?: string | null;
+			setup_quote?: string | null;
+			state?: string;
+			linked_entity_ids?: string[];
+		},
+	) => request<WikiThread>(`/stories/${storyId}/threads`, { method: "POST", body: JSON.stringify(input) }),
+	updateThreadEntry: (
+		threadId: string,
+		changes: {
+			title?: string;
+			description?: string;
+			state?: string;
+			payoff_chapter_id?: string | null;
+			linked_entity_ids?: string[];
+		},
+	) => request<WikiThread>(`/threads/${threadId}`, { method: "PATCH", body: JSON.stringify(changes) }),
+	deleteThreadEntry: (threadId: string) => request<void>(`/threads/${threadId}`, { method: "DELETE" }),
+	events: async (storyId: string, chapterId?: string) => {
+		const query = chapterId ? `?chapter_id=${chapterId}` : "";
+		return (await request<{ events: WikiEvent[] }>(`/stories/${storyId}/events${query}`)).events;
+	},
+	createEvent: (
+		storyId: string,
+		input: {
+			chapter_id: string;
+			summary: string;
+			scene_index?: number | null;
+			timeline_order?: number | null;
+			location_entity_id?: string | null;
+			participant_entity_ids?: string[];
+			quote?: string | null;
+		},
+	) => request<WikiEvent>(`/stories/${storyId}/events`, { method: "POST", body: JSON.stringify(input) }),
+	inbox: async (
+		storyId: string,
+		filters: { kind?: string; status?: string; limit?: number; cursor?: string } = {},
+	) => {
+		const params = new URLSearchParams();
+		if (filters.kind) params.set("kind", filters.kind);
+		if (filters.status) params.set("status", filters.status);
+		params.set("limit", String(filters.limit ?? 100));
+		if (filters.cursor) params.set("cursor", filters.cursor);
+		return request<{ items: InboxItem[]; next_cursor: string | null }>(
+			`/stories/${storyId}/inbox?${params.toString()}`,
+		);
+	},
+	exceptions: async (storyId: string) =>
+		(await request<{ exceptions: CanonException[] }>(`/stories/${storyId}/exceptions`)).exceptions,
+	createException: (
+		storyId: string,
+		input: {
+			scope: string;
+			reason: string;
+			pattern?: string | null;
+			entity_id?: string | null;
+			predicate?: string | null;
+		},
+	) =>
+		request<CanonException>(`/stories/${storyId}/exceptions`, {
+			method: "POST",
+			body: JSON.stringify(input),
+		}),
+	deleteException: (exceptionId: string) =>
+		request<void>(`/exceptions/${exceptionId}`, { method: "DELETE" }),
 	editingFolders: async () => (await request<{ folders: DraftFolder[] }>("/editing/folders")).folders,
 	createEditingFolder: (name: string) => request<DraftFolder>("/editing/folders", {
 		method: "POST",
