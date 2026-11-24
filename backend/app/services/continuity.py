@@ -1,10 +1,11 @@
 import asyncio
+import json
 import time
 from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
@@ -27,6 +28,76 @@ logger = get_logger("continuity")
 # One provider request per chapter at a time. This is process-local and goes
 # away in P2-7, when scans move to the durable worker.
 _continuity_locks: dict[UUID, asyncio.Lock] = {}
+
+# One round trip for every draft scene: each scene takes its own nearest
+# neighbours through a lateral subquery, which still lets pgvector use the HNSW
+# index instead of sorting the whole story once per query vector.
+_EVIDENCE_SQL = text(
+    """
+    WITH queries AS (
+        SELECT ((value)::text)::vector AS vector
+        FROM jsonb_array_elements_text(CAST(:vectors AS jsonb)) WITH ORDINALITY AS q(value, ordinality)
+    )
+    SELECT e.id AS evidence_id, e.embedding <=> q.vector AS distance
+    FROM queries q
+    JOIN LATERAL (
+        SELECT s.id, s.embedding
+        FROM story_scene_embeddings s
+        JOIN story_chapters c
+          ON c.id = s.chapter_id
+         AND c.index_status = 'indexed'
+         AND c.indexed_embedding_model = :embedding_model
+        WHERE s.story_id = :story_id
+          AND s.chapter_number < :chapter_number
+        ORDER BY s.embedding <=> q.vector
+        LIMIT :top_k
+    ) e ON true
+    ORDER BY distance
+    """
+)
+
+EVIDENCE_SEND_LIMIT = 24
+
+
+async def retrieve_evidence(
+    session: AsyncSession,
+    story_id: UUID,
+    chapter_number: int,
+    vectors: list[list[float]],
+    *,
+    top_k: int,
+) -> dict[str, SceneEmbedding]:
+    """Best evidence rows for the whole draft, in a fixed number of queries."""
+    if not vectors:
+        return {}
+    rows = (
+        await session.execute(
+            _EVIDENCE_SQL,
+            {
+                "vectors": json.dumps(vectors, separators=(",", ":")),
+                "story_id": story_id,
+                "chapter_number": chapter_number,
+                "embedding_model": settings.EMBEDDING_MODEL,
+                "top_k": top_k,
+            },
+        )
+    ).all()
+    best: dict[UUID, float] = {}
+    for evidence_id, distance in rows:
+        score = float(distance)
+        if evidence_id not in best or score < best[evidence_id]:
+            best[evidence_id] = score
+    if not best:
+        return {}
+    # One load for the winning rows; keep the distance order the SQL returned.
+    wanted = sorted(best, key=lambda item: best[item])[:EVIDENCE_SEND_LIMIT]
+    embeddings = {
+        item.id: item
+        for item in await session.scalars(
+            select(SceneEmbedding).where(SceneEmbedding.id.in_(wanted))
+        )
+    }
+    return {str(item_id): embeddings[item_id] for item_id in wanted if item_id in embeddings}
 
 
 def _log_reuse(chapter: Chapter, scan: ContinuityScan) -> None:
@@ -261,28 +332,10 @@ async def scan_chapter(
         "[continuity] embed  %s",
         fields(chapter=chapter_ref, scenes=len(draft_scenes), elapsed=f"{time.monotonic() - started:.2f}s"),
     )
-    # Gather the best matches for every scene, then send the full current draft and
-    # a compact, deduplicated evidence set in one provider request.
-    evidence_distances: dict[str, tuple[float, SceneEmbedding]] = {}
-    for vector in draft_vectors:
-        distance = SceneEmbedding.embedding.cosine_distance(vector).label("distance")
-        rows = await session.execute(
-            select(SceneEmbedding, distance)
-            .join(Chapter, SceneEmbedding.chapter_id == Chapter.id)
-            .where(
-                SceneEmbedding.story_id == story_id,
-                SceneEmbedding.chapter_number < chapter.chapter_number,
-                Chapter.index_status == "indexed",
-                Chapter.indexed_embedding_model == settings.EMBEDDING_MODEL,
-            )
-            .order_by(distance)
-            .limit(top_k)
-        )
-        for evidence, score in rows:
-            key = str(evidence.id)
-            if key not in evidence_distances or score < evidence_distances[key][0]:
-                evidence_distances[key] = (float(score), evidence)
-    if not evidence_distances:
+    evidence_by_id = await retrieve_evidence(
+        session, story_id, chapter.chapter_number, draft_vectors, top_k=top_k
+    )
+    if not evidence_by_id:
         logger.info(
             "[continuity] skip   %s",
             fields(chapter=chapter_ref, reason="no_earlier_evidence", elapsed=f"{time.monotonic() - started:.2f}s"),
@@ -291,15 +344,11 @@ async def scan_chapter(
     if not await session.scalar(select(Story.external_analysis_enabled).where(Story.id == story_id)):
         raise RuntimeError("External analysis has been turned off for this story.")
 
-    evidence_by_id = {
-        str(item.id): item
-        for _distance, item in sorted(evidence_distances.values(), key=lambda pair: pair[0])[:24]
-    }
     logger.info(
         "[continuity] evidence %s",
         fields(
             chapter=chapter_ref,
-            retrieved=len(evidence_distances),
+            retrieved=len(evidence_by_id),
             sent=len(evidence_by_id),
             evidence_chars=sum(len(item.text) for item in evidence_by_id.values()),
         ),

@@ -198,3 +198,18 @@ permutations, OneDrive).
   bible page order, chapter-list cap, ETag round trip, and a SQL event listener
   asserting `GET /stories` runs exactly one aggregate query.
 - 70 backend tests pass; ruff, pyright, eslint, tsc, and 19 vitest tests clean.
+
+## Phase 2 — P2-3 batched continuity retrieval
+
+- `services/continuity.py` no longer embeds-then-queries once per scene. The draft
+  scenes are embedded in one call, the vectors travel as one JSON parameter, and
+  `retrieve_evidence()` runs a single statement: a CTE over
+  `jsonb_array_elements_text(...)::vector` with a `JOIN LATERAL (... ORDER BY
+  embedding <=> q.vector LIMIT :top_k)` per scene, so pgvector can still use the
+  HNSW index instead of sorting the whole story per query vector.
+- Distances are deduplicated per evidence id in Python, sorted ascending, and
+  capped at 24 rows, which are loaded in one `WHERE id IN (...)`.
+- Before: N vector round trips for N scenes. After: 3 statements (vector search,
+  evidence load, story settings), asserted by a SQL event-listener test in
+  `tests/test_continuity_retrieval.py`.
+- 72 backend tests pass; ruff and pyright clean.
