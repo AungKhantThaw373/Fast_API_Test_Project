@@ -154,7 +154,23 @@ export interface SystemStatus {
 	pending_chapters: number;
 	failed_chapters: number;
 	running_jobs: number;
+	queued_jobs: number;
+	dead_jobs: number;
+	/** "running" when a worker heartbeat is fresh, otherwise "offline". */
 	worker: string;
+}
+
+export interface JobStatus {
+	id: string;
+	type: string;
+	status: "queued" | "running" | "succeeded" | "failed" | "dead";
+	attempts: number;
+	max_attempts: number;
+	progress: Record<string, unknown>;
+	last_error: string | null;
+	run_at: string;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface ChapterScan {
@@ -291,6 +307,7 @@ export const api = {
 	deleteTrashChapter: (chapterId: string) => request<void>(`/trash/chapters/${chapterId}`, { method: "DELETE" }),
 	deleteTrashStory: (storyId: string) => request<void>(`/trash/stories/${storyId}`, { method: "DELETE" }),
 	systemStatus: () => request<SystemStatus>("/system/status"),
+	job: (jobId: string) => request<JobStatus>(`/jobs/${jobId}`),
 	chapterRevisions: async (chapterId: string) => (await request<{ revisions: ChapterRevisionSummary[] }>(`/stories/chapters/${chapterId}/revisions`)).revisions,
 	restoreChapterRevision: (chapterId: string, revisionNumber: number) => request<Chapter>(`/stories/chapters/${chapterId}/revisions/${revisionNumber}/restore`, { method: "POST" }),
 	chapterStatus: (chapterId: string) => request<Pick<Chapter, "id" | "revision" | "word_count" | "index_status" | "index_error" | "bible_scan_revision" | "bible_scan_error">>(`/stories/chapters/${chapterId}/status`),

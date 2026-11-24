@@ -33,7 +33,7 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 TABLES = (
     "users, user_ai_settings, stories, story_chapters, story_chapter_revisions, "
     "story_scene_embeddings, story_bible_entries, continuity_scans, "
-    "continuity_findings, editing_folders, editing_draft_files"
+    "continuity_findings, editing_folders, editing_draft_files, jobs, worker_heartbeats"
 )
 
 
@@ -48,18 +48,6 @@ def prepare_database():
         capture_output=True,
     )
     yield
-
-
-@pytest.fixture(autouse=True)
-def disable_background_ai(monkeypatch):
-    """Never hit Ollama or a provider from a test."""
-    from app.services import indexing
-
-    async def noop(*_args, **_kwargs):
-        return None
-
-    monkeypatch.setattr(indexing, "schedule_chapter_reindex", noop)
-    monkeypatch.setattr(indexing, "schedule_bible_extraction", noop)
 
 
 @pytest_asyncio.fixture(autouse=True)

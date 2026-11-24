@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend test lint typecheck migrate backup install
+.PHONY: dev-backend dev-frontend worker test lint typecheck migrate backup install
 
 install:
 	cd backend && uv sync
@@ -9,6 +9,14 @@ dev-backend:
 
 dev-frontend:
 	cd frontend && npm run dev
+
+# Long AI work (chapter reindex, Story Bible scans) runs here, not in the API.
+# One worker with concurrency 1 is the right default for a single GPU.
+worker:
+	cd backend && uv run python -m app.worker
+
+worker-once:
+	cd backend && uv run python -m app.worker --once
 
 test:
 	cd backend && uv run pytest -q

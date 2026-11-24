@@ -25,7 +25,8 @@ cd frontend && npm ci
 
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
-make test             # backend pytest (70 tests)
+make worker           # durable job worker (long AI work); run exactly one
+make test             # backend pytest (85 tests)
 make test-frontend    # vitest (19 tests)
 make lint typecheck   # ruff + eslint, pyright + tsc
 ./scripts/backup.sh   # pg_dump, no Docker
@@ -38,28 +39,25 @@ make lint typecheck   # ruff + eslint, pyright + tsc
 - **Phase 1 complete** (`Docs/qa-phase-1.md`): IndexedDB draft buffer, save state
   machine, idempotent saves + conflict dialog, soft delete/trash, snapshots with
   retention and diffs, startup reconciliation, `/system/status`.
-- **Phase 2 partial**: stable `position` ordering is done; `list_stories` is a
-  single aggregate query; the route monolith is split into `routes/stories.py`,
-  `chapters.py`, `bible.py`, `continuity.py` with response models and matching
-  services. Everything else in Phase 2 is untouched.
-- Backend: 70 tests pass, ruff and pyright clean.
+- **Phase 2 nearly complete**: stable `position` ordering, single-query story
+  list and continuity retrieval, split routers with response models, cursor
+  pagination + chapter ETags, the scan index and statement timeouts, and the
+  durable `jobs` worker (see `Docs/worker.md`). Remaining: P2-8 request ids and
+  `/ready`, P2-9 performance budget numbers.
+- Backend: 85 tests pass, ruff and pyright clean.
 - Frontend: lint, `tsc --noEmit`, `next build`, and 19 vitest tests pass.
 - CI workflow is committed but has never run on GitHub.
 
 ## Pick up here (in this order)
 
-1. **P2-2 pagination + ETag** — `limit`/`cursor` on `/stories`, `/stories/{id}/bible`,
-   chapter scan findings; `If-None-Match` on chapter GET.
-2. **P2-3 batched continuity retrieval** — `services/continuity.py` still embeds
-   each draft scene and runs one vector query per scene.
-2. **P2-4 index migration** — `ix_scans_chapter_created`, `ix_findings_scan`,
-   `ix_bible_story_status` (the others exist); `statement_timeout` per request.
-3. **P2-6 durable worker** — `jobs` table, `SKIP LOCKED` claim query, `app/worker.py`;
-   then P2-7 (remove `_index_semaphore`, `_continuity_locks`, in-process tasks) and
-   switch indexing/Bible scans to enqueue.
-4. **P2-8 request ids, `/ready`** — middleware + contextvar; `/health` exists,
-   `/system/status` exists but `/ready` does not.
-6. **Phase 3** — knowledge model (`entities`, `entity_aliases`, `entity_facts`,
+1. **P2-8 request ids, `/ready`** — middleware + `contextvars` so logs and error
+   bodies carry a request id; `/ready` should check DB, pgvector, Ollama, schema
+   head, and a fresh worker heartbeat (`services/jobs.worker_is_alive` already
+   answers the last one).
+2. **P2-9 performance budget** — measure chapter save/open, story list,
+   continuity retrieval, one-chapter query count, and a 1,100-chapter reorder;
+   write `Docs/perf.md`, then tag `phase-2-complete`.
+3. **Phase 3** — knowledge model (`entities`, `entity_aliases`, `entity_facts`,
    `entity_relationships`, `story_events`, `story_threads`, `entity_mentions`,
    `canon_exceptions`, `chapter_meta`, `scene_meta`, `ai_usage`) per the manual.
    Do not drop `story_bible_entries` in the same migration.

@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.engine import URL
@@ -24,7 +25,7 @@ DATABASE_URL = URL.create(
 # Every API connection carries a 15s statement timeout: a runaway query fails
 # fast instead of holding a request open forever. Worker connections raise it
 # (see ``app/worker.py``). Tests use the same engine, so a hang fails loudly.
-STATEMENT_TIMEOUT_MS = 15_000
+STATEMENT_TIMEOUT_MS = int(os.environ.get("STATEMENT_TIMEOUT_MS", "15000"))
 
 engine = create_async_engine(
     DATABASE_URL,

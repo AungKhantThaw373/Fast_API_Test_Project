@@ -227,3 +227,38 @@ permutations, OneDrive).
 - `ALTER DATABASE stillroom/stillroom_test SET log_min_duration_statement='200ms'`
   applied locally and documented in `Docs/database.md`, together with how to
   verify the timeout from the app.
+
+## Phase 2 — P2-6 / P2-7 durable worker, concurrency moved out of the API
+
+- Migration `8f3b6d2e5a17` adds `jobs` (status, attempts, `run_at`, lock columns,
+  `progress`, `last_error`, `dedupe_key`, `owner_id`) and `worker_heartbeats`.
+  Partial unique index `uq_jobs_active_dedupe` allows one active job per
+  `(type, dedupe_key)`; claim order is `(status, run_at)`.
+- `app/services/jobs.py`: `enqueue` (upsert that also debounces `run_at`),
+  `claim_next` (`UPDATE ... WHERE id = (SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1)`),
+  `record_success`, `record_failure` (5s/15s/45s backoff, then `dead`),
+  `requeue_superseded`, `recover_stuck` (15-minute lock), `heartbeat`,
+  `worker_is_alive`, `counts_by_status`, `owned_job`.
+- `app/worker.py`: one worker, concurrency 1, Postgres-backed queue, signal
+  handling that finishes the job in hand, heartbeat every 15 s, crash recovery on
+  startup, and a `--once` mode that drains due jobs and exits (used by tests).
+  `STATEMENT_TIMEOUT_MS=300000` is set before `app.db` is imported.
+- `indexing.reindex_chapter` / `extract_story_bible` now return
+  `done|superseded|skipped` and re-raise real failures so the queue retries with
+  backoff. A mid-run edit leaves the chapter `pending` and requeues instead of
+  stranding it in `indexing`.
+- Deleted the in-process plumbing the manual lists for P2-7: `_index_semaphore`,
+  `_chapter_jobs`, `_bible_jobs`, `_bible_scan_locks`, `schedule_chapter_reindex`,
+  `schedule_bible_extraction`, `stop_index_jobs`. The API no longer starts AI
+  work; chapter create/save/restore/retry and Bible range scans enqueue rows.
+- `GET /jobs/{id}` (owner only, 404 otherwise) and `/system/status` now reports
+  real `queued_jobs`/`running_jobs`/`dead_jobs` and a heartbeat-based `worker`.
+- `make worker` / `make worker-once`; `Docs/worker.md` documents lifecycle,
+  recovery, inspection, and why one worker is correct.
+- New `tests/test_jobs.py` (13 tests): dedupe while queued and while running,
+  claim accounting, two workers claiming different rows, retry-then-dead,
+  superseded requeue, stuck-job recovery, heartbeat, save-enqueues-one-job,
+  job ownership, and `run_worker(once=True)` indexing a real chapter.
+- Smoke-tested end to end against Ollama: enqueued reindex → worker → chapter
+  `indexed`, job `succeeded`.
+- 85 backend tests pass; ruff, pyright, eslint, tsc clean.

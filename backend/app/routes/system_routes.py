@@ -11,6 +11,7 @@ from app.models import Chapter
 from app.models.app_models import User
 from app.schema_check import expected_head
 from app.security import get_current_user
+from app.services import jobs as jobs_service
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -64,6 +65,8 @@ async def system_status(
     failed = await session.scalar(
         select(func.count(Chapter.id)).where(Chapter.index_status == "failed")
     )
+    job_counts = await jobs_service.counts_by_status(session)
+    worker_alive = await jobs_service.worker_is_alive(session)
     status = {
         "database": database,
         "pgvector": await _check_pgvector(session),
@@ -71,9 +74,11 @@ async def system_status(
         "ollama": await _check_ollama(),
         "pending_chapters": int(pending or 0),
         "failed_chapters": int(failed or 0),
-        "running_jobs": 0,
-        # Jobs still run in-process in Phase 1; Phase 2 adds the durable worker.
-        "worker": "not_configured",
+        "running_jobs": job_counts["running"],
+        "queued_jobs": job_counts["queued"],
+        "dead_jobs": job_counts["dead"],
+        # "offline" means the queue is not being drained: run `make worker`.
+        "worker": "running" if worker_alive else "offline",
     }
     if database_detail:
         status["database_detail"] = database_detail

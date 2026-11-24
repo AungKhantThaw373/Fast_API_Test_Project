@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,13 +61,12 @@ def _etag_matches(if_none_match: str | None, etag: str) -> bool:
 async def create_chapter(
     story_id: UUID,
     payload: ChapterCreate,
-    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> Chapter:
     story = await stories_service.owned_story(session, story_id, user.id)
     chapter = await chapters_service.create_chapter(session, story, payload.title, payload.content)
-    background_tasks.add_task(indexing.schedule_chapter_reindex, chapter.id)
+    await indexing.enqueue_reindex(session, chapter.id, owner_id=user.id)
     return chapter
 
 
@@ -75,14 +74,13 @@ async def create_chapter(
 async def import_manuscript(
     story_id: UUID,
     payload: ManuscriptImport,
-    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> ChapterListOut:
     story = await stories_service.owned_story(session, story_id, user.id)
     created = await chapters_service.import_manuscript(session, story, payload)
     for chapter in created:
-        background_tasks.add_task(indexing.schedule_chapter_reindex, chapter.id)
+        await indexing.enqueue_reindex(session, chapter.id, owner_id=user.id)
     return ChapterListOut(chapters=[_summary(chapter) for chapter in created])
 
 
@@ -102,7 +100,6 @@ async def reorder_chapters(
 async def update_chapter(
     chapter_id: UUID,
     payload: ChapterUpdate,
-    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -125,7 +122,7 @@ async def update_chapter(
             },
         )
     if changed:
-        background_tasks.add_task(indexing.schedule_chapter_reindex, chapter.id)
+        await indexing.enqueue_reindex(session, chapter.id, owner_id=user.id)
     return chapter
 
 
@@ -225,7 +222,6 @@ async def diff_chapter_revisions(
 async def restore_chapter_revision(
     chapter_id: UUID,
     revision_number: int,
-    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> Chapter:
@@ -233,7 +229,7 @@ async def restore_chapter_revision(
         session, chapter_id, user.id, for_update=True
     )
     restored = await chapters_service.restore_revision(session, chapter, revision_number)
-    background_tasks.add_task(indexing.schedule_chapter_reindex, restored.id)
+    await indexing.enqueue_reindex(session, restored.id, owner_id=user.id)
     return restored
 
 
@@ -268,11 +264,10 @@ async def delete_chapter(
 )
 async def retry_chapter_index(
     chapter_id: UUID,
-    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> RetryIndexOut:
     chapter = await chapters_service.owned_chapter(session, chapter_id, user.id)
     chapter = await chapters_service.mark_for_reindex(session, chapter)
-    background_tasks.add_task(indexing.schedule_chapter_reindex, chapter.id)
+    await indexing.enqueue_reindex(session, chapter.id, owner_id=user.id)
     return RetryIndexOut(id=chapter.id, index_status=chapter.index_status)

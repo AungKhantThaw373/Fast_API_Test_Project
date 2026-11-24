@@ -1,5 +1,6 @@
 from app.models.app_models import User, UserAISettings
 from app.models.editing_models import DraftFile, EditingFolder
+from app.models.job_models import Job, WorkerHeartbeat
 from app.models.story_models import (
     Chapter,
     ChapterRevision,
@@ -22,4 +23,6 @@ __all__ = [
     "StoryBibleEntry",
     "ContinuityScan",
     "ContinuityFinding",
+    "Job",
+    "WorkerHeartbeat",
 ]

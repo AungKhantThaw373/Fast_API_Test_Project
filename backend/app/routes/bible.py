@@ -75,7 +75,9 @@ async def scan_story_bible_range(
         force=payload.force,
     )
     for chapter_id, revision in selection.selected:
-        indexing.schedule_bible_extraction(chapter_id, revision)
+        await indexing.enqueue_bible_scan(
+            session, chapter_id, owner_id=user.id, revision=revision
+        )
     logger.info(
         "[bible] queue  %s",
         fields(
