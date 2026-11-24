@@ -61,6 +61,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
+      - run: npm test
       - run: npm run build
         env:
           BACKEND_API_URL: http://127.0.0.1:8000

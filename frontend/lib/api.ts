@@ -1,7 +1,19 @@
 const API_BASE_URL = "/api/py";
 
+export interface ConflictDetails {
+	currentRevision: number;
+	currentTitle: string;
+	currentContent: string;
+	updatedAt: string;
+}
+
 export class ApiRequestError extends Error {
-	constructor(message: string, readonly status: number, readonly retryAfterSeconds?: number) {
+	constructor(
+		message: string,
+		readonly status: number,
+		readonly retryAfterSeconds?: number,
+		readonly conflict?: ConflictDetails,
+	) {
 		super(message);
 		this.name = "ApiRequestError";
 	}
@@ -53,6 +65,7 @@ export interface Chapter {
 	index_status: "pending" | "indexing" | "indexed" | "failed";
 	index_error: string | null;
 	updated_at: string;
+	deleted_at?: string | null;
 }
 
 export interface StoryDetails extends Story {
@@ -91,7 +104,57 @@ export interface ChapterRevisionSummary {
 	revision_number: number;
 	title: string;
 	word_count: number;
+	kind: "autosave" | "checkpoint" | "restore";
+	char_count: number;
 	created_at: string;
+}
+
+export interface DiffHunk {
+	old_start: number;
+	old_lines: number;
+	new_start: number;
+	new_lines: number;
+	lines: string[];
+}
+
+export interface RevisionDiff {
+	older: Pick<ChapterRevisionSummary, "revision_number" | "word_count" | "kind" | "created_at">;
+	newer: Pick<ChapterRevisionSummary, "revision_number" | "word_count" | "kind" | "created_at">;
+	hunks: DiffHunk[];
+}
+
+export interface TrashedChapter {
+	id: string;
+	story_id: string;
+	story_title: string;
+	chapter_number: number;
+	title: string;
+	word_count: number;
+	deleted_at: string | null;
+}
+
+export interface TrashedStory {
+	id: string;
+	title: string;
+	chapter_count: number;
+	deleted_at: string | null;
+}
+
+export interface TrashListing {
+	retention_days: number;
+	stories: TrashedStory[];
+	chapters: TrashedChapter[];
+}
+
+export interface SystemStatus {
+	database: string;
+	pgvector: string;
+	schema: string;
+	ollama: string;
+	pending_chapters: number;
+	failed_chapters: number;
+	running_jobs: number;
+	worker: string;
 }
 
 export interface ChapterScan {
@@ -143,7 +206,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 		const body = await response.json().catch(() => null);
 		const retryAfterValue = response.headers.get("Retry-After");
 		const retryAfterSeconds = retryAfterValue && /^\d+(\.\d+)?$/.test(retryAfterValue) ? Math.ceil(Number(retryAfterValue)) : undefined;
-		throw new ApiRequestError(`${body?.detail ?? "Request failed"} (${response.status})`, response.status, retryAfterSeconds);
+		// A structured 409 body arrives as sibling keys next to `detail`.
+		const detail = typeof body?.detail === "string" ? body.detail : undefined;
+		const conflict = typeof body?.current_revision === "number"
+			? {
+				currentRevision: body.current_revision as number,
+				currentTitle: String(body.current_title ?? ""),
+				currentContent: String(body.current_content ?? ""),
+				updatedAt: String(body.updated_at ?? ""),
+			}
+			: undefined;
+		throw new ApiRequestError(detail ?? "Request failed", response.status, retryAfterSeconds, conflict);
 	}
 	if (response.status === 204) return undefined as T;
 	return response.json() as Promise<T>;
@@ -189,11 +262,24 @@ export const api = {
 	reorderChapters: (storyId: string, chapterIds: string[]) => request<{ chapters: Chapter[] }>(`/stories/${storyId}/chapters/order`, { method: "PUT", body: JSON.stringify({ chapter_ids: chapterIds }) }),
 	moveChapter: (chapterId: string, destinationStoryId: string) => request<{ story_id: string; chapter: Chapter }>(`/stories/chapters/${chapterId}/move`, { method: "POST", body: JSON.stringify({ destination_story_id: destinationStoryId }) }),
 	chapter: (chapterId: string) => request<Chapter>(`/stories/chapters/${chapterId}`),
-	updateChapter: (chapterId: string, title: string, content: string, expectedRevision: number) =>
+	updateChapter: (chapterId: string, title: string, content: string, expectedRevision: number, clientSaveId?: string) =>
 		request<Chapter>(`/stories/chapters/${chapterId}`, {
 			method: "PUT",
-			body: JSON.stringify({ title, content, expected_revision: expectedRevision }),
+			body: JSON.stringify({ title, content, expected_revision: expectedRevision, client_save_id: clientSaveId }),
 		}),
+	checkpointChapter: (chapterId: string, label?: string) =>
+		request<{ revision_number: number; kind: string; word_count: number; created_at: string }>(`/stories/chapters/${chapterId}/checkpoint`, {
+			method: "POST",
+			body: JSON.stringify({ label }),
+		}),
+	diffRevisions: (chapterId: string, older: number, newer: number) =>
+		request<RevisionDiff>(`/stories/chapters/${chapterId}/revisions/${older}/diff/${newer}`),
+	trash: () => request<TrashListing>("/trash"),
+	restoreTrashChapter: (chapterId: string) => request<{ chapter: Pick<Chapter, "id" | "story_id" | "chapter_number" | "title">; renumbered_from: number | null }>(`/trash/chapters/${chapterId}/restore`, { method: "POST" }),
+	restoreTrashStory: (storyId: string) => request<{ story_id: string; restored_chapters: number }>(`/trash/stories/${storyId}/restore`, { method: "POST" }),
+	deleteTrashChapter: (chapterId: string) => request<void>(`/trash/chapters/${chapterId}`, { method: "DELETE" }),
+	deleteTrashStory: (storyId: string) => request<void>(`/trash/stories/${storyId}`, { method: "DELETE" }),
+	systemStatus: () => request<SystemStatus>("/system/status"),
 	chapterRevisions: async (chapterId: string) => (await request<{ revisions: ChapterRevisionSummary[] }>(`/stories/chapters/${chapterId}/revisions`)).revisions,
 	restoreChapterRevision: (chapterId: string, revisionNumber: number) => request<Chapter>(`/stories/chapters/${chapterId}/revisions/${revisionNumber}/restore`, { method: "POST" }),
 	chapterStatus: (chapterId: string) => request<Pick<Chapter, "id" | "revision" | "word_count" | "index_status" | "index_error" | "bible_scan_revision" | "bible_scan_error">>(`/stories/chapters/${chapterId}/status`),

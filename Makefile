@@ -17,6 +17,9 @@ lint:
 	cd backend && uv run ruff check .
 	cd frontend && npm run lint
 
+test-frontend:
+	cd frontend && npm test
+
 typecheck:
 	cd backend && uv run pyright
 	cd frontend && npx tsc --noEmit

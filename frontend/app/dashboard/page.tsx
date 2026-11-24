@@ -3,9 +3,22 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
-import { api, type CurrentUser, type Story } from '@/lib/api';
+import { Toaster, toast } from 'sonner';
+import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
+import { StoryNameDialog } from '@/components/story-name-dialog';
+import { api, type CurrentUser, type Story, type TrashListing } from '@/lib/api';
 
 export default function DashboardPage() {
+	return (
+		<ConfirmProvider>
+			<Toaster position="bottom-right" richColors closeButton />
+			<DashboardInner />
+		</ConfirmProvider>
+	);
+}
+
+function DashboardInner() {
+	const confirm = useConfirm();
 	const router = useRouter();
 	const [user, setUser] = useState<CurrentUser | null>(null);
 	const [stories, setStories] = useState<Story[]>([]);
@@ -16,6 +29,9 @@ export default function DashboardPage() {
 	const [search, setSearch] = useState('');
 	const [collectionFilter, setCollectionFilter] = useState('all');
 	const [error, setError] = useState('');
+	const [rename, setRename] = useState<{ story: Story; field: 'title' | 'collection_name' } | null>(null);
+	const [trash, setTrash] = useState<TrashListing | null>(null);
+	const [trashBusy, setTrashBusy] = useState(false);
 
 	useEffect(() => {
 		let active = true;
@@ -47,7 +63,13 @@ export default function DashboardPage() {
 	}
 
 	async function deleteStory(story: Story) {
-		if (!window.confirm(`Delete “${story.title}” and all of its chapters? This cannot be undone.`)) return;
+		const ok = await confirm({
+			title: 'Move this story to the trash?',
+			description: `“${story.title}” and its chapters can be restored from the trash for 30 days.`,
+			confirmLabel: 'Move to trash',
+			destructive: true,
+		});
+		if (!ok) return;
 		setDeletingStoryId(story.id);
 		setError('');
 		try {
@@ -60,14 +82,87 @@ export default function DashboardPage() {
 		}
 	}
 
-	async function editStory(story: Story, field: 'title' | 'collection_name') {
-		const promptText = field === 'title' ? 'Rename story' : 'Move to collection (leave blank for no collection)';
-		const value = window.prompt(promptText, field === 'title' ? story.title : story.collection_name)?.trim();
-		if (value === undefined || (field === 'title' && !value) || value === story[field]) return;
+	async function submitStoryName(value: string) {
+		if (!rename) return;
+		const { story, field } = rename;
+		if (value === story[field]) { setRename(null); return; }
 		try {
 			const updated = await api.updateStory(story.id, { [field]: value });
 			setStories((current) => current.map((item) => item.id === story.id ? { ...item, ...updated } : item));
-		} catch (cause) { setError(cause instanceof Error ? cause.message : 'The story could not be updated.'); }
+			toast.success(field === 'title' ? 'Story renamed.' : 'Collection updated.');
+			setRename(null);
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : 'The story could not be updated.');
+		}
+	}
+
+	async function openTrash() {
+		setTrashBusy(true);
+		try {
+			setTrash(await api.trash());
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : 'The trash could not be loaded.');
+		} finally {
+			setTrashBusy(false);
+		}
+	}
+
+	async function restoreChapter(item: { id: string; title: string }) {
+		try {
+			const result = await api.restoreTrashChapter(item.id);
+			toast.success(result.renumbered_from
+				? `Restored as chapter ${result.chapter.chapter_number} because its old number was taken.`
+				: 'Chapter restored.');
+			setStories(await api.stories());
+			await openTrash();
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : 'The chapter could not be restored.');
+		}
+	}
+
+	async function restoreStory(item: { id: string; title: string }) {
+		try {
+			await api.restoreTrashStory(item.id);
+			toast.success('Story restored.');
+			setStories(await api.stories());
+			await openTrash();
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : 'The story could not be restored.');
+		}
+	}
+
+	async function purgeChapter(item: { id: string; title: string }) {
+		const ok = await confirm({
+			title: 'Delete this chapter forever?',
+			description: `“${item.title}” will not be recoverable.`,
+			confirmLabel: 'Delete forever',
+			destructive: true,
+		});
+		if (!ok) return;
+		try {
+			await api.deleteTrashChapter(item.id);
+			toast.success('Chapter deleted permanently.');
+			await openTrash();
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : 'The chapter could not be deleted.');
+		}
+	}
+
+	async function purgeStory(item: { id: string; title: string }) {
+		const ok = await confirm({
+			title: 'Delete this story forever?',
+			description: `“${item.title}” and every chapter in it will not be recoverable.`,
+			confirmLabel: 'Delete forever',
+			destructive: true,
+		});
+		if (!ok) return;
+		try {
+			await api.deleteTrashStory(item.id);
+			toast.success('Story deleted permanently.');
+			await openTrash();
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : 'The story could not be deleted.');
+		}
 	}
 
 	if (loading) return <main className="quiet-loading"><span className="loading-mark" /><p>Opening your desk…</p></main>;
@@ -106,10 +201,43 @@ export default function DashboardPage() {
 						<h3>{story.title}</h3><p>{story.chapter_count ?? 0} {(story.chapter_count ?? 0) === 1 ? 'chapter' : 'chapters'} <span>·</span> {(story.word_count ?? 0).toLocaleString()} words</p>
 						<div className="story-card-foot"><span>Last tended</span><time>{new Date(story.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</time></div>
 					</Link>
-					<div className="story-card-actions"><button className="story-delete-button" onClick={() => void editStory(story, 'title')}>Rename</button><button className="story-delete-button" onClick={() => void editStory(story, 'collection_name')}>Collection</button><button className="story-delete-button" onClick={() => void deleteStory(story)} disabled={deletingStoryId === story.id}>{deletingStoryId === story.id ? 'Deleting…' : 'Delete'}</button></div>
+					<div className="story-card-actions"><button className="story-delete-button" onClick={() => setRename({ story, field: 'title' })}>Rename</button><button className="story-delete-button" onClick={() => setRename({ story, field: 'collection_name' })}>Collection</button><button className="story-delete-button" onClick={() => void deleteStory(story)} disabled={deletingStoryId === story.id}>{deletingStoryId === story.id ? 'Deleting…' : 'Delete'}</button></div>
 				</article>)}</div> : <div className="library-empty"><span>✳</span><h3>{stories.length ? 'No stories match that filter.' : 'Your first page is waiting.'}</h3><p>{stories.length ? 'Try another search or collection.' : 'Create a story above to open your writing desk.'}</p></div>}
+				<section className="trash-panel" aria-label="Trash">
+					<header>
+						<h2>Trash</h2>
+						<button className="quiet-button" onClick={() => void openTrash()} disabled={trashBusy}>{trashBusy ? 'Loading…' : trash ? 'Refresh' : 'Open trash'}</button>
+					</header>
+					{trash && <>
+						<p className="retention">Deleted stories and chapters stay here for {trash.retention_days} days, then they are removed permanently.</p>
+						{trash.stories.length === 0 && trash.chapters.length === 0 && <p className="trash-empty">The trash is empty.</p>}
+						{trash.stories.map((item) => (
+							<div className="trash-row" key={item.id}>
+								<div><strong>{item.title}</strong><span>{item.chapter_count} {item.chapter_count === 1 ? 'chapter' : 'chapters'} · whole story</span><time>Deleted {item.deleted_at ? new Date(item.deleted_at).toLocaleDateString() : 'recently'}</time></div>
+								<div className="trash-actions"><button className="text-button" onClick={() => void restoreStory(item)}>Restore</button><button className="text-button subtle" onClick={() => void purgeStory(item)}>Delete forever</button></div>
+							</div>
+						))}
+						{trash.chapters.map((item) => (
+							<div className="trash-row" key={item.id}>
+								<div><strong>{item.title}</strong><span>{item.story_title} · chapter {item.chapter_number} · {item.word_count.toLocaleString()} words</span><time>Deleted {item.deleted_at ? new Date(item.deleted_at).toLocaleDateString() : 'recently'}</time></div>
+								<div className="trash-actions"><button className="text-button" onClick={() => void restoreChapter(item)}>Restore</button><button className="text-button subtle" onClick={() => void purgeChapter(item)}>Delete forever</button></div>
+							</div>
+						))}
+					</>}
+				</section>
 				<footer className="library-footer">Stillroom keeps the details. The story stays yours.</footer>
 			</section>
+			<StoryNameDialog
+				open={rename !== null}
+				title={rename?.field === 'title' ? 'Rename story' : 'Change collection'}
+				label={rename?.field === 'title' ? 'Story title' : 'Collection name'}
+				description={rename?.field === 'collection_name' ? 'Leave blank to move it out of any collection.' : undefined}
+				initialValue={rename ? (rename.field === 'title' ? rename.story.title : rename.story.collection_name) : ''}
+				placeholder={rename?.field === 'title' ? 'A working title' : 'No collection'}
+				allowEmpty={rename?.field === 'collection_name'}
+				onSubmit={submitStoryName}
+				onCancel={() => setRename(null)}
+			/>
 		</main>
 	);
 }
