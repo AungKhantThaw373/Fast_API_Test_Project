@@ -80,3 +80,53 @@
 - Added a root `Makefile` (`install`, `dev-backend`, `dev-frontend`, `test`, `lint`,
   `typecheck`, `migrate`, `backup`) and `Docs/versions.md`.
 - `uv.lock` and `package-lock.json` are the only lockfiles.
+
+## Phase 1 save reliability
+
+Backend:
+
+- Migration `7103cb022fd3`: `deleted_at` on stories and chapters, a partial unique
+  index on active chapter numbers, `last_client_save_id`, and snapshot metadata
+  (`kind`, `content_hash`, `char_count`).
+- `services/snapshots.py`: snapshot policy (always for checkpoints/restores; else
+  60 s of editing or a 500-word change), never the same content twice, tiered
+  retention (48 h all, hourly for 7 days, daily for 90 days, checkpoints forever),
+  and `difflib`-based hunk diffs.
+- `services/trash.py`: soft delete, restore, and a 30-day purge that now runs in the
+  startup lifespan.
+- `update_chapter` accepts `client_save_id` (idempotent retries) and returns
+  `current_revision`, `current_title`, `current_content`, and `updated_at` in a 409
+  body.
+- New endpoints: `POST /stories/chapters/{id}/checkpoint`,
+  `GET /stories/chapters/{id}/revisions/{a}/diff/{b}`, `/trash` (list, restore,
+  permanent delete), and `/system/status`.
+- Startup reconciliation resets chapters stuck in `indexing` and re-queues them.
+- Fixed a pre-existing 500: reorder/delete serialized the server-onupdate
+  `updated_at` after commit, which raised `MissingGreenlet` under asyncpg.
+
+Frontend:
+
+- `lib/draft-buffer.ts` (IndexedDB via `idb`) with `decideDraft` and
+  `clearBufferIfSaved`; `lib/save-state.ts` state machine and retry policy.
+- Studio writes every keystroke to IndexedDB within 250 ms, flushes on page hide,
+  tab hide, unmount, and guarded navigation, and recovers a dirty draft when a
+  chapter opens.
+- Conflict dialog (Radix Dialog) with a line diff, "Keep mine", "Reload saved
+  version", and "Merge by hand".
+- `ConfirmProvider` (Radix AlertDialog) and `StoryNameDialog` replace every
+  `window.confirm` and `window.prompt` in the studio and dashboard.
+- Trash panel on the dashboard with restore and permanent delete.
+- History dialog shows snapshot kind, supports checkpoints, and diffs two versions.
+
+## Phase 1 verification
+
+- 58 backend tests and 19 frontend unit tests pass; ruff, pyright, eslint, and
+  `tsc --noEmit` are clean.
+- `frontend/scripts/phase1-qa.mjs` drives a real Chromium against a production
+  build. Passed 2026-11-24: no keystroke lost on navigation, checkpoint saved and
+  listed, chapter trashed and restored from the dashboard, and a two-tab conflict
+  produced the dialog where "Keep mine" preserved the local text.
+- The DeepAI preview browser timed out on every snapshot in this environment, so
+  the flow runs on standalone Playwright instead.
+- Next: Phase 2 route split, query batching, stable positions, and the durable
+  worker.

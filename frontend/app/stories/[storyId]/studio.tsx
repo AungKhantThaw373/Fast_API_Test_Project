@@ -366,11 +366,22 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 
 	const flushSaves = useCallback(async () => {
 		if (saveTimerRef.current) { window.clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-		const chapterId = draftRef.current.chapterId;
+		const { chapterId, title, content } = draftRef.current;
 		if (!chapterId) return;
-		await persistChapter(chapterId, draftRef.current.title, draftRef.current.content);
+		// Persist to the local buffer first: even if the request never completes,
+		// the text survives this navigation.
+		await putDraft({
+			chapterId,
+			storyId,
+			title,
+			content,
+			revision: revisionRef.current.get(chapterId) ?? 1,
+			updatedAt: Date.now(),
+			dirty: true,
+		}).catch(() => undefined);
+		await persistChapter(chapterId, title, content);
 		await (saveQueueRef.current.get(chapterId) ?? Promise.resolve());
-	}, [persistChapter]);
+	}, [persistChapter, storyId]);
 
 	useEffect(() => {
 		flushRef.current = flushSaves;
@@ -969,9 +980,9 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					<div className="editor-toolbar"><div className="chapter-kicker">CHAPTER {String(activeChapter.chapter_number).padStart(2, '0')}</div><div className="editor-toolbar-right"><span>{words.toLocaleString()} words</span><button className="text-button history-trigger" onClick={() => void openChapterHistory()}>Version history</button><span className={'index-indicator index-' + activeChapter.index_status}>{activeChapter.index_status === 'indexed' ? 'Memory ready' : activeChapter.index_status === 'failed' ? 'Memory paused' : 'Updating memory'}</span></div></div>
 					{activeChapter.index_status === 'failed' && <div className="index-error">Story memory could not update. Check that the local Ollama embedding service is running. <button className="text-button" onClick={() => void retryIndex()}>Try again</button></div>}
 					<div className="editor-page">
-						<input className="chapter-title-input" aria-label="Chapter title" value={draftTitle} onChange={(event) => { draftEditVersionRef.current += 1; setHasUnsavedChanges(true); setDraftTitle(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Chapter title" maxLength={200} />
+						<input className="chapter-title-input" aria-label="Chapter title" value={draftTitle} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, title: event.target.value }; setHasUnsavedChanges(true); setDraftTitle(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Chapter title" maxLength={200} />
 						<div className="editor-rule" />
-						<textarea ref={editorRef} className="manuscript-editor" value={draftContent} onChange={(event) => { draftEditVersionRef.current += 1; setHasUnsavedChanges(true); setDraftContent(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Let the first sentence arrive in its own time." aria-label="Chapter manuscript" spellCheck />
+						<textarea ref={editorRef} className="manuscript-editor" value={draftContent} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, content: event.target.value }; setHasUnsavedChanges(true); setDraftContent(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Let the first sentence arrive in its own time." aria-label="Chapter manuscript" spellCheck />
 						{activeChapter.index_status === 'indexing' && <div className="indexing-note"><span className="tiny-spinner" /> Story memory is quietly catching up.</div>}
 					</div>
 					<footer className="editor-footer"><span>Autosaves after a short pause · Ctrl/Cmd+S saves now</span><span>Stillroom does not generate story text.</span></footer>
