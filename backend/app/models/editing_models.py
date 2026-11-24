@@ -1,8 +1,12 @@
-import uuid
+from __future__ import annotations
 
-from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, LargeBinary, String, UniqueConstraint, func
+import uuid
+from datetime import datetime
+from uuid import UUID as UUIDType
+
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, LargeBinary, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
@@ -14,14 +18,22 @@ class EditingFolder(Base):
         Index("ix_editing_folders_owner", "owner_id"),
     )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String(100), nullable=False)
-    canonical_name = Column(String(100), nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    canonical_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
 
-    files = relationship("DraftFile", back_populates="folder", cascade="all, delete-orphan")
+    files: Mapped[list[DraftFile]] = relationship(
+        "DraftFile", back_populates="folder", cascade="all, delete-orphan"
+    )
 
 
 class DraftFile(Base):
@@ -31,17 +43,25 @@ class DraftFile(Base):
         Index("ix_editing_draft_files_owner", "owner_id"),
     )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    folder_id = Column(UUID(as_uuid=True), ForeignKey("editing_folders.id", ondelete="CASCADE"), nullable=False)
-    title = Column(String(200), nullable=False)
-    original_filename = Column(String(255), nullable=False)
-    extension = Column(String(20), nullable=False)
-    media_type = Column(String(120), nullable=False)
-    size_bytes = Column(BigInteger, nullable=False)
-    sha256 = Column(String(64), nullable=False)
-    content = Column(LargeBinary, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    folder_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("editing_folders.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    extension: Mapped[str] = mapped_column(String(20), nullable=False)
+    media_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
 
-    folder = relationship("EditingFolder", back_populates="files")
+    folder: Mapped[EditingFolder] = relationship("EditingFolder", back_populates="files")

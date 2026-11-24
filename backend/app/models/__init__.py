@@ -1,4 +1,4 @@
-from app.models.app_models import DOC, Room, User, UserAISettings
+from app.models.app_models import User, UserAISettings
 from app.models.editing_models import DraftFile, EditingFolder
 from app.models.story_models import (
     Chapter,
@@ -11,8 +11,6 @@ from app.models.story_models import (
 )
 
 __all__ = [
-    "DOC",
-    "Room",
     "User",
     "UserAISettings",
     "EditingFolder",

@@ -1,8 +1,8 @@
 import asyncio
-from email.utils import parsedate_to_datetime
 import json
 import re
 import time
+from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import quote
 from uuid import UUID, uuid4
@@ -13,7 +13,6 @@ import ollama
 from app.config import settings
 from app.logging_config import fields, get_logger
 from app.services.ai_settings import PROVIDERS, load_ai_config
-
 
 _provider_slots = asyncio.Semaphore(max(1, settings.AI_MAX_CONCURRENT_REQUESTS))
 _rate_gate = asyncio.Lock()

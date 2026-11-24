@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -13,7 +13,6 @@ from app.config import settings
 from app.db import get_async_session
 from app.models.app_models import User
 
-
 password_hash = PasswordHash.recommended()
 
 
@@ -26,7 +25,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(user_id: UUID) -> str:
-    expiry = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expiry = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode(
         {"sub": str(user_id), "exp": expiry},
         settings.JWT_SECRET,

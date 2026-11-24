@@ -11,7 +11,6 @@ from app.security import get_current_user
 from app.services.ai_credentials import encrypt_api_key
 from app.services.ai_settings import PROVIDERS, base_url_for
 
-
 router = APIRouter(tags=["account"])
 
 
@@ -98,7 +97,7 @@ async def save_ai_settings(
     same_provider = existing is not None and existing.provider == payload.provider
     if submitted_key:
         encrypted_key = encrypt_api_key(submitted_key)
-    elif same_provider:
+    elif same_provider and existing is not None:
         encrypted_key = existing.api_key_encrypted
     else:
         raise HTTPException(status_code=422, detail="Enter an API key for this provider.")

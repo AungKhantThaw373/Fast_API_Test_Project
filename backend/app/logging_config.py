@@ -9,7 +9,6 @@ grepped without parsing prose.
 import logging
 import sys
 
-
 LOG_FORMAT = "%(asctime)s %(levelname)-7s %(name)-22s %(message)s"
 
 

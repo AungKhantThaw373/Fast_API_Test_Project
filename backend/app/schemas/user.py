@@ -2,6 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
+
 class CurrentUser(BaseModel):
     id: int | None = None
     username: str

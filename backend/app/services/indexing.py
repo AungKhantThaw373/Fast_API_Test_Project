@@ -12,8 +12,7 @@ from app.config import settings
 from app.db import async_session
 from app.logging_config import fields, get_logger
 from app.models.story_models import Chapter, SceneEmbedding, Story, StoryBibleEntry
-from app.services.ai_service import AIProviderHTTPError, ENTRIES_SCHEMA, embed_texts, structured_ai_json
-
+from app.services.ai_service import ENTRIES_SCHEMA, AIProviderHTTPError, embed_texts, structured_ai_json
 
 logger = get_logger("index")
 SCENE_HEADING = re.compile(r"^(?:#{1,3}\s+\S.*|(?:INT\.|EXT\.|INT/EXT\.).+|\*\s*\*\s*\*\s*)$", re.IGNORECASE)
@@ -300,7 +299,6 @@ async def reindex_chapter(chapter_id: UUID) -> None:
                 return
             revision = chapter.revision
             story_id = chapter.story_id
-            title = chapter.title
             content = chapter.content
             can_reuse_vectors = chapter.indexed_embedding_model == settings.EMBEDDING_MODEL
             chapter.index_status = "indexing"
@@ -324,7 +322,7 @@ async def reindex_chapter(chapter_id: UUID) -> None:
             else:
                 to_embed.append(scene)
         new_vectors = await run_in_threadpool(embed_texts, [scene.text for scene in to_embed])
-        for scene, vector in zip(to_embed, new_vectors):
+        for scene, vector in zip(to_embed, new_vectors, strict=True):
             embeddings_by_text[scene.text].append(vector)
 
         async with async_session() as session:

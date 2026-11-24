@@ -26,7 +26,6 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     password: Mapped[str] = mapped_column(String, nullable=False)
 
-    rooms: Mapped[list[Room]] = relationship("Room", back_populates="users")
     stories: Mapped[list[Story]] = relationship("Story", back_populates="owner", cascade="all, delete-orphan")
     ai_settings: Mapped[UserAISettings | None] = relationship(
         "UserAISettings", back_populates="user", cascade="all, delete-orphan", uselist=False
@@ -48,30 +47,3 @@ class UserAISettings(Base):
     )
 
     user: Mapped[User] = relationship("User", back_populates="ai_settings")
-
-
-class Room(Base):
-    __tablename__ = "rooms"
-
-    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title: Mapped[str] = mapped_column(String, nullable=False)
-    user_id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    users: Mapped[User] = relationship("User", back_populates="rooms")
-    docs: Mapped[list[DOC]] = relationship("DOC", back_populates="rooms")
-
-
-class DOC(Base):
-    __tablename__ = "docs"
-
-    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    room_id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
-    filename: Mapped[str] = mapped_column(String, nullable=False)
-    storage_path: Mapped[str] = mapped_column(String, nullable=False)
-    public_url: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    rooms: Mapped[Room] = relationship("Room", back_populates="docs")

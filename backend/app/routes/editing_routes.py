@@ -16,7 +16,6 @@ from app.models.editing_models import DraftFile, EditingFolder
 from app.schemas.editing import DraftFileUpdate, FolderCreate, FolderUpdate
 from app.security import get_current_user
 
-
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/editing", tags=["editing file library"])
 MAX_FILE_SIZE = 25 * 1024 * 1024

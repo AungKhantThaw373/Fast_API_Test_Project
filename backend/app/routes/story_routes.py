@@ -1,13 +1,13 @@
 import asyncio
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.db import get_async_session
 from app.logging_config import fields, get_logger
@@ -28,8 +28,8 @@ from app.schemas.stories import (
     BibleScanRange,
     ChapterCreate,
     ChapterMove,
-    ChapterUpdate,
     ChapterReorder,
+    ChapterUpdate,
     FindingReviewUpdate,
     IntentionalUpdate,
     ManuscriptImport,
@@ -38,11 +38,10 @@ from app.schemas.stories import (
     ThreadUpdate,
 )
 from app.security import get_current_user
-from app.services.continuity import scan_chapter
-from app.services.ai_settings import has_ai_config
 from app.services.ai_service import AIProviderHTTPError
+from app.services.ai_settings import has_ai_config
+from app.services.continuity import scan_chapter
 from app.services.indexing import schedule_bible_extraction, schedule_chapter_reindex
-
 
 logger = get_logger("api")
 router = APIRouter(prefix="/stories", tags=["writing studio"])
@@ -149,7 +148,7 @@ async def create_story(
     if not title:
         raise HTTPException(status_code=422, detail="Story title cannot be blank.")
     story = Story(owner_id=user.id, title=title)
-    session.add(story)                                                                                                                                                                                                                                                                                                                         
+    session.add(story)
     await session.commit()
     await session.refresh(story)
     return _story_data(story)
@@ -280,7 +279,7 @@ async def create_chapter(
         index_status="pending",
     )
     session.add(chapter)
-    story.updated_at = datetime.now(timezone.utc)
+    story.updated_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(chapter)
     background_tasks.add_task(schedule_chapter_reindex, chapter.id)
@@ -332,7 +331,7 @@ async def import_manuscript(
         )
         session.add(chapter)
         created.append(chapter)
-    story.updated_at = datetime.now(timezone.utc)
+    story.updated_at = datetime.now(UTC)
     await session.commit()
     for chapter in created:
         await session.refresh(chapter)
@@ -376,7 +375,7 @@ async def update_chapter(
             ChapterRevision.revision_number == chapter.revision,
         ))
         should_snapshot = latest_snapshot is None or (
-            datetime.now(timezone.utc) - latest_snapshot.created_at >= timedelta(minutes=5)
+            datetime.now(UTC) - latest_snapshot.created_at >= timedelta(minutes=5)
         )
         if current_revision_snapshot is None and should_snapshot:
             session.add(ChapterRevision(
@@ -402,7 +401,7 @@ async def update_chapter(
                     await session.delete(suggestion)
         story = await session.get(Story, chapter.story_id)
         if story is not None:
-            story.updated_at = datetime.now(timezone.utc)
+            story.updated_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(chapter)
     if changed:
@@ -500,8 +499,13 @@ async def reorder_chapters(
             ContinuityFinding.earlier_chapter_id == chapter.id
         ).values(earlier_chapter_number=number))
     await session.execute(delete(ContinuityScan).where(ContinuityScan.story_id == story.id))
-    story.updated_at = datetime.now(timezone.utc)
+    story.updated_at = datetime.now(UTC)
     await session.commit()
+    # ``updated_at`` is a server-side onupdate column, so committing an UPDATE
+    # expires it. Reload before serializing or the response touches expired
+    # attributes outside the greenlet and fails.
+    for chapter in ordered:
+        await session.refresh(chapter)
     return {"chapters": [_chapter_data(chapter, include_content=False) for chapter in ordered]}
 
 
@@ -555,7 +559,7 @@ async def move_chapter(
         entry.story_id = destination.id
 
     remaining = [item for item in source_chapters if item.id != chapter.id]
-    for number, item in enumerate(remaining, start=1):
+    for item in remaining:
         item.chapter_number = -abs(item.chapter_number)
     await session.flush()
     for number, item in enumerate(remaining, start=1):
@@ -564,7 +568,7 @@ async def move_chapter(
         await session.execute(update(ContinuityFinding).where(
             ContinuityFinding.earlier_chapter_id == item.id
         ).values(earlier_chapter_number=number))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     source_story.updated_at = destination.updated_at = now
     await session.commit()
     await session.refresh(chapter)
@@ -613,8 +617,10 @@ async def delete_chapter(
 
     story = await session.get(Story, story_id)
     if story is not None:
-        story.updated_at = datetime.now(timezone.utc)
+        story.updated_at = datetime.now(UTC)
     await session.commit()
+    for item in remaining:
+        await session.refresh(item)
     return {"chapters": [_chapter_data(item, include_content=False) for item in remaining]}
 
 
