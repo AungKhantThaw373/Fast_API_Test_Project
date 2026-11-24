@@ -54,6 +54,7 @@ class BibleEntryOut(BaseModel):
 
 class BibleListOut(BaseModel):
     entries: list[BibleEntryOut]
+    next_cursor: str | None = None
 
 
 class ScheduledBibleChapterOut(BaseModel):

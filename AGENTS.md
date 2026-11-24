@@ -25,7 +25,7 @@ cd frontend && npm ci
 
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
-make test             # backend pytest (64 tests)
+make test             # backend pytest (70 tests)
 make test-frontend    # vitest (19 tests)
 make lint typecheck   # ruff + eslint, pyright + tsc
 ./scripts/backup.sh   # pg_dump, no Docker
@@ -42,7 +42,7 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   single aggregate query; the route monolith is split into `routes/stories.py`,
   `chapters.py`, `bible.py`, `continuity.py` with response models and matching
   services. Everything else in Phase 2 is untouched.
-- Backend: 64 tests pass, ruff and pyright clean.
+- Backend: 70 tests pass, ruff and pyright clean.
 - Frontend: lint, `tsc --noEmit`, `next build`, and 19 vitest tests pass.
 - CI workflow is committed but has never run on GitHub.
 
@@ -52,12 +52,12 @@ make lint typecheck   # ruff + eslint, pyright + tsc
    chapter scan findings; `If-None-Match` on chapter GET.
 2. **P2-3 batched continuity retrieval** — `services/continuity.py` still embeds
    each draft scene and runs one vector query per scene.
-3. **P2-4 index migration** — `ix_scans_chapter_created`, `ix_findings_scan`,
+2. **P2-4 index migration** — `ix_scans_chapter_created`, `ix_findings_scan`,
    `ix_bible_story_status` (the others exist); `statement_timeout` per request.
-4. **P2-6 durable worker** — `jobs` table, `SKIP LOCKED` claim query, `app/worker.py`;
+3. **P2-6 durable worker** — `jobs` table, `SKIP LOCKED` claim query, `app/worker.py`;
    then P2-7 (remove `_index_semaphore`, `_continuity_locks`, in-process tasks) and
    switch indexing/Bible scans to enqueue.
-5. **P2-8 request ids, `/ready`** — middleware + contextvar; `/health` exists,
+4. **P2-8 request ids, `/ready`** — middleware + contextvar; `/health` exists,
    `/system/status` exists but `/ready` does not.
 6. **Phase 3** — knowledge model (`entities`, `entity_aliases`, `entity_facts`,
    `entity_relationships`, `story_events`, `story_threads`, `entity_mentions`,

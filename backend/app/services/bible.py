@@ -15,6 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.story_models import Chapter, Story, StoryBibleEntry
 from app.schemas.bible import BibleEntryUpdate
 from app.services.ai_settings import has_ai_config
+from app.services.pagination import (
+    clamp_limit,
+    cursor_text,
+    cursor_uuid,
+    decode_cursor,
+    encode_cursor,
+    keyset_predicate,
+)
 
 
 @dataclass(frozen=True)
@@ -24,16 +32,33 @@ class BibleScanSelection:
     skipped: int
 
 
-async def list_entries(session: AsyncSession, story_id: UUID) -> list[StoryBibleEntry]:
-    return list(
-        await session.scalars(
-            select(StoryBibleEntry)
-            .where(StoryBibleEntry.story_id == story_id)
-            .order_by(
-                StoryBibleEntry.status, StoryBibleEntry.category, StoryBibleEntry.name
-            )
-        )
+async def list_entries(
+    session: AsyncSession,
+    story_id: UUID,
+    *,
+    limit: int | None = None,
+    cursor: str | None = None,
+) -> tuple[list[StoryBibleEntry], str | None]:
+    page_size = clamp_limit(limit, default=500, maximum=2000)
+    columns = (
+        StoryBibleEntry.status,
+        StoryBibleEntry.category,
+        StoryBibleEntry.name,
+        StoryBibleEntry.id,
     )
+    query = select(StoryBibleEntry).where(StoryBibleEntry.story_id == story_id)
+    if cursor:
+        values = decode_cursor(cursor, [cursor_text, cursor_text, cursor_text, cursor_uuid])
+        query = query.where(keyset_predicate(columns, values, descending=False))
+    entries = list(
+        await session.scalars(query.order_by(*columns).limit(page_size + 1))
+    )
+    next_cursor = None
+    if len(entries) > page_size:
+        entries = entries[:page_size]
+        last = entries[-1]
+        next_cursor = encode_cursor((last.status, last.category, last.name, last.id))
+    return entries, next_cursor
 
 
 async def owned_entry(session: AsyncSession, entry_id: UUID, user_id: UUID) -> StoryBibleEntry:

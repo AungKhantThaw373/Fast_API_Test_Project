@@ -243,7 +243,18 @@ export const api = {
 	saveAISettings: (settings: { provider: string; model: string; api_key?: string; base_url?: string }) =>
 		request<AISettings>("/ai-settings", { method: "PUT", body: JSON.stringify(settings) }),
 	resetAISettings: () => request<AISettings>("/ai-settings", { method: "DELETE"}),
-	stories: async () => (await request<{ stories: Story[] }>("/stories")).stories,
+	stories: async () => {
+		const stories: Story[] = [];
+		let cursor: string | undefined;
+		do {
+			const page = await request<{ stories: Story[]; next_cursor?: string | null }>(
+				`/stories?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+			);
+			stories.push(...page.stories);
+			cursor = page.next_cursor ?? undefined;
+		} while (cursor);
+		return stories;
+	},
 	createStory: (title: string) => request<Story>("/stories", {
 		method: "POST",
 		body: JSON.stringify({ title }),
@@ -289,7 +300,18 @@ export const api = {
 			method: "POST",
 			body: JSON.stringify({ filename, content }),
 		}),
-	bible: async (storyId: string) => (await request<{ entries: BibleEntry[] }>(`/stories/${storyId}/bible`)).entries,
+	bible: async (storyId: string) => {
+		const entries: BibleEntry[] = [];
+		let cursor: string | undefined;
+		do {
+			const page = await request<{ entries: BibleEntry[]; next_cursor?: string | null }>(
+				`/stories/${storyId}/bible?limit=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+			);
+			entries.push(...page.entries);
+			cursor = page.next_cursor ?? undefined;
+		} while (cursor);
+		return entries;
+	},
 	createBibleEntry: (storyId: string, entry: Pick<BibleEntry, "category" | "name" | "description" | "details">) => request<BibleEntry>(`/stories/${storyId}/bible`, { method: "POST", body: JSON.stringify(entry) }),
 	scanBibleRange: (storyId: string, startChapter: number, endChapter: number, force = false) =>
 		request<{ scheduled_count: number; skipped_count: number; scheduled_chapters: Array<{ id: string; revision: number }> }>(`/stories/${storyId}/bible/scan`, {
@@ -308,7 +330,22 @@ export const api = {
 			method: "PATCH",
 			body: JSON.stringify({ thread_state: state }),
 		}),
-	latestScan: (chapterId: string) => request<ChapterScan>(`/stories/chapters/${chapterId}/scan`),
+	latestScan: async (chapterId: string) => {
+		const first = await request<ChapterScan & { next_cursor?: string | null }>(
+			`/stories/chapters/${chapterId}/scan`,
+		);
+		let cursor = first.next_cursor ?? undefined;
+		if (!cursor) return first;
+		const findings = [...first.findings];
+		while (cursor) {
+			const page: ChapterScan & { next_cursor?: string | null } = await request(
+				`/stories/chapters/${chapterId}/scan?cursor=${encodeURIComponent(cursor)}`,
+			);
+			findings.push(...page.findings);
+			cursor = page.next_cursor ?? undefined;
+		}
+		return { scan: first.scan, findings };
+	},
 	scanChapter: (chapterId: string, force = false) => request<{ scan_id: string; finding_count: number; chapter_revision: number; reused: boolean }>(
 		`/stories/chapters/${chapterId}/scan${force ? "?force=true" : ""}`, { method: "POST" },
 	),

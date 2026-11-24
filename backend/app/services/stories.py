@@ -10,6 +10,14 @@ from sqlalchemy.orm import selectinload
 
 from app.models.story_models import Chapter, Story
 from app.services.ai_settings import has_ai_config
+from app.services.pagination import (
+    clamp_limit,
+    cursor_timestamp,
+    cursor_uuid,
+    decode_cursor,
+    encode_cursor,
+    keyset_predicate,
+)
 
 
 async def owned_story(session: AsyncSession, story_id: UUID, user_id: UUID) -> Story:
@@ -25,9 +33,17 @@ async def owned_story(session: AsyncSession, story_id: UUID, user_id: UUID) -> S
     return story
 
 
-async def list_story_rows(session: AsyncSession, owner_id: UUID) -> list[tuple[Story, int, int]]:
+async def list_story_rows(
+    session: AsyncSession,
+    owner_id: UUID,
+    *,
+    limit: int | None = None,
+    cursor: str | None = None,
+) -> tuple[list[tuple[Story, int, int]], str | None]:
     """One aggregate query for every story, its chapter count, and word count."""
-    rows = await session.execute(
+    page_size = clamp_limit(limit)
+    columns = (Story.updated_at, Story.id)
+    query = (
         select(
             Story,
             func.count(Chapter.id).label("chapter_count"),
@@ -38,10 +54,26 @@ async def list_story_rows(session: AsyncSession, owner_id: UUID) -> list[tuple[S
             (Chapter.story_id == Story.id) & Chapter.deleted_at.is_(None),
         )
         .where(Story.owner_id == owner_id, Story.deleted_at.is_(None))
-        .group_by(Story.id)
-        .order_by(Story.updated_at.desc())
     )
-    return [(story, int(chapter_count or 0), int(word_count or 0)) for story, chapter_count, word_count in rows]
+    if cursor:
+        updated_at, story_id = decode_cursor(cursor, [cursor_timestamp, cursor_uuid])
+        query = query.where(
+            keyset_predicate(columns, (updated_at, story_id), descending=True)
+        )
+    rows = [
+        (story, int(chapter_count or 0), int(word_count or 0))
+        for story, chapter_count, word_count in await session.execute(
+            query.group_by(Story.id)
+            .order_by(Story.updated_at.desc(), Story.id.desc())
+            .limit(page_size + 1)
+        )
+    ]
+    next_cursor = None
+    if len(rows) > page_size:
+        rows = rows[:page_size]
+        story = rows[-1][0]
+        next_cursor = encode_cursor((story.updated_at, story.id))
+    return rows, next_cursor
 
 
 async def load_story_detail(session: AsyncSession, story_id: UUID, user_id: UUID) -> Story | None:

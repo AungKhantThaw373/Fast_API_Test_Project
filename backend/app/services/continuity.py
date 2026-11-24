@@ -14,6 +14,13 @@ from app.models.story_models import Chapter, ContinuityFinding, ContinuityScan, 
 from app.services.ai_service import FINDINGS_SCHEMA, AIProviderHTTPError, embed_queries, structured_ai_json
 from app.services.finding_filter import DraftFinding, EvidenceRef, filter_findings
 from app.services.indexing import split_into_scenes
+from app.services.pagination import (
+    clamp_limit,
+    cursor_uuid,
+    decode_cursor,
+    encode_cursor,
+    keyset_predicate,
+)
 
 logger = get_logger("continuity")
 
@@ -70,18 +77,30 @@ async def _reusable_scan(
 
 
 async def latest_scan(
-    session: AsyncSession, chapter_id: UUID
-) -> tuple[ContinuityScan | None, list[tuple[ContinuityFinding, str]]]:
+    session: AsyncSession,
+    chapter_id: UUID,
+    *,
+    limit: int | None = None,
+    cursor: str | None = None,
+) -> tuple[ContinuityScan | None, list[tuple[ContinuityFinding, str]], str | None]:
+    """The newest scan plus one page of findings ordered by draft line."""
     scan = await _latest_scan_row(session, chapter_id)
     if scan is None:
-        return None, []
-    findings = list(
-        await session.scalars(
-            select(ContinuityFinding)
-            .where(ContinuityFinding.scan_id == scan.id)
-            .order_by(ContinuityFinding.draft_line)
+        return None, [], None
+    page_size = clamp_limit(limit, default=200, maximum=1000)
+    columns = (ContinuityFinding.draft_line, ContinuityFinding.id)
+    query = select(ContinuityFinding).where(ContinuityFinding.scan_id == scan.id)
+    if cursor:
+        draft_line, finding_id = decode_cursor(cursor, [int, cursor_uuid])
+        query = query.where(
+            keyset_predicate(columns, (draft_line, finding_id), descending=False)
         )
-    )
+    findings = list(await session.scalars(query.order_by(*columns).limit(page_size + 1)))
+    next_cursor = None
+    if len(findings) > page_size:
+        findings = findings[:page_size]
+        last = findings[-1]
+        next_cursor = encode_cursor((last.draft_line, last.id))
     earlier_ids = [item.earlier_chapter_id for item in findings if item.earlier_chapter_id]
     titles: dict[str, str] = {}
     if earlier_ids:
@@ -89,7 +108,11 @@ async def latest_scan(
             select(Chapter.id, Chapter.title).where(Chapter.id.in_(earlier_ids))
         )
         titles = {str(row.id): row.title for row in rows}
-    return scan, [(item, titles.get(str(item.earlier_chapter_id), "Earlier chapter")) for item in findings]
+    page = [
+        (item, titles.get(str(item.earlier_chapter_id), "Earlier chapter"))
+        for item in findings
+    ]
+    return scan, page, next_cursor
 
 
 async def check_chapter(

@@ -2,8 +2,8 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, status
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
@@ -43,6 +43,18 @@ def _out(chapter: Chapter) -> ChapterOut:
 
 def _summary(chapter: Chapter) -> ChapterSummaryOut:
     return ChapterSummaryOut.model_validate(chapter)
+
+
+def _chapter_etag(chapter: Chapter) -> str:
+    """Revision plus save time: cheap to compute and changes on every save."""
+    return f'"{chapter.revision}-{int(chapter.updated_at.timestamp())}"'
+
+
+def _etag_matches(if_none_match: str | None, etag: str) -> bool:
+    if not if_none_match:
+        return False
+    candidates = {value.strip() for value in if_none_match.split(",")}
+    return "*" in candidates or etag in candidates or f"W/{etag}" in candidates
 
 
 @router.post("/{story_id}/chapters", status_code=status.HTTP_201_CREATED, response_model=ChapterOut)
@@ -117,13 +129,25 @@ async def update_chapter(
     return chapter
 
 
-@router.get("/chapters/{chapter_id}", response_model=ChapterOut)
+@router.get(
+    "/chapters/{chapter_id}",
+    response_model=ChapterOut,
+    responses={304: {"description": "Not modified"}},
+)
 async def get_chapter(
     chapter_id: UUID,
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
-) -> Chapter:
-    return await chapters_service.owned_chapter(session, chapter_id, user.id)
+) -> Response:
+    chapter = await chapters_service.owned_chapter(session, chapter_id, user.id)
+    etag = _chapter_etag(chapter)
+    headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
+    if _etag_matches(if_none_match, etag):
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
+    # Returning a Response directly: this FastAPI version does not copy headers
+    # from an injected Response, and the ETag is the whole point of the route.
+    return JSONResponse(content=_out(chapter).model_dump(mode="json"), headers=headers)
 
 
 @router.get("/chapters/{chapter_id}/status", response_model=ChapterStatusOut)

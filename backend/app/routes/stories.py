@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
@@ -23,6 +23,10 @@ from app.services.trash import trash_story
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
+# A novel has hundreds of chapters, not millions. Above this the detail payload
+# is truncated and ``chapters_truncated`` tells the client to fetch in pages.
+CHAPTER_LIST_CAP = 2000
+
 
 def _summary(story: Story, chapter_count: int, word_count: int) -> StorySummaryOut:
     fields = StoryOut.model_validate(story).model_dump()
@@ -31,11 +35,18 @@ def _summary(story: Story, chapter_count: int, word_count: int) -> StorySummaryO
 
 @router.get("", response_model=StoryListOut)
 async def list_stories(
+    limit: int | None = Query(default=None, ge=1, le=200),
+    cursor: str | None = Query(default=None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> StoryListOut:
-    rows = await stories_service.list_story_rows(session, user.id)
-    return StoryListOut(stories=[_summary(story, count, words) for story, count, words in rows])
+    rows, next_cursor = await stories_service.list_story_rows(
+        session, user.id, limit=limit, cursor=cursor
+    )
+    return StoryListOut(
+        stories=[_summary(story, count, words) for story, count, words in rows],
+        next_cursor=next_cursor,
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=StoryOut)
@@ -76,7 +87,11 @@ async def get_story(
     )
     return StoryDetailsOut(
         **summary.model_dump(),
-        chapters=[ChapterSummaryOut.model_validate(chapter) for chapter in chapters],
+        chapters=[
+            ChapterSummaryOut.model_validate(chapter)
+            for chapter in chapters[:CHAPTER_LIST_CAP]
+        ],
+        chapters_truncated=len(chapters) > CHAPTER_LIST_CAP,
     )
 
 

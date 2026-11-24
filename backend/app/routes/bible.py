@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
@@ -32,12 +32,19 @@ router = APIRouter(prefix="/stories", tags=["bible"])
 @router.get("/{story_id}/bible", response_model=BibleListOut)
 async def get_story_bible(
     story_id: UUID,
+    limit: int | None = Query(default=None, ge=1, le=2000),
+    cursor: str | None = Query(default=None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> BibleListOut:
     await stories_service.owned_story(session, story_id, user.id)
-    entries = await bible_service.list_entries(session, story_id)
-    return BibleListOut(entries=[BibleEntryOut.model_validate(entry) for entry in entries])
+    entries, next_cursor = await bible_service.list_entries(
+        session, story_id, limit=limit, cursor=cursor
+    )
+    return BibleListOut(
+        entries=[BibleEntryOut.model_validate(entry) for entry in entries],
+        next_cursor=next_cursor,
+    )
 
 
 @router.post("/{story_id}/bible", status_code=status.HTTP_201_CREATED, response_model=BibleEntryOut)

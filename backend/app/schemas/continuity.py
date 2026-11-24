@@ -41,6 +41,7 @@ class FindingOut(BaseModel):
 class LatestScanOut(BaseModel):
     scan: ScanSummaryOut | None
     findings: list[FindingOut]
+    next_cursor: str | None = None
 
 
 class ScanCheckOut(BaseModel):

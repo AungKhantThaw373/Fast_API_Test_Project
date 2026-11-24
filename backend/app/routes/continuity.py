@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
@@ -28,11 +28,15 @@ router = APIRouter(prefix="/stories", tags=["continuity"])
 @router.get("/chapters/{chapter_id}/scan", response_model=LatestScanOut)
 async def get_latest_scan(
     chapter_id: UUID,
+    limit: int | None = Query(default=None, ge=1, le=1000),
+    cursor: str | None = Query(default=None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> LatestScanOut:
     chapter = await chapters_service.owned_chapter(session, chapter_id, user.id)
-    scan, findings = await continuity_service.latest_scan(session, chapter.id)
+    scan, findings, next_cursor = await continuity_service.latest_scan(
+        session, chapter.id, limit=limit, cursor=cursor
+    )
     return LatestScanOut(
         scan=ScanSummaryOut.model_validate(scan) if scan else None,
         findings=[
@@ -51,6 +55,7 @@ async def get_latest_scan(
             )
             for item, title in findings
         ],
+        next_cursor=next_cursor,
     )
 
 

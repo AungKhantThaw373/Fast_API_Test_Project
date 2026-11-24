@@ -39,7 +39,10 @@ class StorySummaryOut(StoryOut):
 
 class StoryListOut(BaseModel):
     stories: list[StorySummaryOut]
+    next_cursor: str | None = None
 
 
 class StoryDetailsOut(StorySummaryOut):
     chapters: list[ChapterSummaryOut]
+    # The chapter list is not paginated by default; it is capped instead.
+    chapters_truncated: bool = False

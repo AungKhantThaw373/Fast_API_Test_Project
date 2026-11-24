@@ -176,3 +176,25 @@ permutations, OneDrive).
 - `tests/conftest.py` now stubs the AI tasks on `app.services.indexing` instead
   of the deleted route module, so both routers and services see the stub.
 - 64 tests pass, ruff and pyright clean.
+
+## Phase 2 — P2-2 pagination, ETags, story-list query test
+
+- `services/pagination.py`: opaque base64url keyset cursors (`encode_cursor`,
+  `decode_cursor`, `keyset_predicate`), with 400 on a malformed cursor. Cursors
+  carry the actual ordering values, so a page boundary cannot skip or repeat a row.
+- `GET /stories?limit=&cursor=` — `(updated_at DESC, id DESC)`, returns
+  `next_cursor`. `GET /stories/{id}/bible?limit=&cursor=` pages in its existing
+  display order `(status, category, name, id)`. `GET /stories/chapters/{id}/scan`
+  pages findings by `(draft_line, id)`.
+- `GET /stories/chapters/{id}` now returns `ETag: "<revision>-<saved-at>"` and
+  `304` for a matching `If-None-Match` (weak or `*` accepted). The route returns a
+  `JSONResponse` because this FastAPI version does not copy headers from an
+  injected `Response`.
+- Story detail caps `chapters[]` at 2,000 and reports `chapters_truncated`;
+  `chapter_count`/`word_count` still describe the whole story.
+- `frontend/lib/api.ts` follows `next_cursor` for stories, the bible list, and scan
+  findings, so the existing UI still sees complete lists.
+- New `tests/test_pagination.py` (6 tests): stable multi-page walks, bad cursor,
+  bible page order, chapter-list cap, ETag round trip, and a SQL event listener
+  asserting `GET /stories` runs exactly one aggregate query.
+- 70 backend tests pass; ruff, pyright, eslint, tsc, and 19 vitest tests clean.
