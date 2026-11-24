@@ -212,6 +212,55 @@ async function main() {
 		check("merge can be undone", Boolean(restored && restored.merged_into_id === null));
 	}
 
+	// 6b. Review inbox: proposals can be cleared with the keyboard.
+	const inboxEntities = (await request(`/stories/${story.id}/entities`, {}, cookie)).entities;
+	const mira = inboxEntities.find((item) => item.name === "Tessa") ?? inboxEntities[0];
+	const proposalIds = [];
+	for (const [value, confidence] of [["grey", 92], ["green", 88]]) {
+		const fact = await request(
+			`/entities/${mira.id}/facts`,
+			{
+				method: "POST",
+				body: JSON.stringify({
+					predicate: "eye_colour",
+					value_text: value,
+					chapter_id: chapter.id,
+					quote: "Mira Voss crossed the yard before dawn.",
+					status: "proposed",
+					confidence,
+				}),
+			},
+			cookie,
+		);
+		proposalIds.push(fact.id);
+	}
+	await page.goto(`${WEB}/stories/${story.id}/wiki/review`);
+	await page.waitForSelector(".inbox-item", { timeout: 20_000 });
+	const inboxBefore = await page.locator(".inbox-item").count();
+	const whyHeld = await page.locator(".inbox-why").first().innerText();
+	check("inbox explains why an item is held", whyHeld.length > 0, whyHeld);
+	// The keyboard handler listens on the document, so no click is needed. Clicking
+	// the row would land on a link and leave the page.
+	await page.keyboard.press("a");
+	await page.waitForFunction(
+		(count) => document.querySelectorAll(".inbox-item").length < count,
+		inboxBefore,
+		{ timeout: 20_000 },
+	);
+	const acceptedFacts = await request(`/entities/${mira.id}/facts`, {}, cookie);
+	const accepted = acceptedFacts.facts.filter((fact) => fact.status === "accepted").length;
+	check("accept a proposal with the keyboard", accepted >= 1, `${accepted} accepted`);
+
+	// The rules preview is concrete, and applying it is a separate action.
+	await page.getByRole("button", { name: "Auto-accept rules" }).click();
+	await page.waitForFunction(
+		() => /\d+ of \d+/.test(document.querySelector(".rules-preview")?.textContent ?? ""),
+		{ timeout: 20_000 },
+	);
+	const previewText = (await page.locator(".rules-preview").textContent()) ?? "";
+	const previewFlat = previewText.replace(/\s+/g, " ").trim();
+	check("auto-accept preview shows a count", /\d+ of \d+/.test(previewFlat), previewFlat.slice(0, 90));
+
 	// 7. Filters survive a refresh.
 	await page.goto(`${WEB}/stories/${story.id}/wiki?type=character`);
 	await page.waitForSelector(".wiki-row-main");

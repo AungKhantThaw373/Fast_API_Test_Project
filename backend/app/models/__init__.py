@@ -12,6 +12,7 @@ from app.models.story_models import (
 )
 from app.models.wiki_models import (
     AIUsage,
+    AutoAcceptRules,
     CanonException,
     ChapterMeta,
     Entity,
@@ -20,6 +21,7 @@ from app.models.wiki_models import (
     EntityMention,
     EntityMerge,
     EntityRelationship,
+    MergeProposal,
     SceneMeta,
     StoryEvent,
     StoryThread,
@@ -38,6 +40,8 @@ __all__ = [
     "ContinuityScan",
     "ContinuityFinding",
     "EntityMerge",
+    "AutoAcceptRules",
+    "MergeProposal",
     "Job",
     "WorkerHeartbeat",
     "Entity",

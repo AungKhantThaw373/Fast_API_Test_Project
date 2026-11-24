@@ -718,3 +718,42 @@ a { color: inherit; text-decoration: none; }
 .candidate-actions select { height: 30px; border: 1px solid #e0ded5; border-radius: 5px; padding: 0 8px; background: #fffefa; font-size: 11.5px; }
 .candidate-rename { display: flex; gap: 6px; align-items: center; flex: 1; }
 .candidate-rename input { flex: 1; height: 30px; border: 1px solid #e0ded5; border-radius: 5px; padding: 0 9px; font-size: 12px; }
+
+/* Review inbox */
+.inbox-actions { display: flex; gap: 6px; }
+.inbox-filters { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.inbox-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 6px; background: #f1f0e9; }
+.inbox-tabs button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 4px; background: transparent; color: #6f736a; font-size: 12px; cursor: pointer; }
+.inbox-tabs button span { padding: 0 5px; border-radius: 999px; background: #e6e4db; color: #6f736a; font-size: 10.5px; }
+.inbox-tabs button.active { background: var(--white); color: var(--forest-deep); font-weight: 600; box-shadow: 0 1px 2px rgba(40,43,38,.08); }
+.inbox-tabs button.active span { background: var(--sage); color: var(--forest-deep); }
+.inbox-chapter-filter { display: flex; align-items: center; gap: 7px; color: #7d7f76; font-size: 11.5px; }
+.inbox-chapter-filter select { height: 32px; border: 1px solid #e0ded5; border-radius: 5px; padding: 0 8px; background: #fffefa; font-size: 12px; }
+.inbox-batch { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 13px; border: 1px solid #dfe4d8; border-radius: 6px; background: #f5f8f2; font-size: 12px; }
+.inbox-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.inbox-item { display: flex; gap: 11px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--white); }
+.inbox-item.selected { border-color: #9fb095; box-shadow: 0 0 0 2px rgba(83,105,79,.12); }
+.inbox-item input[type="checkbox"] { margin-top: 3px; }
+.inbox-body { flex: 1; min-width: 0; display: grid; gap: 7px; }
+.inbox-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.inbox-head strong { font-size: 13.5px; }
+.inbox-kind { padding: 2px 7px; border-radius: 999px; background: #efeee6; color: #6f736a; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.inbox-kind.kind-fact { background: var(--sage); color: var(--forest-deep); }
+.inbox-kind.kind-merge { background: var(--clay-pale); color: #8d5340; }
+.inbox-kind.kind-finding { background: #faf1dc; color: #8a6d33; }
+.inbox-confidence { margin-left: auto; color: #92938a; font-size: 11px; }
+.inbox-summary { margin: 0; color: #5f635a; font-size: 12.5px; line-height: 1.6; }
+.inbox-why { margin: 0; padding: 6px 9px; border-left: 3px solid #ddc9a8; background: #fbf6ec; color: #7d6a45; font-size: 11.5px; line-height: 1.5; }
+.inbox-item-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inbox-rules { margin-bottom: 16px; padding: 16px 18px; border: 1px solid #e3e1d8; border-radius: 8px; background: #fbfaf4; }
+.rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+.rule-toggle { display: flex; gap: 9px; align-items: flex-start; font-size: 12px; }
+.rule-toggle span { display: grid; gap: 3px; }
+.rule-toggle strong { font-size: 12.5px; }
+.rule-toggle small { color: #85877d; font-size: 11.5px; line-height: 1.45; }
+.rule-number { display: grid; gap: 5px; color: #6a6d64; font-size: 11.5px; font-weight: 600; }
+.rule-number input { height: 32px; border: 1px solid #e0ded5; border-radius: 5px; padding: 0 9px; background: #fffefa; font-size: 12.5px; font-weight: 400; }
+.rules-preview { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding: 10px 12px; border: 1px solid #e6e4db; border-radius: 6px; background: var(--white); color: #5f635a; font-size: 12.5px; }
+@media (max-width: 760px) {
+	.rules-grid { grid-template-columns: 1fr; }
+}

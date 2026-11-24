@@ -8,6 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_async_session
 from app.models.app_models import User
 from app.models.wiki_models import CanonException
+from app.schemas.inbox import (
+    AutoAcceptPreviewOut,
+    AutoAcceptRulesIn,
+    AutoAcceptRulesOut,
+    AutoAcceptRunOut,
+    InboxDecision,
+    InboxDecisionResult,
+    MergeProposalOut,
+)
 from app.schemas.wiki import (
     AliasOut,
     EntityOut,
@@ -28,9 +37,11 @@ from app.schemas.wiki import (
     ThreadUpdate,
 )
 from app.security import get_current_user
+from app.services import auto_accept as auto_accept_service
 from app.services import canon_exceptions as exceptions_service
 from app.services import entities as entity_service
 from app.services import inbox as inbox_service
+from app.services import merge_proposals as proposals_service
 from app.services import name_candidates as candidates_service
 from app.services import stories as stories_service
 from app.services import threads as threads_service
@@ -268,6 +279,118 @@ async def delete_exception(
     await stories_service.owned_story(session, exception.story_id, user.id)
     await exceptions_service.delete_exception(session, exception.story_id, exception_id)
     await session.commit()
+
+
+@router.post("/stories/{story_id}/inbox/decide", response_model=InboxDecisionResult)
+async def decide_inbox_items(
+    story_id: UUID,
+    payload: InboxDecision,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> InboxDecisionResult:
+    await stories_service.owned_story(session, story_id, user.id)
+    counts = await inbox_service.decide_many(session, story_id, payload.ids, payload.action)
+    await session.commit()
+    return InboxDecisionResult(action=payload.action, **counts)
+
+
+@router.get("/stories/{story_id}/inbox/rules", response_model=AutoAcceptRulesOut)
+async def get_auto_accept_rules(
+    story_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> AutoAcceptRulesOut:
+    await stories_service.owned_story(session, story_id, user.id)
+    rules = await auto_accept_service.get_rules(session, story_id)
+    await session.commit()
+    return AutoAcceptRulesOut(
+        require_quote=rules.require_quote,
+        min_confidence=rules.min_confidence,
+        require_existing_entity=rules.require_existing_entity,
+        block_conflicts=rules.block_conflicts,
+        max_per_chapter=rules.max_per_chapter,
+    )
+
+
+@router.put("/stories/{story_id}/inbox/rules", response_model=AutoAcceptRulesOut)
+async def save_auto_accept_rules(
+    story_id: UUID,
+    payload: AutoAcceptRulesIn,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> AutoAcceptRulesOut:
+    await stories_service.owned_story(session, story_id, user.id)
+    rules = await auto_accept_service.save_rules(
+        session,
+        story_id,
+        require_quote=payload.require_quote,
+        min_confidence=payload.min_confidence,
+        require_existing_entity=payload.require_existing_entity,
+        block_conflicts=payload.block_conflicts,
+        max_per_chapter=payload.max_per_chapter,
+    )
+    await session.commit()
+    return AutoAcceptRulesOut(
+        require_quote=rules.require_quote,
+        min_confidence=rules.min_confidence,
+        require_existing_entity=rules.require_existing_entity,
+        block_conflicts=rules.block_conflicts,
+        max_per_chapter=rules.max_per_chapter,
+    )
+
+
+@router.get("/stories/{story_id}/inbox/rules/preview", response_model=AutoAcceptPreviewOut)
+async def preview_auto_accept(
+    story_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> AutoAcceptPreviewOut:
+    await stories_service.owned_story(session, story_id, user.id)
+    preview = await auto_accept_service.preview(session, story_id)
+    await session.commit()
+    return AutoAcceptPreviewOut(
+        would_accept=preview.would_accept,
+        held=preview.held,
+        total=preview.total,
+        rules=AutoAcceptRulesOut(**preview.rules.__dict__),
+    )
+
+
+@router.post("/stories/{story_id}/inbox/auto-accept", response_model=AutoAcceptRunOut)
+async def run_auto_accept(
+    story_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> AutoAcceptRunOut:
+    await stories_service.owned_story(session, story_id, user.id)
+    result = await auto_accept_service.run(session, story_id)
+    await session.commit()
+    return AutoAcceptRunOut(accepted=result["accepted"], held=result["held"])
+
+
+@router.get("/stories/{story_id}/merge-proposals", response_model=list[MergeProposalOut])
+async def list_merge_proposals(
+    story_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> list[MergeProposalOut]:
+    await stories_service.owned_story(session, story_id, user.id)
+    rows = await proposals_service.propose(session, story_id)
+    await session.commit()
+    return [
+        MergeProposalOut(
+            id=proposal.id,
+            story_id=story_id,
+            source_id=source.id,
+            target_id=target.id,
+            source_name=source.name,
+            target_name=target.name,
+            score=proposal.score,
+            status=proposal.status,
+            created_at=proposal.created_at,
+        )
+        for proposal, source, target in rows
+    ]
 
 
 @router.get("/stories/{story_id}/inbox", response_model=InboxOut)

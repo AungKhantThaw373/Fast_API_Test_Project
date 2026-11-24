@@ -20,6 +20,7 @@ from typing import Any
 from uuid import UUID as UUIDType
 
 from sqlalchemy import (
+    Boolean,
     Date,
     DateTime,
     Float,
@@ -420,3 +421,52 @@ class EntityMerge(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     reverted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class MergeProposal(Base):
+    """Two entities that look like the same thing, waiting for a decision.
+
+    Derived from name similarity (never applied automatically), stored so a
+    dismissal sticks instead of reappearing on every inbox load.
+    """
+
+    __tablename__ = "merge_proposals"
+    __table_args__ = (
+        UniqueConstraint("source_id", "target_id", name="uq_merge_proposal_pair"),
+        Index("ix_merge_proposals_story_status", "story_id", "status"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
+    )
+    target_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
+    )
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AutoAcceptRules(Base):
+    """Per-story rules for accepting extraction proposals without review."""
+
+    __tablename__ = "auto_accept_rules"
+
+    story_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True
+    )
+    require_quote: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    min_confidence: Mapped[int] = mapped_column(Integer, nullable=False, default=80)
+    require_existing_entity: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    block_conflicts: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    max_per_chapter: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )

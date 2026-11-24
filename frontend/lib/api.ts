@@ -301,7 +301,7 @@ export interface InboxSource {
 
 export interface InboxItem {
 	id: string;
-	kind: "fact" | "finding";
+	kind: "fact" | "merge" | "finding";
 	title: string;
 	summary: string;
 	confidence: number;
@@ -723,6 +723,42 @@ export const api = {
 		}),
 	deleteException: (exceptionId: string) =>
 		request<void>(`/exceptions/${exceptionId}`, { method: "DELETE" }),
+	inboxDecide: (storyId: string, ids: string[], action: string) =>
+		request<{ facts: number; findings: number; merges: number; skipped: number; action: string }>(
+			`/stories/${storyId}/inbox/decide`,
+			{ method: "POST", body: JSON.stringify({ ids, action }) },
+		),
+	autoAcceptRules: (storyId: string) =>
+		request<{
+			require_quote: boolean;
+			min_confidence: number;
+			require_existing_entity: boolean;
+			block_conflicts: boolean;
+			max_per_chapter: number;
+		}>(`/stories/${storyId}/inbox/rules`),
+	saveAutoAcceptRules: (
+		storyId: string,
+		rules: {
+			require_quote?: boolean;
+			min_confidence?: number;
+			require_existing_entity?: boolean;
+			block_conflicts?: boolean;
+			max_per_chapter?: number;
+		},
+	) => request<Record<string, unknown>>(`/stories/${storyId}/inbox/rules`, { method: "PUT", body: JSON.stringify(rules) }),
+	autoAcceptPreview: (storyId: string) =>
+		request<{
+			would_accept: number;
+			held: number;
+			total: number;
+			rules: Record<string, unknown>;
+		}>(`/stories/${storyId}/inbox/rules/preview`),
+	runAutoAccept: (storyId: string) =>
+		request<{ accepted: number; held: number }>(`/stories/${storyId}/inbox/auto-accept`, { method: "POST" }),
+	mergeProposals: async (storyId: string) =>
+		request<Array<{ id: string; source_id: string; target_id: string; source_name: string; target_name: string; score: number; status: string }>>(
+			`/stories/${storyId}/merge-proposals`,
+		),
 	editingFolders: async () => (await request<{ folders: DraftFolder[] }>("/editing/folders")).folders,
 	createEditingFolder: (name: string) => request<DraftFolder>("/editing/folders", {
 		method: "POST",

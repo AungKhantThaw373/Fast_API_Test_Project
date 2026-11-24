@@ -12,11 +12,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.story_models import Chapter, ContinuityFinding, ContinuityScan
-from app.models.wiki_models import Entity, EntityFact
+from app.models.wiki_models import Entity, EntityFact, MergeProposal
 from app.schemas.wiki import InboxItemOut, InboxSourceOut
 from app.services.pagination import (
     clamp_limit,
@@ -26,9 +27,10 @@ from app.services.pagination import (
     encode_cursor,
 )
 
-KINDS = ("fact", "finding")
+KINDS = ("fact", "merge", "finding")
 FACT_ACTIONS = ["accept", "reject", "edit"]
 FINDING_ACTIONS = ["resolve", "dismiss"]
+MERGE_ACTIONS = ["merge", "dismiss"]
 
 
 @dataclass(frozen=True)
@@ -78,6 +80,13 @@ async def _conflict_reason(session: AsyncSession, fact: EntityFact) -> str | Non
     return f"Already recorded as '{_fact_value(accepted)}'."
 
 
+def _default_reason(fact: EntityFact) -> str:
+    """Every pending item says why it is pending, even without a conflict."""
+    if fact.created_by == "ai":
+        return "Found while reading a chapter; no one has accepted it yet."
+    return "Added by hand and left as a proposal."
+
+
 async def collect(
     session: AsyncSession,
     story_id: UUID,
@@ -95,6 +104,8 @@ async def collect(
     items: list[RawItem] = []
     if "fact" in selected and status in {"open", "proposed", "all"}:
         items.extend(await _facts(session, story_id))
+    if "merge" in selected and status in {"open", "all"}:
+        items.extend(await _merges(session, story_id))
     if "finding" in selected and status in {"open", "all"}:
         items.extend(await _findings(session, story_id))
 
@@ -156,7 +167,7 @@ async def _facts(session: AsyncSession, story_id: UUID) -> list[RawItem]:
                     quote=fact.quote,
                 ),
                 actions=FACT_ACTIONS,
-                why_held=await _conflict_reason(session, fact),
+                why_held=await _conflict_reason(session, fact) or _default_reason(fact),
                 entity_id=entity.id,
                 chapter_id=fact.chapter_id,
             )
@@ -201,6 +212,79 @@ async def _findings(session: AsyncSession, story_id: UUID) -> list[RawItem]:
     ]
 
 
+async def _merges(session: AsyncSession, story_id: UUID) -> list[RawItem]:
+    from app.services.merge_proposals import propose
+
+    proposals = await propose(session, story_id)
+    out: list[RawItem] = []
+    for proposal, source, target in proposals:
+        out.append(
+            RawItem(
+                id=proposal.id,
+                kind="merge",
+                sort_at=proposal.created_at,
+                title=f"{source.name} and {target.name}: the same thing?",
+                summary=(
+                    f"Names are {round(proposal.score * 100)}% similar. Merging moves "
+                    f"{source.name}'s facts and mentions into {target.name}."
+                ),
+                confidence=int(round(proposal.score * 100)),
+                source=InboxSourceOut(),
+                actions=MERGE_ACTIONS,
+                why_held="Similar names, but nothing has been merged automatically.",
+                entity_id=source.id,
+                chapter_id=None,
+            )
+        )
+    return out
+
+
+async def decide_many(
+    session: AsyncSession, story_id: UUID, ids: list[UUID], action: str
+) -> dict[str, int]:
+    """Apply one decision to many items: the "clear this chapter" path."""
+    from app.services.merge_proposals import apply as apply_merge
+    from app.services.merge_proposals import dismiss as dismiss_merge
+
+    counts = {"facts": 0, "findings": 0, "merges": 0, "skipped": 0}
+    if action not in {"accept", "reject", "resolve", "dismiss"}:
+        raise HTTPException(status_code=422, detail="Unknown inbox action.")
+    for item_id in ids:
+        fact = await session.get(EntityFact, item_id)
+        if fact is not None:
+            owner = await session.scalar(select(Entity.story_id).where(Entity.id == fact.entity_id))
+            if owner != story_id:
+                counts["skipped"] += 1
+                continue
+            fact.status = "accepted" if action == "accept" else "rejected"
+            counts["facts"] += 1
+            continue
+        merge = await session.get(MergeProposal, item_id)
+        if merge is not None:
+            if merge.story_id != story_id or merge.status != "pending":
+                counts["skipped"] += 1
+                continue
+            if action == "accept":
+                await apply_merge(session, story_id, item_id)
+                counts["merges"] += 1
+            else:
+                await dismiss_merge(session, story_id, item_id)
+                counts["merges"] += 1
+            continue
+        finding = await session.get(ContinuityFinding, item_id)
+        if finding is not None:
+            scan = await session.get(ContinuityScan, finding.scan_id)
+            if scan is None or scan.story_id != story_id:
+                counts["skipped"] += 1
+                continue
+            finding.review_status = "resolved" if action in {"accept", "resolve"} else "dismissed"
+            counts["findings"] += 1
+            continue
+        counts["skipped"] += 1
+    await session.flush()
+    return counts
+
+
 async def counts(session: AsyncSession, story_id: UUID) -> dict[str, int]:
     fact_count = int(
         await session.scalar(
@@ -225,4 +309,17 @@ async def counts(session: AsyncSession, story_id: UUID) -> dict[str, int]:
         )
         or 0
     )
-    return {"fact": fact_count, "finding": finding_count, "total": fact_count + finding_count}
+    merge_count = int(
+        await session.scalar(
+            select(func.count(MergeProposal.id)).where(
+                MergeProposal.story_id == story_id, MergeProposal.status == "pending"
+            )
+        )
+        or 0
+    )
+    return {
+        "fact": fact_count,
+        "merge": merge_count,
+        "finding": finding_count,
+        "total": fact_count + merge_count + finding_count,
+    }
