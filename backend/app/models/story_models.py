@@ -189,6 +189,7 @@ class StoryBibleEntry(Base):
 
 class ContinuityScan(Base):
     __tablename__ = "continuity_scans"
+    __table_args__ = (Index("ix_scans_chapter_created", "chapter_id", "created_at"),)
 
     id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     story_id: Mapped[UUIDType] = mapped_column(

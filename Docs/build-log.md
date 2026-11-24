@@ -213,3 +213,17 @@ permutations, OneDrive).
   evidence load, story settings), asserted by a SQL event-listener test in
   `tests/test_continuity_retrieval.py`.
 - 72 backend tests pass; ruff and pyright clean.
+
+## Phase 2 — P2-4 indexes and statement timeouts
+
+- Migration `5c1f0b7a2d31` adds `ix_scans_chapter_created` on
+  `continuity_scans (chapter_id, created_at)` (Postgres scans it backwards for the
+  DESC latest-scan lookup) and runs `ANALYZE` on the four hot tables. The other
+  indexes the manual lists already existed; `ix_findings_scan` would duplicate
+  `ix_continuity_findings_scan_id`, so it was not created.
+- `app/db.py` sets `statement_timeout = 15s` per connection via
+  `connect_args.server_settings`, which — unlike `SET LOCAL` — survives `COMMIT`
+  and therefore every request that commits mid-flight.
+- `ALTER DATABASE stillroom/stillroom_test SET log_min_duration_statement='200ms'`
+  applied locally and documented in `Docs/database.md`, together with how to
+  verify the timeout from the app.

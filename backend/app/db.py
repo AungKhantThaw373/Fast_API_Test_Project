@@ -20,12 +20,19 @@ DATABASE_URL = URL.create(
 # opened a fresh connection for each session (over a second against a remote
 # Supabase region), which dominated chapter scans and every request path. Reuse
 # a small pool instead; 5432 is Supabase's session pooler and supports this.
+#
+# Every API connection carries a 15s statement timeout: a runaway query fails
+# fast instead of holding a request open forever. Worker connections raise it
+# (see ``app/worker.py``). Tests use the same engine, so a hang fails loudly.
+STATEMENT_TIMEOUT_MS = 15_000
+
 engine = create_async_engine(
     DATABASE_URL,
     pool_size=5,
     max_overflow=5,
     pool_pre_ping=True,
     pool_recycle=1800,
+    connect_args={"server_settings": {"statement_timeout": str(STATEMENT_TIMEOUT_MS)}},
 )
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 

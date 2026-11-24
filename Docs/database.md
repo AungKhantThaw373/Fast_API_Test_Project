@@ -68,3 +68,41 @@ Optional, for local profiling:
 ```sql
 ALTER DATABASE stillroom SET log_min_duration_statement = 200;
 ```
+
+## Runtime settings (Phase 2)
+
+Statement timeouts protect the request path. They are set per *connection* by
+SQLAlchemy (`backend/app/db.py`, `connect_args.server_settings`), so they survive
+a `COMMIT` and apply to every pooled connection:
+
+| Caller | `statement_timeout` |
+|---|---|
+| API requests | 15 s |
+| Durable worker (`app/worker.py`) | 5 min |
+
+Verify from the app side:
+
+```bash
+cd backend
+DBNAME=stillroom_test uv run python -c "
+import asyncio
+from sqlalchemy import text
+from app.db import async_session, engine
+async def main():
+    async with async_session() as s:
+        print(await s.scalar(text('SHOW statement_timeout')))
+    await engine.dispose()
+asyncio.run(main())"
+```
+
+Slow queries are logged at the database level, not in the app. Applied once per
+database on this machine:
+
+```sql
+ALTER DATABASE stillroom      SET log_min_duration_statement = '200ms';
+ALTER DATABASE stillroom_test SET log_min_duration_statement = '200ms';
+```
+
+New connections pick it up; find the lines in the PostgreSQL log
+(`%ProgramData%\PostgreSQL\18\data\log`). `ANALYZE` runs inside the index
+migration, so fresh databases and CI get planner statistics without a manual step.
