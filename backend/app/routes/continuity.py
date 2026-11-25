@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
 from app.models.app_models import User
+from app.rate_limits import ai_scan_rate_limit
 from app.schemas.continuity import (
     FindingOut,
     FindingReviewOut,
@@ -70,6 +71,7 @@ async def get_latest_scan(
 async def queue_chapter_scan(
     chapter_id: UUID,
     force: bool = False,
+    _limit: None = Depends(ai_scan_rate_limit),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> ScanJobOut:
@@ -96,6 +98,7 @@ async def queue_chapter_scan(
 async def check_chapter_continuity(
     chapter_id: UUID,
     force: bool = False,
+    _limit: None = Depends(ai_scan_rate_limit),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> ScanCheckOut:

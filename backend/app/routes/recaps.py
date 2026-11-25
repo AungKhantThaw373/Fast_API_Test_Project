@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
 from app.models.app_models import User
+from app.rate_limits import ai_scan_rate_limit
 from app.schemas.recaps import (
     ArcSummaryOut,
     ChapterSynopsisOut,
@@ -45,6 +46,7 @@ async def update_chapter_synopsis(
 @router.post("/chapters/{chapter_id}/synopsis/generate", response_model=ChapterSynopsisOut)
 async def generate_chapter_synopsis(
     chapter_id: UUID,
+    _limit: None = Depends(ai_scan_rate_limit),
     overwrite: bool = Query(default=False),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
@@ -57,6 +59,7 @@ async def generate_chapter_synopsis(
 async def generate_arc_summary(
     story_id: UUID,
     arc_id: UUID,
+    _limit: None = Depends(ai_scan_rate_limit),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> ArcSummaryOut:

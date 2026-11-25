@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
 from app.models.app_models import User
+from app.rate_limits import ai_scan_rate_limit
 from app.schemas.ask import AskStoryIn, AskStoryOut
 from app.security import get_current_user
 from app.services import stories as stories_service
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/stories", tags=["ask"])
 async def ask(
     story_id: UUID,
     payload: AskStoryIn,
+    _limit: None = Depends(ai_scan_rate_limit),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> AskStoryOut:

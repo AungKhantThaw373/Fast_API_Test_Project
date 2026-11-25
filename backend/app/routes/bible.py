@@ -9,6 +9,7 @@ from app.db import get_async_session
 from app.logging_config import fields, get_logger
 from app.models.app_models import User
 from app.models.story_models import StoryBibleEntry
+from app.rate_limits import ai_scan_rate_limit
 from app.schemas.bible import (
     BibleDecision,
     BibleEntryCreate,
@@ -65,6 +66,7 @@ async def create_bible_entry(
 async def scan_story_bible_range(
     story_id: UUID,
     payload: BibleScanRange,
+    _limit: None = Depends(ai_scan_rate_limit),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> BibleScanOut:
