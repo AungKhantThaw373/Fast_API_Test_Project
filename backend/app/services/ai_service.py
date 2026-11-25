@@ -8,11 +8,12 @@ from urllib.parse import quote
 from uuid import UUID, uuid4
 
 import httpx
+import jsonschema
 import ollama
 
 from app.config import settings
 from app.logging_config import fields, get_logger
-from app.services.ai_settings import PROVIDERS, load_ai_config
+from app.services.ai_settings import PROVIDERS, AIConfig, load_ai_config
 
 _provider_slots = asyncio.Semaphore(max(1, settings.AI_MAX_CONCURRENT_REQUESTS))
 _rate_gate = asyncio.Lock()
@@ -318,6 +319,137 @@ def _analysis_result(response_data: dict[str, Any], protocol: str) -> dict[str, 
     return result
 
 
+
+async def _ollama_structured(
+    config: AIConfig,
+    system_prompt: str,
+    user_prompt: str,
+    schema: dict[str, Any],
+    *,
+    purpose: str,
+    schema_name: str,
+    call_id: str,
+    started: float,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    """Call Ollama's JSON-schema-constrained chat endpoint.
+
+    Model output is untrusted input: the schema is enforced again in Python
+    because a small model can still emit a plausible object with a missing key.
+    """
+    endpoint = f"{config.base_url.rstrip('/')}/api/chat"
+    payload = {
+        "model": config.model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "stream": False,
+        "format": schema,
+        "options": {
+            "temperature": 0.1,
+            "num_ctx": settings.OLLAMA_NUM_CTX,
+            "num_predict": settings.OLLAMA_NUM_PREDICT,
+        },
+        "keep_alive": settings.OLLAMA_KEEP_ALIVE,
+    }
+    last_error: Exception | None = None
+    for attempt in range(2):
+        request_started = time.monotonic()
+        try:
+            async with _provider_slots:
+                async with httpx.AsyncClient(
+                    timeout=httpx.Timeout(timeout_seconds, connect=15)
+                ) as client:
+                    response = await client.post(endpoint, json=payload)
+        except httpx.TimeoutException as exc:
+            logger.warning(
+                "[%s] timeout   %s",
+                call_id,
+                fields(
+                    purpose=purpose,
+                    limit=f"{timeout_seconds:g}s",
+                    error=type(exc).__name__,
+                ),
+            )
+            raise AIProviderHTTPError(
+                f"Ollama did not answer within {timeout_seconds:g} seconds. "
+                "Check that the local model is loaded, or choose a smaller model.",
+                504,
+            ) from exc
+
+        latency = time.monotonic() - request_started
+        if response.is_error:
+            try:
+                detail = str(response.json().get("error") or "")
+            except (ValueError, AttributeError):
+                detail = ""
+            message = f"Ollama returned HTTP {response.status_code}."
+            if detail:
+                message = f"{message} {detail[:400]}"
+            logger.warning(
+                "[%s] rejected  %s",
+                call_id,
+                fields(
+                    purpose=purpose,
+                    status=response.status_code,
+                    latency=f"{latency:.2f}s",
+                    provider_message=detail[:400] or None,
+                ),
+            )
+            raise AIProviderHTTPError(message, response.status_code)
+
+        try:
+            data = response.json()
+            content = data["message"]["content"]
+            result = _json_object(content)
+            jsonschema.validate(instance=result, schema=schema)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError, jsonschema.ValidationError) as exc:
+            last_error = exc
+            logger.warning(
+                "[%s] invalid   %s",
+                call_id,
+                fields(
+                    purpose=purpose,
+                    attempt=attempt + 1,
+                    schema=schema_name,
+                    latency=f"{latency:.2f}s",
+                    reason=str(exc)[:300],
+                ),
+            )
+            if attempt == 0:
+                continue
+            raise RuntimeError(
+                "Ollama returned JSON that did not match the requested schema. "
+                "Try again, or choose a stronger local model."
+            ) from exc
+
+        prompt_tokens = data.get("prompt_eval_count")
+        output_tokens = data.get("eval_count")
+        logger.info(
+            "[%s] done      %s",
+            call_id,
+            fields(
+                purpose=purpose,
+                status=response.status_code,
+                schema=schema_name,
+                model=config.model,
+                latency=f"{latency:.2f}s",
+                total=f"{time.monotonic() - started:.2f}s",
+                in_tokens=prompt_tokens,
+                out_tokens=output_tokens,
+                total_tokens=(prompt_tokens or 0) + (output_tokens or 0)
+                if prompt_tokens is not None or output_tokens is not None
+                else None,
+                tokens_per_second=round(output_tokens / latency, 1)
+                if output_tokens and latency > 0
+                else None,
+            ),
+        )
+        return result
+    raise RuntimeError("Ollama did not return usable JSON.") from last_error
+
+
 async def structured_ai_json(
     system_prompt: str,
     user_prompt: str,
@@ -325,6 +457,7 @@ async def structured_ai_json(
     purpose: str = "analysis",
     schema: dict[str, Any] | None = None,
     timeout_seconds: float | None = None,
+    schema_name: str | None = None,
 ) -> dict[str, Any]:
     """Call the user's selected provider and return its structured analysis."""
     started = time.monotonic()
@@ -341,7 +474,7 @@ async def structured_ai_json(
             provider=config.provider,
             model=config.model,
             protocol=config.protocol,
-            schema="+".join(str(key) for key in payload_schema.get("properties", {})),
+            schema=schema_name or "+".join(str(key) for key in payload_schema.get("properties", {})),
             system_chars=len(system_prompt),
             prompt_chars=len(user_prompt),
             timeout=f"{effective_timeout:g}s",
@@ -352,6 +485,19 @@ async def structured_ai_json(
     payload: dict[str, Any]
     params: dict[str, str] | None = None
     description = "Return the requested manuscript analysis as structured data."
+
+    if config.protocol == "ollama":
+        return await _ollama_structured(
+            config,
+            system_prompt,
+            user_prompt,
+            payload_schema,
+            purpose=purpose,
+            schema_name=schema_name or "+".join(str(key) for key in payload_schema.get("properties", {})),
+            call_id=call_id,
+            started=started,
+            timeout_seconds=effective_timeout,
+        )
 
     if config.protocol == "anthropic":
         endpoint = f"{config.base_url.rstrip('/')}/v1/messages"

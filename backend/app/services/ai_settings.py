@@ -17,6 +17,7 @@ class ProviderPreset:
 
 
 PROVIDERS: dict[str, ProviderPreset] = {
+    "ollama": ProviderPreset("Ollama (local, free)", settings.OLLAMA_BASE_URL, "ollama"),
     "openrouter": ProviderPreset("OpenRouter", settings.OPENROUTER_BASE_URL),
     "openai": ProviderPreset("OpenAI", "https://api.openai.com/v1"),
     "anthropic": ProviderPreset("Anthropic", "https://api.anthropic.com", "anthropic"),
@@ -53,7 +54,9 @@ def base_url_for(provider: str, custom_base_url: str | None = None) -> str:
 
 async def has_ai_config(session: AsyncSession, user_id: UUID) -> bool:
     row = await session.get(UserAISettings, user_id)
-    return bool(row or settings.OPENROUTER_API_KEY)
+    # Ollama is the offline default, so a fresh workspace is configured even
+    # without a saved provider row or a cloud key.
+    return bool(row or settings.OPENROUTER_API_KEY or settings.OLLAMA_BASE_URL)
 
 
 async def load_ai_config(user_id: UUID) -> AIConfig:
@@ -64,7 +67,7 @@ async def load_ai_config(user_id: UUID) -> AIConfig:
         preset = PROVIDERS.get(row.provider)
         if not preset:
             raise RuntimeError("The saved AI provider is no longer supported. Update AI settings.")
-        api_key = decrypt_api_key(row.api_key_encrypted)
+        api_key = decrypt_api_key(row.api_key_encrypted) if row.api_key_encrypted else ""
         return AIConfig(
             provider=row.provider,
             model=row.model,
@@ -81,4 +84,10 @@ async def load_ai_config(user_id: UUID) -> AIConfig:
             base_url=settings.OPENROUTER_BASE_URL.rstrip("/"),
             protocol="openai",
         )
-    raise RuntimeError("AI is not configured. Add a provider and API key in Settings → AI.")
+    return AIConfig(
+        provider="ollama",
+        model=settings.OLLAMA_CHAT_MODEL,
+        api_key="",
+        base_url=settings.OLLAMA_BASE_URL.rstrip("/"),
+        protocol="ollama",
+    )

@@ -10,7 +10,7 @@ class CurrentUser(BaseModel):
 
 
 AIProviderName = Literal[
-    "openrouter", "openai", "anthropic", "google", "cohere", "cohere_compat", "deepseek", "groq",
+    "ollama", "openrouter", "openai", "anthropic", "google", "cohere", "cohere_compat", "deepseek", "groq",
     "mistral", "together", "fireworks", "cerebras", "custom",
 ]
 

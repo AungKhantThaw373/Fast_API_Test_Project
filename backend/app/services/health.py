@@ -44,8 +44,9 @@ async def check_ollama() -> str:
             if response.status_code != 200:
                 return f"error ({response.status_code})"
             models = [item.get("name", "") for item in response.json().get("models", [])]
-            if not any(settings.EMBEDDING_MODEL in name for name in models):
-                return f"missing model {settings.EMBEDDING_MODEL}"
+            for required in (settings.EMBEDDING_MODEL, settings.OLLAMA_CHAT_MODEL):
+                if not any(required in name for name in models):
+                    return f"missing model {required}"
             return "ok"
     except Exception:
         return "unreachable"

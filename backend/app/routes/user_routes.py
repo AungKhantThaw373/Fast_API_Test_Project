@@ -26,12 +26,20 @@ async def current_user(user: User = Depends(get_current_user)):
 
 def _ai_settings_data(row: UserAISettings | None) -> dict:
     if row is None:
+        if settings.OPENROUTER_API_KEY:
+            return {
+                "provider": "openrouter",
+                "model": settings.OPENROUTER_MODEL,
+                "base_url": settings.OPENROUTER_BASE_URL,
+                "api_key_configured": True,
+                "using_server_default": True,
+            }
         return {
-            "provider": "openrouter" if settings.OPENROUTER_API_KEY else None,
-            "model": settings.OPENROUTER_MODEL if settings.OPENROUTER_API_KEY else None,
-            "base_url": settings.OPENROUTER_BASE_URL if settings.OPENROUTER_API_KEY else None,
-            "api_key_configured": bool(settings.OPENROUTER_API_KEY),
-            "using_server_default": bool(settings.OPENROUTER_API_KEY),
+            "provider": "ollama",
+            "model": settings.OLLAMA_CHAT_MODEL,
+            "base_url": settings.OLLAMA_BASE_URL,
+            "api_key_configured": True,
+            "using_server_default": True,
         }
     return {
         "provider": row.provider,
@@ -95,7 +103,11 @@ async def save_ai_settings(
 
     submitted_key = payload.api_key.strip() if payload.api_key else ""
     same_provider = existing is not None and existing.provider == payload.provider
-    if submitted_key:
+    if payload.provider == "ollama":
+        # Local Ollama has no key; store a stable empty value so the column
+        # stays non-null and switching back to a cloud provider prompts again.
+        encrypted_key = encrypt_api_key("")
+    elif submitted_key:
         encrypted_key = encrypt_api_key(submitted_key)
     elif same_provider and existing is not None:
         encrypted_key = existing.api_key_encrypted

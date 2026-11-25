@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 14
 
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_CHAT_MODEL: str = "qwen3:4b-instruct"
+    OLLAMA_DEEP_MODEL: str = "qwen2.5-coder:7b-instruct-q4_K_M"
+    OLLAMA_KEEP_ALIVE: str = "30m"
+    OLLAMA_NUM_CTX: int = Field(default=8192, ge=1024, le=131072)
+    OLLAMA_NUM_PREDICT: int = Field(default=1200, ge=128, le=8192)
     EMBEDDING_MODEL: str = "nomic-embed-text"
     EMBEDDING_DIMENSIONS: Literal[768] = 768
     OPENROUTER_API_KEY: str | None = None
