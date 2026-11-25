@@ -84,6 +84,38 @@ export interface StoryDetails extends Story {
 	chapters: Chapter[];
 }
 
+export interface StorySearchEntity {
+	id: string;
+	name: string;
+	entity_type: string;
+}
+
+export interface StorySearchHit {
+	chunk_id: string;
+	chapter_id: string;
+	chapter_number: number;
+	chapter_title: string;
+	scene_index: number;
+	chunk_index: number;
+	start_line: number;
+	end_line: number;
+	quote: string;
+	score: number;
+	scores: Record<string, number>;
+	entities: StorySearchEntity[];
+}
+
+export interface StorySearchResponse {
+	query: string;
+	semantic_query: string;
+	lexical_query: string;
+	name_query: string;
+	entity_ids: string[];
+	cache_hit: boolean;
+	timings_ms: Record<string, number>;
+	results: StorySearchHit[];
+}
+
 export interface BibleEntry {
 	id: string;
 	category: "character" | "location" | "item" | "world_rule" | "worldbuilding" | "power_system" | "plot_thread";
@@ -581,6 +613,27 @@ export const api = {
 			cursor = page.next_cursor ?? undefined;
 		} while (cursor);
 		return entities;
+	},
+	searchStory: (
+		storyId: string,
+		params: {
+			q: string;
+			limit?: number;
+			chapterMin?: number;
+			chapterMax?: number;
+			entityId?: string;
+			arcId?: string;
+			chunkKind?: string;
+		},
+		signal?: AbortSignal,
+	) => {
+		const search = new URLSearchParams({ q: params.q, limit: String(params.limit ?? 20) });
+		if (params.chapterMin) search.set("chapter_min", String(params.chapterMin));
+		if (params.chapterMax) search.set("chapter_max", String(params.chapterMax));
+		if (params.entityId) search.set("entity_id", params.entityId);
+		if (params.arcId) search.set("arc_id", params.arcId);
+		if (params.chunkKind) search.set("chunk_kind", params.chunkKind);
+		return request<StorySearchResponse>(`/stories/${storyId}/search?${search.toString()}`, { signal });
 	},
 	searchEntities: async (storyId: string, q: string) =>
 		(await request<{ entities: WikiEntity[] }>(

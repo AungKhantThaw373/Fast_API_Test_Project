@@ -62,6 +62,7 @@ class ChunkHit:
     end_line: int
     score: float
     scores: dict[str, float] = field(default_factory=dict)
+    entity_ids: list[UUID] = field(default_factory=list)
 
 
 @dataclass
@@ -336,6 +337,7 @@ def merge_adjacent(hits: list[ChunkHit]) -> list[ChunkHit]:
                 end_line=max(previous.end_line, hit.end_line),
                 score=max(previous.score, hit.score),
                 scores=previous.scores,
+                entity_ids=list(dict.fromkeys([*previous.entity_ids, *hit.entity_ids])),
             )
         else:
             merged.append(hit)
@@ -497,6 +499,7 @@ async def search_chunks(
                 end_line=chunk.end_line,
                 score=round(score, 6),
                 scores=raw_scores.get(chunk_id, {}),
+                entity_ids=list(chunk.entities),
             )
         )
     hits = cap_per_chapter(merge_adjacent(hits), cap=MAX_CHUNKS_PER_CHAPTER)[:limit]

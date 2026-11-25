@@ -8,6 +8,7 @@ import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/compon
 import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
 import { CommandPalette } from '@/components/command-palette';
+import { StorySearch } from '@/components/story-search';
 import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
 import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type Story, type StoryDetails, type StoryArc } from '@/lib/api';
@@ -15,7 +16,7 @@ import { clearBufferIfSaved, decideDraft, deleteDraft, getDraft, putDraft, type 
 import { retryDelayMs, saveStatus, shouldRetry, type SaveState } from '@/lib/save-state';
 import { lineNumberAt, lineRange, lineText } from '@/lib/selection';
 
-type Pane = 'notes' | 'findings' | 'mentions';
+type Pane = 'notes' | 'findings' | 'mentions' | 'find';
 type SaveSnapshot = { title: string; content: string };
 type ConflictPrompt = {
 	localTitle: string;
@@ -975,6 +976,21 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		editor.focus(); editor.setSelectionRange(range.start, range.end);
 	}
 
+	async function openSearchHit(chapterId: string, line: number) {
+		const target = chapters.find((item) => item.id === chapterId);
+		if (!target) return;
+		await selectChapter(target);
+		window.setTimeout(() => {
+			const editor = editorRef.current;
+			if (!editor) return;
+			const range = lineRange(editor.value, line);
+			editor.focus();
+			editor.setSelectionRange(range.start, range.end);
+			editor.scrollTop = Math.max(0, (line - 3) * 24);
+			setPaneOpen(false);
+		}, 60);
+	}
+
 	async function openFindingLine(finding: ContinuityFinding) {
 		if (findingsTargetChapterId !== activeId) {
 			const target = chapters.find((item) => item.id === findingsTargetChapterId);
@@ -1024,7 +1040,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			<section className="writing-column">
 				<header className="studio-topbar">
 					<div className="studio-breadcrumb"><button className="text-button" onClick={() => void go("/dashboard")}>Stories</button><span>/</span><span>{story.title}</span></div>
-					<div className="studio-actions"><button className="studio-section-link" onClick={() => void go('/editing')}>Editing files</button>{(() => {
+					<div className="studio-actions"><button className="studio-section-link" onClick={() => { setPane('find'); setPaneOpen(true); }}>Find in story</button><button className="studio-section-link" onClick={() => void go('/editing')}>Editing files</button>{(() => {
 						const status = saveStatus(saveState);
 						const isError = status.tone === 'error';
 						return (
@@ -1100,7 +1116,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					}}
 				/>
 				<div className="insights-heading"><div><div className="eyebrow">THE STORY, REMEMBERED</div><h2>Chapter desk</h2></div><span className="provider-status">{story.external_analysis_enabled ? 'AI checks on' : 'AI checks off'}</span></div>
-				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages"><button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Notes</button><button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button><button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button><button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={() => setPaneOpen(false)}>›</button></div>
+				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages"><button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Notes</button><button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button><button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button><button role="tab" aria-selected={pane === 'find'} className={pane === 'find' ? 'active' : ''} onClick={() => setPane('find')}>Find</button><button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={() => setPaneOpen(false)}>›</button></div>
 				<div className="pane-content">
 					{pane === 'notes' && <section className="notes-pane">
 						<div className="pane-section-title"><strong>This chapter</strong><span>{activeChapter ? `Chapter ${activeChapter.chapter_number}` : 'No chapter open'}</span></div>
@@ -1141,6 +1157,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							{bibleScanMessage && <p className={`bible-scan-message${bibleScanFailed ? ' is-error' : ''}`} role="status">{bibleScanMessage}</p>}
 						</section>
 					</section>}
+					{pane === 'find' && <StorySearch storyId={storyId} chapters={chapters} arcs={arcs} onOpen={(chapterId, line) => void openSearchHit(chapterId, line)} />}
 					{pane === 'mentions' && <NameCandidatesPanel
 						storyId={storyId}
 						chapter={activeChapter ? { id: activeChapter.id, chapter_number: activeChapter.chapter_number, title: activeChapter.title } : null}
