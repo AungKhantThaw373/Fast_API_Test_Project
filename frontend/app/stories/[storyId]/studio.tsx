@@ -1185,7 +1185,17 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					if (target) void selectChapter(target);
 				}}
 				onQuietView={() => setFocusMode((value) => !value)}
-				extra={[{ label: 'Ask your story', hint: 'Cited answer', run: () => { setPane('find'); setPaneOpen(true); setAskFocus((value) => value + 1); } }]}
+				onSearchHit={(chapterId, line) => void openSearchHit(chapterId, line)}
+				extra={[
+					{ label: 'Ask your story', hint: 'Cited answer', run: () => { setPane('find'); setPaneOpen(true); setAskFocus((value) => value + 1); } },
+					{ label: 'Run continuity check', hint: checking ? 'Checking…' : 'Current chapter', run: () => void runCheck(false, true) },
+					{ label: 'Add selected passage to wiki', hint: selection ? 'From selection' : 'Select text first', run: () => openCapture('entity') },
+					{ label: 'Add fact from selection', hint: selection ? 'From selection' : 'Select text first', run: () => openCapture('fact') },
+					{ label: 'Add thread from selection', hint: selection ? 'From selection' : 'Select text first', run: () => openCapture('thread') },
+					{ label: `Focus mode: ${editorPreferences.focusMode ? 'on' : 'off'}`, hint: 'Toggle', run: () => updateEditorPreferences({ ...editorPreferences, focusMode: !editorPreferences.focusMode }) },
+					{ label: `Typewriter mode: ${editorPreferences.typewriter ? 'on' : 'off'}`, hint: 'Toggle', run: () => updateEditorPreferences({ ...editorPreferences, typewriter: !editorPreferences.typewriter }) },
+					{ label: `Editor theme: ${editorPreferences.theme}`, hint: 'Cycle paper, sepia, night', run: () => updateEditorPreferences({ ...editorPreferences, theme: editorPreferences.theme === 'paper' ? 'sepia' : editorPreferences.theme === 'sepia' ? 'night' : 'paper' }) },
+				]}
 			/>
 
 			{!focusMode && !paneOpen && (
