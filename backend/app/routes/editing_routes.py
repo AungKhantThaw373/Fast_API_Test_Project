@@ -1,5 +1,7 @@
 import hashlib
+import io
 import logging
+import zipfile
 from pathlib import PurePosixPath
 from urllib.parse import quote
 from uuid import UUID
@@ -10,9 +12,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
+from app.config import settings
 from app.db import get_async_session
 from app.models.app_models import User
 from app.models.editing_models import DraftFile, EditingFolder
+from app.rate_limits import upload_rate_limit
 from app.schemas.editing import DraftFileUpdate, FolderCreate, FolderUpdate
 from app.security import get_current_user
 
@@ -30,6 +34,45 @@ ALLOWED_TYPES = {
     ".markdown": "text/markdown",
 }
 PREVIEWABLE = {".pdf", ".txt", ".md", ".markdown"}
+OLE_HEADER = bytes.fromhex("D0CF11E0A1B11AE1")
+
+
+def _validate_signature(extension: str, contents: bytes) -> None:
+    """Check the bytes, not just the name, before a file enters the library."""
+    if extension == ".pdf":
+        if not contents.startswith(b"%PDF-"):
+            raise HTTPException(status_code=415, detail="That file does not look like a PDF.")
+        return
+    if extension in {".docx", ".odt"}:
+        try:
+            with zipfile.ZipFile(io.BytesIO(contents)) as archive:
+                names = set(archive.namelist())
+                if extension == ".docx" and not {"[Content_Types].xml", "word/document.xml"} <= names:
+                    raise HTTPException(status_code=415, detail="That file does not look like a DOCX document.")
+                if extension == ".odt":
+                    if "mimetype" not in names:
+                        raise HTTPException(status_code=415, detail="That file does not look like an ODT document.")
+                    mime = archive.read("mimetype").decode("ascii", "ignore").strip()
+                    if mime != "application/vnd.oasis.opendocument.text":
+                        raise HTTPException(status_code=415, detail="That file does not look like an ODT document.")
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=415, detail="That file is not a valid ZIP-based document.") from None
+        return
+    if extension == ".doc":
+        if not contents.startswith(OLE_HEADER):
+            raise HTTPException(status_code=415, detail="That file does not look like a Word 97-2003 document.")
+        return
+    if extension == ".rtf":
+        if not contents.lstrip().lower().startswith(b"{\\rtf"):
+            raise HTTPException(status_code=415, detail="That file does not look like an RTF document.")
+        return
+    # Text and Markdown are always served as text/plain. Refuse NUL bytes and
+    # obvious HTML/SVG documents rather than letting a renamed page through.
+    if b"\x00" in contents:
+        raise HTTPException(status_code=415, detail="Text files cannot contain NUL bytes.")
+    leading = contents.lstrip()[:64].lower()
+    if leading.startswith((b"<html", b"<!doctype html", b"<svg", b"<?xml")):
+        raise HTTPException(status_code=415, detail="HTML and SVG cannot be uploaded as text drafts.")
 
 
 def _folder_data(folder: EditingFolder, count: int = 0, size: int = 0) -> dict:
@@ -239,7 +282,7 @@ async def list_draft_files(
     return {"files": [_file_data(draft, folder_name) for draft, folder_name in rows]}
 
 
-@router.post("/files", status_code=status.HTTP_201_CREATED)
+@router.post("/files", status_code=status.HTTP_201_CREATED, dependencies=[Depends(upload_rate_limit)])
 async def upload_draft_file(
     file: UploadFile = File(...),
     folder_id: str | None = Form(default=None),
@@ -265,6 +308,16 @@ async def upload_draft_file(
     else:
         folder = await _ensure_unsorted(session, user.id)
 
+    file_count, used_bytes = (await session.execute(
+        select(func.count(DraftFile.id), func.coalesce(func.sum(DraftFile.size_bytes), 0))
+        .where(DraftFile.owner_id == user.id)
+    )).one()
+    if file_count >= settings.USER_FILE_LIMIT:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Your library already holds {settings.USER_FILE_LIMIT} files. Remove some before uploading more.",
+        )
+
     chunks: list[bytes] = []
     total_size = 0
     while chunk := await file.read(1024 * 1024):
@@ -275,6 +328,17 @@ async def upload_draft_file(
     if not total_size:
         raise HTTPException(status_code=400, detail="The selected file is empty.")
     contents = b"".join(chunks)
+    if int(used_bytes) + total_size > settings.USER_STORAGE_QUOTA_BYTES:
+        remaining = max(0, settings.USER_STORAGE_QUOTA_BYTES - int(used_bytes))
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                "Your draft library is near its storage limit. "
+                f"{remaining / (1024 * 1024):.1f} MB remains of "
+                f"{settings.USER_STORAGE_QUOTA_BYTES / (1024 * 1024 * 1024):.1f} GB."
+            ),
+        )
+    _validate_signature(extension, contents)
     digest = hashlib.sha256(contents).hexdigest()
     duplicate = await session.scalar(select(DraftFile).where(
         DraftFile.owner_id == user.id,
@@ -345,6 +409,10 @@ async def get_draft_file_content(
             "Content-Disposition": f"{disposition}; filename*=UTF-8''{filename}",
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "private, no-store",
+            # Inline previews are only PDF or plain text. The sandbox and
+            # same-origin frame exception are scoped to this one response.
+            "Content-Security-Policy": "sandbox; default-src 'none'; frame-ancestors 'self'",
+            "X-Frame-Options": "SAMEORIGIN" if inline else "DENY",
         },
     )
 

@@ -19,6 +19,15 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 14
+    JWT_ISSUER: str = "stillroom"
+    JWT_AUDIENCE: str = "stillroom-api"
+    FRONTEND_URL: str = "http://localhost:3000"
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM: str = "stillroom@localhost"
+    SMTP_STARTTLS: bool = True
 
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_CHAT_MODEL: str = "qwen3:4b-instruct"
@@ -40,12 +49,30 @@ class Settings(BaseSettings):
     AI_MAX_CONCURRENT_REQUESTS: int = Field(default=3, ge=1, le=16)
     AI_SETTINGS_ENCRYPTION_KEY: str | None = None
     COOKIE_SECURE: bool = False
+    # Comma-separated browser origins allowed to call cookie-authenticated
+    # endpoints. Both localhost spellings are accepted by default.
+    FRONTEND_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    # Optional comma-separated hostnames for custom provider URLs. Empty means
+    # any public host is accepted. Useful for a locked-down deployment.
+    PROVIDER_HOST_ALLOWLIST: str = ""
+    USER_STORAGE_QUOTA_BYTES: int = Field(default=2 * 1024 * 1024 * 1024, ge=1)
+    USER_FILE_LIMIT: int = Field(default=500, ge=1)
+    # Soft warning only; the manual says not to hard-block normal manuscripts.
+    STORY_CHAPTER_WARNING: int = Field(default=1000, ge=1)
+    # Slow SQL is logged at WARNING; the request id comes from the logging filter.
+    SLOW_QUERY_MS: int = Field(default=500, ge=1)
+    # Relative paths are resolved from the repository root by the diagnostics route.
+    BACKUP_DIR: str = "backups"
 
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
         case_sensitive=False,
     )
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        return [item.strip().rstrip("/") for item in self.FRONTEND_ORIGINS.split(",") if item.strip()]
 
     @field_validator("JWT_SECRET")
     @classmethod

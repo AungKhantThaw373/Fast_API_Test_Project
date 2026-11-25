@@ -218,7 +218,7 @@ export default function EditingLibraryPage() {
 				</div>
 				<footer className="library-footer">Your files stay yours. Stillroom does not edit or rewrite these uploads.</footer>
 			</section>
-			{preview && <div className="preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreview(null); }}><section className="draft-preview" role="dialog" aria-modal="true" aria-label={`Preview ${preview.title}`}><header><div><strong>{preview.title}</strong><span>{preview.original_filename}</span></div><button className="quiet-button" onClick={() => setPreview(null)}>Close</button></header><iframe title={`Read-only preview of ${preview.title}`} src={api.draftFileContentUrl(preview.id, true)} referrerPolicy="no-referrer" /></section></div>}
+			{preview && <div className="preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreview(null); }}><section className="draft-preview" role="dialog" aria-modal="true" aria-label={`Preview ${preview.title}`}><header><div><strong>{preview.title}</strong><span>{preview.original_filename}</span></div><button className="quiet-button" onClick={() => setPreview(null)}>Close</button></header><iframe title={`Read-only preview of ${preview.title}`} src={api.draftFileContentUrl(preview.id, true)} referrerPolicy="no-referrer" sandbox="allow-same-origin" /></section></div>}
 		</main>
 	);
 }
