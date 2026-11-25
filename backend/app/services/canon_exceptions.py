@@ -108,7 +108,7 @@ def matches(exception: CanonException, finding: DraftFinding) -> bool:
     if not pattern:
         return False
     haystack = " ".join(
-        (finding.draft_quote, finding.earlier_quote, finding.explanation)
+        (finding.draft_quote, finding.earlier_quote or "", finding.explanation)
     ).casefold()
     return pattern in haystack
 

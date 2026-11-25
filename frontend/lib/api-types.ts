@@ -196,6 +196,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stories/{story_id}/ai-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ai Usage */
+        get: operations["get_ai_usage_stories__story_id__ai_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask */
+        post: operations["ask_stories__story_id__ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/arcs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Arcs */
+        get: operations["list_arcs_stories__story_id__arcs_get"];
+        /** Assign Chapters */
+        put: operations["assign_chapters_stories__story_id__arcs_put"];
+        /** Create Arc */
+        post: operations["create_arc_stories__story_id__arcs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/arcs/{arc_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Arc */
+        delete: operations["delete_arc_arcs__arc_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Arc */
+        patch: operations["update_arc_arcs__arc_id__patch"];
+        trace?: never;
+    };
     "/stories/{story_id}/chapters": {
         parameters: {
             query?: never;
@@ -490,6 +561,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stories/chapters/{chapter_id}/scan-job": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue Chapter Scan */
+        post: operations["queue_chapter_scan_stories_chapters__chapter_id__scan_job_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stories/findings/{finding_id}/intentional": {
         parameters: {
             query?: never;
@@ -535,6 +623,23 @@ export interface paths {
         get: operations["get_job_jobs__job_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Job */
+        post: operations["cancel_job_jobs__job_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1048,6 +1153,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stories/{story_id}/chapters/{chapter_id}/name-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Name Candidates */
+        get: operations["list_name_candidates_stories__story_id__chapters__chapter_id__name_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/name-candidates/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept Name Candidate */
+        post: operations["accept_name_candidate_stories__story_id__name_candidates_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stories/{story_id}/exceptions": {
         parameters: {
             query?: never;
@@ -1083,6 +1222,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stories/{story_id}/inbox/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Inbox Items */
+        post: operations["decide_inbox_items_stories__story_id__inbox_decide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/inbox/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Auto Accept Rules */
+        get: operations["get_auto_accept_rules_stories__story_id__inbox_rules_get"];
+        /** Save Auto Accept Rules */
+        put: operations["save_auto_accept_rules_stories__story_id__inbox_rules_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/inbox/rules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Auto Accept */
+        get: operations["preview_auto_accept_stories__story_id__inbox_rules_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/inbox/auto-accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Auto Accept */
+        post: operations["run_auto_accept_stories__story_id__inbox_auto_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/merge-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Merge Proposals */
+        get: operations["list_merge_proposals_stories__story_id__merge_proposals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stories/{story_id}/inbox": {
         parameters: {
             query?: never;
@@ -1092,6 +1317,23 @@ export interface paths {
         };
         /** Get Inbox */
         get: operations["get_inbox_stories__story_id__inbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Story */
+        get: operations["search_story_stories__story_id__search_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1110,13 +1352,51 @@ export interface components {
              * Provider
              * @enum {string}
              */
-            provider: "openrouter" | "openai" | "anthropic" | "google" | "cohere" | "cohere_compat" | "deepseek" | "groq" | "mistral" | "together" | "fireworks" | "cerebras" | "custom";
+            provider: "ollama" | "openrouter" | "openai" | "anthropic" | "google" | "cohere" | "cohere_compat" | "deepseek" | "groq" | "mistral" | "together" | "fireworks" | "cerebras" | "custom";
             /** Model */
             model: string;
             /** Api Key */
             api_key?: string | null;
             /** Base Url */
             base_url?: string | null;
+        };
+        /** AIUsageOut */
+        AIUsageOut: {
+            /** Month */
+            month: string;
+            /** Calls */
+            calls: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Spent Usd */
+            spent_usd: number;
+            /** Budget Usd */
+            budget_usd: number;
+            /** Remaining Usd */
+            remaining_usd: number;
+            /** By Purpose */
+            by_purpose: components["schemas"]["AIUsagePurposeOut"][];
+        };
+        /** AIUsagePurposeOut */
+        AIUsagePurposeOut: {
+            /** Purpose */
+            purpose: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Calls */
+            calls: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Average Duration Ms */
+            average_duration_ms: number;
         };
         /** AliasCreate */
         AliasCreate: {
@@ -1167,6 +1447,130 @@ export interface components {
             line_end: number;
             /** Quote */
             quote: string;
+        };
+        /** ArcAssignment */
+        ArcAssignment: {
+            /** Arc Id */
+            arc_id?: string | null;
+            /** Chapter Ids */
+            chapter_ids: string[];
+        };
+        /** ArcCreate */
+        ArcCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+        };
+        /** ArcOut */
+        ArcOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string;
+            /** Position */
+            position: number;
+            /**
+             * Chapter Count
+             * @default 0
+             */
+            chapter_count: number;
+            /** First Chapter Number */
+            first_chapter_number?: number | null;
+            /** Last Chapter Number */
+            last_chapter_number?: number | null;
+        };
+        /** ArcUpdate */
+        ArcUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Position */
+            position?: number | null;
+        };
+        /** AskCitationOut */
+        AskCitationOut: {
+            /** Chunk Id */
+            chunk_id: string;
+            /** Chapter Number */
+            chapter_number: number;
+            /** Line */
+            line: number;
+            /** Quote */
+            quote: string;
+            /** Explanation */
+            explanation: string;
+        };
+        /** AskStoryIn */
+        AskStoryIn: {
+            /** Question */
+            question: string;
+        };
+        /** AskStoryOut */
+        AskStoryOut: {
+            /** Answer */
+            answer: string;
+            /** Unsure */
+            unsure: boolean;
+            /** Citations */
+            citations: components["schemas"]["AskCitationOut"][];
+        };
+        /** AutoAcceptPreviewOut */
+        AutoAcceptPreviewOut: {
+            /** Would Accept */
+            would_accept: number;
+            /** Held */
+            held: number;
+            /** Total */
+            total: number;
+            rules: components["schemas"]["AutoAcceptRulesOut"];
+        };
+        /** AutoAcceptRulesIn */
+        AutoAcceptRulesIn: {
+            /** Require Quote */
+            require_quote?: boolean | null;
+            /** Min Confidence */
+            min_confidence?: number | null;
+            /** Require Existing Entity */
+            require_existing_entity?: boolean | null;
+            /** Block Conflicts */
+            block_conflicts?: boolean | null;
+            /** Max Per Chapter */
+            max_per_chapter?: number | null;
+        };
+        /** AutoAcceptRulesOut */
+        AutoAcceptRulesOut: {
+            /** Require Quote */
+            require_quote: boolean;
+            /** Min Confidence */
+            min_confidence: number;
+            /** Require Existing Entity */
+            require_existing_entity: boolean;
+            /** Block Conflicts */
+            block_conflicts: boolean;
+            /** Max Per Chapter */
+            max_per_chapter: number;
+        };
+        /** AutoAcceptRunOut */
+        AutoAcceptRunOut: {
+            /** Accepted */
+            accepted: number;
+            /** Held */
+            held: number;
         };
         /** BibleDecision */
         BibleDecision: {
@@ -1376,6 +1780,8 @@ export interface components {
             story_id: string;
             /** Chapter Number */
             chapter_number: number;
+            /** Arc Id */
+            arc_id?: string | null;
             /** Title */
             title: string;
             /** Word Count */
@@ -1442,6 +1848,8 @@ export interface components {
             story_id: string;
             /** Chapter Number */
             chapter_number: number;
+            /** Arc Id */
+            arc_id?: string | null;
             /** Title */
             title: string;
             /** Word Count */
@@ -1903,7 +2311,7 @@ export interface components {
             /** Draft Line */
             draft_line: number;
             /** Earlier Quote */
-            earlier_quote: string;
+            earlier_quote: string | null;
             /** Earlier Chapter Id */
             earlier_chapter_id: string | null;
             /** Earlier Chapter Number */
@@ -1918,6 +2326,19 @@ export interface components {
             intentional: boolean;
             /** Review Status */
             review_status: string;
+            /**
+             * Source
+             * @default llm
+             */
+            source: string;
+            /** Rule Id */
+            rule_id?: string | null;
+            /** Scene Index */
+            scene_index?: number | null;
+            /** Evidence Kind */
+            evidence_kind?: string | null;
+            /** Evidence Id */
+            evidence_id?: string | null;
         };
         /** FindingReviewOut */
         FindingReviewOut: {
@@ -1953,6 +2374,26 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InboxDecision */
+        InboxDecision: {
+            /** Ids */
+            ids: string[];
+            /** Action */
+            action: string;
+        };
+        /** InboxDecisionResult */
+        InboxDecisionResult: {
+            /** Facts */
+            facts: number;
+            /** Findings */
+            findings: number;
+            /** Merges */
+            merges: number;
+            /** Skipped */
+            skipped: number;
+            /** Action */
+            action: string;
         };
         /** InboxItemOut */
         InboxItemOut: {
@@ -2067,6 +2508,39 @@ export interface components {
             /** Content */
             content: string;
         };
+        /** MergeProposalOut */
+        MergeProposalOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /**
+             * Target Id
+             * Format: uuid
+             */
+            target_id: string;
+            /** Source Name */
+            source_name: string;
+            /** Target Name */
+            target_name: string;
+            /** Score */
+            score: number;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at?: unknown | null;
+        };
         /** MergeRequest */
         MergeRequest: {
             /**
@@ -2098,6 +2572,48 @@ export interface components {
             moved: {
                 [key: string]: number;
             };
+        };
+        /** NameCandidateAccept */
+        NameCandidateAccept: {
+            /** Name */
+            name: string;
+            /**
+             * Entity Type
+             * @enum {string}
+             */
+            entity_type: "character" | "location" | "item" | "organization" | "concept" | "world_rule" | "power_system" | "creature" | "other";
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /** Line Start */
+            line_start?: number | null;
+            /** Quote */
+            quote?: string | null;
+        };
+        /** NameCandidateListOut */
+        NameCandidateListOut: {
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /** Chapter Number */
+            chapter_number: number;
+            /** Candidates */
+            candidates: components["schemas"]["NameCandidateOut"][];
+        };
+        /** NameCandidateOut */
+        NameCandidateOut: {
+            /** Name */
+            name: string;
+            /** Count */
+            count: number;
+            /** First Line */
+            first_line: number;
+            /** Sample */
+            sample: string;
         };
         /** RelationshipCreate */
         RelationshipCreate: {
@@ -2230,6 +2746,14 @@ export interface components {
             /** Reused */
             reused: boolean;
         };
+        /** ScanJobOut */
+        ScanJobOut: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+        };
         /** ScanSummaryOut */
         ScanSummaryOut: {
             /**
@@ -2241,6 +2765,27 @@ export interface components {
             chapter_revision: number;
             /** Chapter Word Count */
             chapter_word_count: number;
+            /** Prompt Version */
+            prompt_version?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Schema Version */
+            schema_version?: string | null;
+            /**
+             * Scenes Total
+             * @default 0
+             */
+            scenes_total: number;
+            /**
+             * Scenes Done
+             * @default 0
+             */
+            scenes_done: number;
+            /**
+             * Scenes Failed
+             * @default 0
+             */
+            scenes_failed: number;
             /**
              * Created At
              * Format: date-time
@@ -2256,6 +2801,74 @@ export interface components {
             id: string;
             /** Revision */
             revision: number;
+        };
+        /** SearchEntityOut */
+        SearchEntityOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Entity Type */
+            entity_type: string;
+        };
+        /** SearchHitOut */
+        SearchHitOut: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /** Chapter Number */
+            chapter_number: number;
+            /** Chapter Title */
+            chapter_title: string;
+            /** Scene Index */
+            scene_index: number;
+            /** Chunk Index */
+            chunk_index: number;
+            /** Start Line */
+            start_line: number;
+            /** End Line */
+            end_line: number;
+            /** Quote */
+            quote: string;
+            /** Score */
+            score: number;
+            /** Scores */
+            scores?: {
+                [key: string]: number;
+            };
+            /** Entities */
+            entities?: components["schemas"]["SearchEntityOut"][];
+        };
+        /** SearchOut */
+        SearchOut: {
+            /** Query */
+            query: string;
+            /** Semantic Query */
+            semantic_query: string;
+            /** Lexical Query */
+            lexical_query: string;
+            /** Name Query */
+            name_query: string;
+            /** Entity Ids */
+            entity_ids?: string[];
+            /** Cache Hit */
+            cache_hit: boolean;
+            /** Timings Ms */
+            timings_ms?: {
+                [key: string]: number;
+            };
+            /** Results */
+            results?: components["schemas"]["SearchHitOut"][];
         };
         /** StoryCreate */
         StoryCreate: {
@@ -2277,6 +2890,8 @@ export interface components {
             scan_interval_words: number;
             /** External Analysis Enabled */
             external_analysis_enabled: boolean;
+            /** Monthly Ai Budget */
+            monthly_ai_budget: number;
             /**
              * Created At
              * Format: date-time
@@ -2323,6 +2938,8 @@ export interface components {
             scan_interval_words: number;
             /** External Analysis Enabled */
             external_analysis_enabled: boolean;
+            /** Monthly Ai Budget */
+            monthly_ai_budget: number;
             /**
              * Created At
              * Format: date-time
@@ -2351,6 +2968,8 @@ export interface components {
             scan_interval_words: number;
             /** External Analysis Enabled */
             external_analysis_enabled: boolean;
+            /** Monthly Ai Budget */
+            monthly_ai_budget: number;
             /**
              * Created At
              * Format: date-time
@@ -2378,6 +2997,8 @@ export interface components {
             scan_interval_words?: number | null;
             /** External Analysis Enabled */
             external_analysis_enabled?: boolean | null;
+            /** Monthly Ai Budget */
+            monthly_ai_budget?: number | null;
         };
         /** ThreadCreate */
         ThreadCreate: {
@@ -2988,6 +3609,255 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChapterIndexStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ai_usage_stories__story_id__ai_usage_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+            };
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIUsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_stories__story_id__ask_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskStoryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskStoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_arcs_stories__story_id__arcs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArcOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_chapters_stories__story_id__arcs_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArcAssignment"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_arc_stories__story_id__arcs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArcCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArcOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_arc_arcs__arc_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                arc_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_arc_arcs__arc_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                arc_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArcUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArcOut"];
                 };
             };
             /** @description Validation Error */
@@ -3789,6 +4659,41 @@ export interface operations {
             };
         };
     };
+    queue_chapter_scan_stories_chapters__chapter_id__scan_job_post: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                chapter_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     mark_finding_intentional_stories_findings__finding_id__intentional_patch: {
         parameters: {
             query?: never;
@@ -3864,6 +4769,39 @@ export interface operations {
         };
     };
     get_job_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_job_jobs__job_id__cancel_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4397,6 +5335,7 @@ export interface operations {
                 entity_type?: string | null;
                 status?: string | null;
                 q?: string | null;
+                arc_id?: string | null;
                 limit?: number | null;
                 cursor?: string | null;
             };
@@ -5366,6 +6305,77 @@ export interface operations {
             };
         };
     };
+    list_name_candidates_stories__story_id__chapters__chapter_id__name_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+                chapter_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NameCandidateListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_name_candidate_stories__story_id__name_candidates_accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NameCandidateAccept"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_exceptions_stories__story_id__exceptions_get: {
         parameters: {
             query?: never;
@@ -5467,6 +6477,212 @@ export interface operations {
             };
         };
     };
+    decide_inbox_items_stories__story_id__inbox_decide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboxDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxDecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_auto_accept_rules_stories__story_id__inbox_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoAcceptRulesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_auto_accept_rules_stories__story_id__inbox_rules_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoAcceptRulesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoAcceptRulesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_auto_accept_stories__story_id__inbox_rules_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoAcceptPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_auto_accept_stories__story_id__inbox_auto_accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoAcceptRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_merge_proposals_stories__story_id__merge_proposals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeProposalOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_inbox_stories__story_id__inbox_get: {
         parameters: {
             query?: {
@@ -5493,6 +6709,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InboxOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_story_stories__story_id__search_get: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+                chapter_min?: number | null;
+                chapter_max?: number | null;
+                entity_id?: string | null;
+                arc_id?: string | null;
+                chunk_kind?: string | null;
+            };
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchOut"];
                 };
             };
             /** @description Validation Error */

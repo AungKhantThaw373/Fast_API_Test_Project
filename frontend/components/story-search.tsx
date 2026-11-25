@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { ApiRequestError, api, type Chapter, type StoryArc, type StorySearchHit, type StorySearchResponse, type WikiEntity } from '@/lib/api';
+import { ApiRequestError, api, type AskStoryResponse, type Chapter, type StoryArc, type StorySearchHit, type StorySearchResponse, type WikiEntity } from '@/lib/api';
 
 type Props = {
 	storyId: string;
 	chapters: Chapter[];
 	arcs: StoryArc[];
+	/** Increment to focus the Ask input from the command palette. */
+	focusAsk?: number;
 	onOpen: (chapterId: string, line: number) => void;
 };
 
@@ -23,7 +25,8 @@ function scoreRows(hit: StorySearchHit): Array<[string, number]> {
 		.sort((left, right) => right[1] - left[1]);
 }
 
-export function StorySearch({ storyId, chapters, arcs, onOpen }: Props) {
+export function StorySearch({ storyId, chapters, arcs, focusAsk = 0, onOpen }: Props) {
+	const askInput = useRef<HTMLInputElement>(null);
 	const [query, setQuery] = useState('');
 	const [chapterMin, setChapterMin] = useState('');
 	const [chapterMax, setChapterMax] = useState('');
@@ -34,6 +37,14 @@ export function StorySearch({ storyId, chapters, arcs, onOpen }: Props) {
 	const [response, setResponse] = useState<StorySearchResponse | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
+	const [askQuestion, setAskQuestion] = useState('');
+	const [askResult, setAskResult] = useState<AskStoryResponse | null>(null);
+	const [asking, setAsking] = useState(false);
+	const [askError, setAskError] = useState('');
+
+	useEffect(() => {
+		if (focusAsk > 0) askInput.current?.focus();
+	}, [focusAsk]);
 
 	useEffect(() => {
 		let alive = true;
@@ -82,6 +93,21 @@ export function StorySearch({ storyId, chapters, arcs, onOpen }: Props) {
 		return Math.round(visibleResponse.timings_ms.total ?? 0);
 	}, [visibleResponse]);
 
+	async function ask() {
+		const question = askQuestion.trim();
+		if (question.length < 3 || asking) return;
+		setAsking(true);
+		setAskError('');
+		try { setAskResult(await api.askStory(storyId, question)); }
+		catch (cause) { setAskResult(null); setAskError(cause instanceof ApiRequestError ? cause.message : 'The story could not answer that question.'); }
+		finally { setAsking(false); }
+	}
+
+	function openCitation(chapterNumber: number, line: number) {
+		const chapter = chapters.find((item) => item.chapter_number === chapterNumber);
+		if (chapter) onOpen(chapter.id, line);
+	}
+
 	function clearFilters() {
 		setChapterMin('');
 		setChapterMax('');
@@ -99,6 +125,16 @@ export function StorySearch({ storyId, chapters, arcs, onOpen }: Props) {
 				<h2>What does the story remember?</h2>
 				<p>Search the same passages the continuity check reads. Results combine meaning, exact words, and names.</p>
 			</div>
+			<form className="story-ask" onSubmit={(event) => { event.preventDefault(); void ask(); }}>
+				<div className="pane-section-title"><strong>Ask the story</strong><span>Answers cite the manuscript</span></div>
+				<div className="story-ask-row">
+					<input ref={askInput} value={askQuestion} onChange={(event) => setAskQuestion(event.target.value)} placeholder="What did Mira promise at the gate?" aria-label="Ask a question about this story" maxLength={1000} />
+					<button className="button" type="submit" disabled={askQuestion.trim().length < 3 || asking}>{asking ? 'Reading…' : 'Ask'}</button>
+				</div>
+				<p className="pane-hint">No outside knowledge. If the indexed pages cannot support an answer, it refuses.</p>
+				{askError && <div className="studio-notice error-notice" role="alert">{askError}</div>}
+				{askResult && <div className={`story-ask-result${askResult.unsure ? ' unsure' : ''}`}><p>{askResult.answer}</p>{askResult.citations.length > 0 && <ul>{askResult.citations.map((citation) => <li key={`${citation.chunk_id}-${citation.line}`}><button className="text-button" onClick={() => openCitation(citation.chapter_number, citation.line)}>Chapter {citation.chapter_number}, line {citation.line}</button><blockquote>“{citation.quote}”</blockquote></li>)}</ul>}</div>}
+			</form>
 			<label className="story-search-query">
 				<span>Search this story</span>
 				<input

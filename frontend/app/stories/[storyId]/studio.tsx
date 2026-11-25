@@ -11,7 +11,7 @@ import { CommandPalette } from '@/components/command-palette';
 import { StorySearch } from '@/components/story-search';
 import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
-import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type Story, type StoryDetails, type StoryArc } from '@/lib/api';
+import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type AIUsage, type Story, type StoryDetails, type StoryArc } from '@/lib/api';
 import { clearBufferIfSaved, decideDraft, deleteDraft, getDraft, putDraft, type DraftRecord } from '@/lib/draft-buffer';
 import { retryDelayMs, saveStatus, shouldRetry, type SaveState } from '@/lib/save-state';
 import { lineNumberAt, lineRange, lineText } from '@/lib/selection';
@@ -85,6 +85,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [findings, setFindings] = useState<ContinuityFinding[]>([]);
 	const [findingsChapterId, setFindingsChapterId] = useState('');
 	const [findingsTargetChapterId, setFindingsTargetChapterId] = useState('');
+	const [aiUsage, setAIUsage] = useState<AIUsage | null>(null);
 	const [bibleScanStart, setBibleScanStart] = useState(1);
 	const [bibleScanEnd, setBibleScanEnd] = useState(1);
 	const [bibleScanForce, setBibleScanForce] = useState(false);
@@ -97,10 +98,12 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [historyLoading, setHistoryLoading] = useState(false);
 	const [findingFilter, setFindingFilter] = useState<'open' | 'resolved' | 'dismissed' | 'all'>('open');
 	const [pane, setPane] = useState<Pane>('notes');
+	const [askFocus, setAskFocus] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [checking, setChecking] = useState(false);
 	const [checkRetryCountdown, setCheckRetryCountdown] = useState(0);
+	const [scanProgress, setScanProgress] = useState<{ scenes_done?: number; scenes_total?: number; scenes_failed?: number } | null>(null);
 	const [lastScan, setLastScan] = useState<{ chapterId: string; revision: number } | null>(null);
 	const [focusMode, setFocusMode] = useState(false);
 	const [paneOpen, setPaneOpen] = useState(true);
@@ -168,15 +171,17 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		let alive = true;
 		async function load() {
 			try {
-				const [storyData, bible, storyList, arcList] = await Promise.all([
+				const [storyData, bible, storyList, arcList, usage] = await Promise.all([
 					api.story(storyId),
 					api.bible(storyId),
 					api.stories(),
 					// Arcs are optional furniture: an empty list must never block the draft.
 					api.arcs(storyId).catch(() => [] as StoryArc[]),
+					api.aiUsage(storyId).catch(() => null),
 				]);
 				if (!alive) return;
 				setStory(storyData);
+				setAIUsage(usage);
 				setChapters(storyData.chapters);
 				setArcs(arcList);
 				setEntries(bible);
@@ -264,6 +269,49 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		const timer = window.setTimeout(() => setCheckRetryCountdown((remaining) => Math.max(0, remaining - 1)), 1000);
 		return () => window.clearTimeout(timer);
 	}, [checkRetryCountdown]);
+
+	useEffect(() => {
+		if (!activeChapterId) return;
+		const chapterId = activeChapterId;
+		const key = `stillroom-scan:${storyId}:${chapterId}`;
+		const jobId = window.sessionStorage.getItem(key);
+		if (!jobId) return;
+		const activeJobId = jobId;
+		let alive = true;
+		async function resume() {
+			setChecking(true);
+			setNotice('Resuming the continuity check that was running before the page reloaded.');
+			try {
+				let completed = false;
+				for (let attempt = 0; attempt < 600; attempt += 1) {
+					await new Promise<void>((resolve) => window.setTimeout(resolve, 1000));
+					if (!alive) return;
+					const job = await api.job(activeJobId);
+					setScanProgress(job.progress);
+					if (job.status === 'succeeded') { completed = true; break; }
+					if (job.status === 'cancelled' || job.status === 'dead') throw new Error(job.last_error ?? 'The continuity check did not finish.');
+				}
+				if (!alive) return;
+				if (!completed) throw new Error('The continuity check is still running. Its result will be saved when it finishes.');
+				const latest = await api.latestScan(chapterId);
+				if (!alive) return;
+				setFindingsTargetChapterId(chapterId);
+				setFindingsChapterId(chapterId);
+				setFindings(latest.findings);
+				setLastScan(latest.scan ? { chapterId, revision: latest.scan.chapter_revision } : null);
+				setNotice(latest.scan?.scenes_failed
+					? `The background check finished, but ${latest.scan.scenes_failed} scene${latest.scan.scenes_failed === 1 ? '' : 's'} could not be checked.`
+					: latest.findings.length ? 'The background check finished. A few details may be worth another look.' : 'The background check finished with no clear conflicts.');
+			} catch (cause) {
+				if (alive) setError(cause instanceof Error ? cause.message : 'The background check could not be resumed.');
+			} finally {
+				if (alive) { setChecking(false); setScanProgress(null); }
+				window.sessionStorage.removeItem(key);
+			}
+		}
+		void resume();
+		return () => { alive = false; };
+	}, [activeChapterId, storyId]);
 
 	useEffect(() => {
 		if (!activeChapterId || activeChapterRevision === undefined || findingsTargetChapterId !== activeChapterId) return;
@@ -797,7 +845,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 	}
 
-	async function changeStorySetting(changes: { external_analysis_enabled?: boolean; scan_interval_words?: number }): Promise<boolean> {
+	async function changeStorySetting(changes: { external_analysis_enabled?: boolean; scan_interval_words?: number; monthly_ai_budget?: number }): Promise<boolean> {
 		if (!story) return false;
 		try { setStory({ ...story, ...await api.updateStory(storyId, changes) }); setError(''); return true; }
 		catch (cause) { setError(cause instanceof Error ? cause.message : 'Story settings could not be saved.'); return false; }
@@ -820,6 +868,13 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		} finally {
 			setScanningBible(false);
 		}
+	}
+
+	async function cancelScan(chapterId: string) {
+		const jobId = window.sessionStorage.getItem(`stillroom-scan:${storyId}:${chapterId}`);
+		if (!jobId) return;
+		try { await api.cancelJob(jobId); setNotice('Cancelling after the current scene…'); }
+		catch (cause) { setError(cause instanceof Error ? cause.message : 'The check could not be cancelled.'); }
 	}
 
 	async function retryIndex() {
@@ -868,7 +923,19 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			}
 			if (!ready) throw new Error('Story memory is taking longer than expected. Try the check again shortly.');
 			scannedRevision = revisionRef.current.get(chapterId);
-			const result = await api.scanChapter(chapterId, force);
+			const queued = await api.queueScan(chapterId, force);
+			window.sessionStorage.setItem(`stillroom-scan:${storyId}:${chapterId}`, queued.job_id);
+			setNotice('The check is running in the background. You can keep writing.');
+			let completed = false;
+			for (let attempt = 0; attempt < 600; attempt += 1) {
+				await new Promise<void>((resolve) => window.setTimeout(resolve, 1000));
+				const job = await api.job(queued.job_id);
+				setScanProgress(job.progress);
+				if (job.status === 'succeeded') { completed = true; break; }
+				if (job.status === 'cancelled') throw new Error('The continuity check was cancelled.');
+				if (job.status === 'dead') throw new Error(job.last_error ?? 'The continuity check failed.');
+			}
+			if (!completed) throw new Error('The continuity check is taking longer than expected. Its result will still be saved when it finishes.');
 			const latest = await api.latestScan(chapterId);
 			setFindingsTargetChapterId(chapterId);
 			setFindingsChapterId(chapterId);
@@ -877,8 +944,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			lastScannedWordsRef.current.set(chapterId, latest.scan?.chapter_word_count ?? words);
 			setNotice(automatic
 				? 'Your scheduled continuity check is complete.'
-				: result.reused
-					? 'This saved draft was already checked, so the stored findings are shown. Use Run again for a fresh provider request.'
+				: latest.scan?.scenes_failed
+					? `${latest.scan.scenes_failed} scene${latest.scan.scenes_failed === 1 ? '' : 's'} could not be checked; the rest of the scan is saved. Run again to retry them.`
 					: latest.scan?.chapter_revision === revisionRef.current.get(chapterId)
 						? latest.findings.length ? 'A few details may be worth another look.' : 'No clear continuity conflicts found in earlier chapters.'
 						: 'The chapter changed while it was being checked. Run the check again to review the latest text.');
@@ -898,7 +965,12 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				}
 				setError(cause instanceof Error ? cause.message.replace(/ \(\d+\)$/, '') : 'The continuity check could not be completed.');
 			}
-		} finally { scanBusyRef.current = false; setChecking(false); }
+		} finally {
+			scanBusyRef.current = false;
+			setChecking(false);
+			setScanProgress(null);
+			window.sessionStorage.removeItem(`stillroom-scan:${storyId}:${chapterId}`);
+		}
 	}
 
 	useEffect(() => {
@@ -1089,6 +1161,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					if (target) void selectChapter(target);
 				}}
 				onQuietView={() => setFocusMode((value) => !value)}
+				extra={[{ label: 'Ask your story', hint: 'Cited answer', run: () => { setPane('find'); setPaneOpen(true); setAskFocus((value) => value + 1); } }]}
 			/>
 
 			{!focusMode && !paneOpen && (
@@ -1145,6 +1218,19 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							<small>Automatic checks are optional. You can also check a draft manually.</small>
 						</label>
 						<div className="ai-privacy-note"><strong>Privacy</strong><p>External analysis is limited to this story. Local indexing stays on Ollama.</p></div>
+						<section className="ai-usage-panel">
+							<div className="pane-section-title"><strong>AI usage this month</strong><span>{aiUsage ? `${aiUsage.calls} ${aiUsage.calls === 1 ? 'call' : 'calls'}` : 'No calls yet'}</span></div>
+							<dl className="notes-stats">
+								<div><dt>Spent</dt><dd>{aiUsage ? `$${aiUsage.spent_usd.toFixed(2)}` : '$0.00'}</dd></div>
+								<div><dt>Tokens</dt><dd>{aiUsage ? (aiUsage.input_tokens + aiUsage.output_tokens).toLocaleString() : '0'}</dd></div>
+							</dl>
+							<label className="ai-field">
+								<span>Monthly cloud budget (USD)</span>
+								<input key={story.monthly_ai_budget} type="number" min={0} step={5} defaultValue={story.monthly_ai_budget} onBlur={(event) => { const value = Math.max(0, Number(event.target.value) || 0); if (value !== story.monthly_ai_budget) void changeStorySetting({ monthly_ai_budget: value }); }} />
+								<small>Zero keeps this story local-only. Cloud scans are refused before they spend above the budget.</small>
+							</label>
+							{aiUsage && aiUsage.by_purpose.length > 0 && <ul className="notes-mentions">{aiUsage.by_purpose.slice(0, 4).map((entry) => <li key={`${entry.purpose}-${entry.model}`}><span>{entry.purpose}</span><span>{entry.calls} · ${entry.cost_usd.toFixed(3)}</span></li>)}</ul>}
+						</section>
 						<section className="bible-scan-panel">
 							<div className="pane-section-title"><strong>Read for details</strong><span>Finds proposals</span></div>
 							<p className="pane-hint">Choose a chapter range. Anything found becomes a proposal in the review inbox.</p>
@@ -1157,7 +1243,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							{bibleScanMessage && <p className={`bible-scan-message${bibleScanFailed ? ' is-error' : ''}`} role="status">{bibleScanMessage}</p>}
 						</section>
 					</section>}
-					{pane === 'find' && <StorySearch storyId={storyId} chapters={chapters} arcs={arcs} onOpen={(chapterId, line) => void openSearchHit(chapterId, line)} />}
+					{pane === 'find' && <StorySearch storyId={storyId} chapters={chapters} arcs={arcs} focusAsk={askFocus} onOpen={(chapterId, line) => void openSearchHit(chapterId, line)} />}
 					{pane === 'mentions' && <NameCandidatesPanel
 						storyId={storyId}
 						chapter={activeChapter ? { id: activeChapter.id, chapter_number: activeChapter.chapter_number, title: activeChapter.title } : null}
@@ -1169,8 +1255,9 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							<select className="finding-filter" aria-label="Choose chapter findings" value={findingsTargetChapterId || activeId} onChange={(event) => void changeFindingChapter(event.target.value)}><option value="" disabled>Select chapter</option>{chapters.map((item) => <option key={item.id} value={item.id}>Ch. {item.chapter_number}</option>)}</select>
 							<select className="finding-filter" aria-label="Filter continuity findings" value={findingFilter} onChange={(event) => setFindingFilter(event.target.value as typeof findingFilter)}><option value="open">Open</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option><option value="all">All</option></select>
 							<button className="button button-check" disabled={!activeChapter || findingsTargetChapterId !== activeId || !story.external_analysis_enabled || !earlierChaptersReady || activeChapter.index_status !== 'indexed' || checking || checkRetryCountdown > 0} onClick={() => void runCheck()}>
-								{checking ? <><span className="tiny-spinner" /> Checking…</> : checkRetryCountdown > 0 ? `Retry in ${checkRetryCountdown}s` : 'Check draft'}
+								{checking ? <><span className="tiny-spinner" /> {scanProgress?.scenes_total ? `Checking ${scanProgress.scenes_done ?? 0}/${scanProgress.scenes_total}…` : 'Checking…'}</> : checkRetryCountdown > 0 ? `Retry in ${checkRetryCountdown}s` : 'Check draft'}
 							</button>
+							{checking && activeChapter && <button className="text-button" onClick={() => void cancelScan(activeChapter.id)}>Cancel</button>}
 						</div>
 						<p className="pane-hint">{findingsTargetChapterId !== activeId ? 'You are viewing saved findings for another chapter. Select the open chapter to run a new check.' : !story.external_analysis_enabled ? 'Enable AI checks in AI settings to review this draft.' : !earlierChapters.length ? 'Add an earlier chapter to compare against.' : !earlierChaptersReady ? 'Waiting for earlier chapters to finish indexing.' : activeChapter?.index_status !== 'indexed' ? 'This chapter is still being indexed.' : 'Potential conflicts pair a line in this draft with evidence from earlier chapters only.'}</p>
 						{savedScanReady && <div className="reuse-hint"><span>These findings are already stored for this saved draft. Check draft reuses them at no provider cost.</span><button className="text-button" title="Send this draft to your provider again" disabled={findingsTargetChapterId !== activeId || !story.external_analysis_enabled || !earlierChaptersReady || activeChapter.index_status !== 'indexed' || checking || checkRetryCountdown > 0} onClick={() => void runCheck(false, true)}>Run again</button></div>}

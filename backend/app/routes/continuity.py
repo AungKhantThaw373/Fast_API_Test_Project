@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
@@ -15,11 +15,13 @@ from app.schemas.continuity import (
     IntentionalUpdate,
     LatestScanOut,
     ScanCheckOut,
+    ScanJobOut,
     ScanSummaryOut,
 )
 from app.security import get_current_user
 from app.services import chapters as chapters_service
 from app.services import continuity as continuity_service
+from app.services import jobs as jobs_service
 from app.services import stories as stories_service
 
 router = APIRouter(prefix="/stories", tags=["continuity"])
@@ -47,16 +49,47 @@ async def get_latest_scan(
                 earlier_quote=item.earlier_quote,
                 earlier_chapter_id=item.earlier_chapter_id,
                 earlier_chapter_number=item.earlier_chapter_number,
-                earlier_chapter_title=title,
+                earlier_chapter_title=title if item.source == "llm" else "",
                 explanation=item.explanation,
                 confidence=item.confidence,
                 intentional=item.intentional,
                 review_status=item.review_status,
+                source=item.source,
+                rule_id=item.rule_id,
+                scene_index=item.scene_index,
+                evidence_kind=item.evidence_kind,
+                evidence_id=item.evidence_id,
             )
             for item, title in findings
         ],
         next_cursor=next_cursor,
     )
+
+
+@router.post("/chapters/{chapter_id}/scan-job", response_model=ScanJobOut)
+async def queue_chapter_scan(
+    chapter_id: UUID,
+    force: bool = False,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> ScanJobOut:
+    chapter = await chapters_service.owned_chapter(session, chapter_id, user.id)
+    story = await stories_service.owned_story(session, chapter.story_id, user.id)
+    await continuity_service.assert_ready_for_scan(session, story, chapter, user.id)
+    job_id = await jobs_service.enqueue(
+        session,
+        "continuity_scan",
+        {"chapter_id": str(chapter.id), "owner_id": str(user.id), "force": force},
+        owner_id=user.id,
+        dedupe_key=f"continuity:{chapter.id}:{int(force)}",
+        max_attempts=2,
+    )
+    if job_id is None:
+        raise HTTPException(
+            status_code=409,
+            detail="A continuity check is already running for this chapter.",
+        )
+    return ScanJobOut(job_id=job_id)
 
 
 @router.post("/chapters/{chapter_id}/scan", response_model=ScanCheckOut)

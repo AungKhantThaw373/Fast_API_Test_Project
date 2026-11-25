@@ -41,6 +41,24 @@ async def test_enqueue_dedupes_an_active_job(session):
     )
 
 
+async def test_cancel_stops_a_queued_job_and_flags_a_running_one(session):
+    job_id = await jobs_service.enqueue(session, "continuity_scan", {})
+    assert job_id is not None
+    cancelled = await jobs_service.request_cancel(session, job_id)
+    assert cancelled is not None and cancelled.status == "cancelled"
+
+    running_id = await jobs_service.enqueue(session, "continuity_scan", {})
+    assert running_id is not None
+    claimed = await jobs_service.claim_next(session, "worker-1")
+    assert claimed is not None and claimed.id == running_id
+    assert await jobs_service.is_cancel_requested(session, claimed.id) is False
+    await jobs_service.request_cancel(session, claimed.id)
+    assert await jobs_service.is_cancel_requested(session, claimed.id) is True
+    await jobs_service.record_cancelled(session, claimed.id)
+    stored = await session.get(Job, claimed.id)
+    assert stored is not None and stored.status == "cancelled"
+
+
 async def test_enqueue_creates_a_new_job_after_the_first_finishes(session):
     await jobs_service.enqueue(session, "reindex_chapter", {}, dedupe_key="chapter:b")
     job = await jobs_service.claim_next(session, "worker-1")

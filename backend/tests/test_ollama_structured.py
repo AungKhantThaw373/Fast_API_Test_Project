@@ -1,12 +1,12 @@
 """Ollama structured output: schema validation, retry, and settings."""
 
-import json
+from uuid import uuid4
 
+import httpx
 import pytest
 
 from app.services.ai_service import _ollama_structured
 from app.services.ai_settings import AIConfig
-
 
 SCHEMA = {
     "type": "object",
@@ -31,6 +31,7 @@ class FakeResponse:
 class FakeClient:
     responses: list[FakeResponse] = []
     calls: list[dict] = []
+    error: Exception | None = None
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -43,6 +44,8 @@ class FakeClient:
 
     async def post(self, url, **kwargs):
         FakeClient.calls.append({"url": url, **kwargs})
+        if FakeClient.error is not None:
+            raise FakeClient.error
         return FakeClient.responses.pop(0)
 
 
@@ -60,6 +63,11 @@ async def call(monkeypatch, responses):
     FakeClient.responses = list(responses)
     FakeClient.calls = []
     monkeypatch.setattr("app.services.ai_service.httpx.AsyncClient", FakeClient)
+
+    async def noop(**_kwargs):
+        return None
+
+    monkeypatch.setattr("app.services.ai_service.record_ai_usage", noop)
     return await _ollama_structured(
         ollama_config(),
         "system",
@@ -70,6 +78,8 @@ async def call(monkeypatch, responses):
         call_id="test",
         started=0.0,
         timeout_seconds=5,
+        user_id=uuid4(),
+        story_id=None,
     )
 
 
@@ -107,6 +117,20 @@ async def test_ollama_retries_schema_mismatch_once(monkeypatch):
     assert len(FakeClient.calls) == 2
 
 
+async def test_ollama_connection_failure_is_a_readable_503(monkeypatch):
+    from app.services.ai_service import AIProviderHTTPError
+
+    FakeClient.error = httpx.ConnectError("connection refused")
+    try:
+        with pytest.raises(AIProviderHTTPError) as exc_info:
+            await call(monkeypatch, [])
+    finally:
+        FakeClient.error = None
+    assert exc_info.value.status_code == 503
+    assert "not reachable" in str(exc_info.value)
+    assert len(FakeClient.calls) == 1
+
+
 async def test_ollama_does_not_retry_http_error(monkeypatch):
     from app.services.ai_service import AIProviderHTTPError
 
@@ -140,7 +164,14 @@ async def test_ai_settings_view_without_key_defaults_to_ollama(client):
     original = settings.OPENROUTER_API_KEY
     settings.OPENROUTER_API_KEY = None
     try:
-        await client.post("/register", json={"username": "local", "email": "local@example.com", "password": "correct horse battery"})
+        await client.post(
+            "/register",
+            json={
+                "username": "local",
+                "email": "local@example.com",
+                "password": "correct horse battery",
+            },
+        )
         await client.post("/token", data={"username": "local@example.com", "password": "correct horse battery"})
         response = await client.get("/ai-settings")
         assert response.status_code == 200

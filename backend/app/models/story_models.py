@@ -15,6 +15,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -42,6 +43,10 @@ class Story(Base):
     collection_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     scan_interval_words: Mapped[int] = mapped_column(Integer, nullable=False, default=1500)
     external_analysis_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Dollars per calendar month; zero means local-only and allows free Ollama calls.
+    monthly_ai_budget: Mapped[float] = mapped_column(
+        Numeric(12, 4), nullable=False, default=0, server_default="0"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
@@ -279,6 +284,15 @@ class ContinuityScan(Base):
     chapter_word_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="complete")
     finding_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Pipeline metadata: comparing two scans is only meaningful when the prompt,
+    # schema, model, and context set are visible.
+    prompt_version: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    schema_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    context_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    scenes_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    scenes_done: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    scenes_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     findings: Mapped[list[ContinuityFinding]] = relationship(
@@ -295,13 +309,19 @@ class ContinuityFinding(Base):
     )
     draft_quote: Mapped[str] = mapped_column(Text, nullable=False)
     draft_line: Mapped[int] = mapped_column(Integer, nullable=False)
-    earlier_quote: Mapped[str] = mapped_column(Text, nullable=False)
+    # Deterministic findings have no earlier passage; LLM findings do.
+    earlier_quote: Mapped[str | None] = mapped_column(Text, nullable=True)
     earlier_chapter_id: Mapped[UUIDType | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("story_chapters.id", ondelete="SET NULL"), nullable=True
     )
     earlier_chapter_number: Mapped[int] = mapped_column(Integer, nullable=False)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="llm")
+    rule_id: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    scene_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    evidence_kind: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    evidence_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     intentional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

@@ -14,6 +14,7 @@ import ollama
 from app.config import settings
 from app.logging_config import fields, get_logger
 from app.services.ai_settings import PROVIDERS, AIConfig, load_ai_config
+from app.services.ai_usage import record_ai_usage
 
 _provider_slots = asyncio.Semaphore(max(1, settings.AI_MAX_CONCURRENT_REQUESTS))
 _rate_gate = asyncio.Lock()
@@ -59,6 +60,31 @@ def _retry_after_seconds(response: httpx.Response, error: dict[str, Any]) -> int
         except (TypeError, ValueError):
             return None
     return None
+
+
+def _usage_counts(data: dict[str, Any]) -> tuple[int, int]:
+    """Extract input/output tokens from OpenAI, Anthropic, or Google shapes."""
+    usage = data.get("usage")
+    if not isinstance(usage, dict):
+        usage = data.get("usageMetadata")
+    if not isinstance(usage, dict):
+        return (0, 0)
+    source = usage.get("tokens") if isinstance(usage.get("tokens"), dict) else usage
+    if not isinstance(source, dict):
+        return (0, 0)
+    input_tokens = 0
+    output_tokens = 0
+    for key in ("prompt_tokens", "input_tokens", "promptTokenCount"):
+        value = source.get(key)
+        if isinstance(value, int):
+            input_tokens = value
+            break
+    for key in ("completion_tokens", "output_tokens", "candidatesTokenCount"):
+        value = source.get(key)
+        if isinstance(value, int):
+            output_tokens = value
+            break
+    return (input_tokens, output_tokens)
 
 
 def _token_usage(data: dict[str, Any]) -> str:
@@ -137,10 +163,12 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
                 "type": "object",
                 "properties": {
                     "category": {"type": "string", "enum": ["character", "location", "item", "world_rule", "worldbuilding", "power_system", "plot_thread"]},
-                    "name": {"type": "string"},
-                    "description": {"type": "string"},
+                    # Bounds keep a small local model from looping inside one
+                    # string until the output budget truncates the JSON.
+                    "name": {"type": "string", "maxLength": 160},
+                    "description": {"type": "string", "maxLength": 1200},
                     "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
-                    "source_quote": {"type": "string"},
+                    "source_quote": {"type": "string", "maxLength": 800},
                 },
                 "required": ["category", "name", "description", "confidence", "source_quote"],
                 "additionalProperties": False,
@@ -152,10 +180,10 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
                 "type": "object",
                 "properties": {
                     "draft_line": {"type": "integer", "minimum": 1},
-                    "draft_quote": {"type": "string"},
-                    "evidence_id": {"type": "string"},
-                    "earlier_quote": {"type": "string"},
-                    "explanation": {"type": "string"},
+                    "draft_quote": {"type": "string", "maxLength": 600},
+                    "evidence_id": {"type": "string", "maxLength": 80},
+                    "earlier_quote": {"type": "string", "maxLength": 1200},
+                    "explanation": {"type": "string", "maxLength": 500},
                     "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
                 },
                 "required": ["draft_line", "draft_quote", "evidence_id", "earlier_quote", "explanation", "confidence"],
@@ -275,13 +303,16 @@ def _json_object(value: Any) -> dict[str, Any]:
 
     content = re.sub(r"^```(?:json)?\s*|\s*```$", "", value.strip(), flags=re.IGNORECASE)
     try:
-        result = json.loads(content)
+        # Small local models occasionally emit a literal newline or tab inside a
+        # string. That is invalid JSON but obvious to repair, and rejecting the
+        # whole scene for it trains writers to ignore local checks.
+        result = json.loads(content, strict=False)
     except json.JSONDecodeError:
         # Some compatible endpoints wrap JSON in a short preamble despite JSON mode.
         start = content.find("{")
         if start < 0:
             raise
-        result, _ = json.JSONDecoder().raw_decode(content[start:])
+        result, _ = json.JSONDecoder(strict=False).raw_decode(content[start:])
     if not isinstance(result, dict):
         raise TypeError("The response JSON was not an object.")
     return result
@@ -331,6 +362,8 @@ async def _ollama_structured(
     call_id: str,
     started: float,
     timeout_seconds: float,
+    user_id: UUID,
+    story_id: UUID | None,
 ) -> dict[str, Any]:
     """Call Ollama's JSON-schema-constrained chat endpoint.
 
@@ -377,6 +410,21 @@ async def _ollama_structured(
                 "Check that the local model is loaded, or choose a smaller model.",
                 504,
             ) from exc
+        except httpx.TransportError as exc:
+            logger.warning(
+                "[%s] unreachable %s",
+                call_id,
+                fields(
+                    purpose=purpose,
+                    base_url=config.base_url,
+                    error=type(exc).__name__,
+                ),
+            )
+            raise AIProviderHTTPError(
+                f"Ollama is not reachable at {config.base_url}. "
+                "Start Ollama and check the base URL in AI settings.",
+                503,
+            ) from exc
 
         latency = time.monotonic() - request_started
         if response.is_error:
@@ -399,6 +447,7 @@ async def _ollama_structured(
             )
             raise AIProviderHTTPError(message, response.status_code)
 
+        content = ""
         try:
             data = response.json()
             content = data["message"]["content"]
@@ -415,6 +464,7 @@ async def _ollama_structured(
                     schema=schema_name,
                     latency=f"{latency:.2f}s",
                     reason=str(exc)[:300],
+                    preview=_preview(content) if content else None,
                 ),
             )
             if attempt == 0:
@@ -426,6 +476,16 @@ async def _ollama_structured(
 
         prompt_tokens = data.get("prompt_eval_count")
         output_tokens = data.get("eval_count")
+        await record_ai_usage(
+            user_id=user_id,
+            story_id=story_id,
+            purpose=purpose,
+            provider=config.provider,
+            model=config.model,
+            input_tokens=int(prompt_tokens or 0),
+            output_tokens=int(output_tokens or 0),
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
         logger.info(
             "[%s] done      %s",
             call_id,
@@ -458,6 +518,7 @@ async def structured_ai_json(
     schema: dict[str, Any] | None = None,
     timeout_seconds: float | None = None,
     schema_name: str | None = None,
+    story_id: UUID | None = None,
 ) -> dict[str, Any]:
     """Call the user's selected provider and return its structured analysis."""
     started = time.monotonic()
@@ -497,6 +558,8 @@ async def structured_ai_json(
             call_id=call_id,
             started=started,
             timeout_seconds=effective_timeout,
+            user_id=user_id,
+            story_id=story_id,
         )
 
     if config.protocol == "anthropic":
@@ -608,6 +671,21 @@ async def structured_ai_json(
                 "Try again, or choose a faster model in AI settings.",
                 504,
             ) from exc
+        except httpx.TransportError as exc:
+            logger.warning(
+                "[%s] unreachable %s",
+                call_id,
+                fields(
+                    purpose=purpose,
+                    provider=config.provider,
+                    error=type(exc).__name__,
+                ),
+            )
+            raise AIProviderHTTPError(
+                f"Could not reach {config.provider}. Check your network connection "
+                "and the provider base URL in AI settings.",
+                503,
+            ) from exc
         latency = time.monotonic() - request_started
     if queued >= 0.05:
         logger.info(
@@ -697,4 +775,15 @@ async def structured_ai_json(
         ),
     )
     logger.info("[%s] usage     %s", call_id, _token_usage(response_data))
+    input_tokens, output_tokens = _usage_counts(response_data)
+    await record_ai_usage(
+        user_id=user_id,
+        story_id=story_id,
+        purpose=purpose,
+        provider=config.provider,
+        model=config.model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        duration_ms=int((time.monotonic() - started) * 1000),
+    )
     return result

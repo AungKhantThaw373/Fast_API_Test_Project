@@ -1,4 +1,4 @@
-"""Job status for polling clients."""
+"""Job status and cancellation for polling clients."""
 
 from uuid import UUID
 
@@ -22,3 +22,15 @@ async def get_job(
     session: AsyncSession = Depends(get_async_session),
 ) -> Job:
     return await jobs_service.owned_job(session, job_id, user.id)
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=JobOut)
+async def cancel_job(
+    job_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> Job:
+    await jobs_service.owned_job(session, job_id, user.id)
+    job = await jobs_service.request_cancel(session, job_id)
+    assert job is not None
+    return job

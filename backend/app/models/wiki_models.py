@@ -386,6 +386,7 @@ class AIUsage(Base):
     cost_estimate: Mapped[float] = mapped_column(
         Numeric(12, 6), nullable=False, default=0, server_default="0"
     )
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -465,6 +465,7 @@ async def extract_chapter(session: AsyncSession, chapter: Chapter, owner_id: UUI
             schema=EXTRACTION_SCHEMA,
             timeout_seconds=settings.STORY_BIBLE_TIMEOUT_SECONDS,
             schema_name="scene_extraction",
+            story_id=chapter.story_id,
         )
         stats.model_calls += 1
         applied = await _apply(

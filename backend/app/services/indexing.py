@@ -15,6 +15,7 @@ from app.models.story_models import Chapter, SceneEmbedding, Story, StoryChunk
 from app.models.wiki_models import ChapterMeta, SceneMeta
 from app.services import jobs
 from app.services.ai_service import AIProviderHTTPError, embed_texts
+from app.services.ai_usage import check_budget
 from app.services.chunking import chunk_chapter
 from app.services.entities import alias_map, extract_mentions, find_mentions
 from app.services.extraction import extract_chapter
@@ -197,6 +198,15 @@ async def _suggest_story_bible(
             return SUPERSEDED
         if current_chapter.bible_scan_revision == current_chapter.revision:
             return DONE
+        story = await session.get(Story, story_id)
+        if story is not None:
+            await check_budget(
+                session,
+                story,
+                owner_id,
+                chars=len(current_chapter.content),
+                purpose="Bible extraction",
+            )
         stats = await extract_chapter(session, current_chapter, owner_id)
         current_chapter.bible_scan_revision = current_chapter.revision
         current_chapter.bible_scan_error = None

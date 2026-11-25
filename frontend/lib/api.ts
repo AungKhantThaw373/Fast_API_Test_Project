@@ -46,10 +46,51 @@ export interface Story {
 	collection_name: string;
 	scan_interval_words: number;
 	external_analysis_enabled: boolean;
+	monthly_ai_budget: number;
 	chapter_count?: number;
 	word_count?: number;
 	created_at: string;
 	updated_at: string;
+}
+
+export interface AIUsagePurpose {
+	purpose: string;
+	provider: string;
+	model: string;
+	calls: number;
+	input_tokens: number;
+	output_tokens: number;
+	cost_usd: number;
+	average_duration_ms: number;
+}
+
+export interface ScanJob {
+	job_id: string;
+}
+
+export interface AskCitation {
+	chunk_id: string;
+	chapter_number: number;
+	line: number;
+	quote: string;
+	explanation: string;
+}
+
+export interface AskStoryResponse {
+	answer: string;
+	unsure: boolean;
+	citations: AskCitation[];
+}
+
+export interface AIUsage {
+	month: string;
+	calls: number;
+	input_tokens: number;
+	output_tokens: number;
+	spent_usd: number;
+	budget_usd: number;
+	remaining_usd: number;
+	by_purpose: AIUsagePurpose[];
 }
 
 export interface Chapter {
@@ -207,10 +248,18 @@ export interface SystemStatus {
 export interface JobStatus {
 	id: string;
 	type: string;
-	status: "queued" | "running" | "succeeded" | "failed" | "dead";
+	status: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "dead";
 	attempts: number;
 	max_attempts: number;
-	progress: Record<string, unknown>;
+	progress: {
+		stage?: string;
+		scenes_done?: number;
+		scenes_total?: number;
+		scenes_failed?: number;
+		findings?: number;
+		cancel_requested?: boolean;
+		[key: string]: unknown;
+	};
 	last_error: string | null;
 	run_at: string;
 	created_at: string;
@@ -218,7 +267,7 @@ export interface JobStatus {
 }
 
 export interface ChapterScan {
-	scan: { id: string; chapter_revision: number; chapter_word_count: number; created_at: string } | null;
+	scan: { id: string; chapter_revision: number; chapter_word_count: number; scenes_failed?: number; created_at: string } | null;
 	findings: ContinuityFinding[];
 }
 
@@ -499,8 +548,12 @@ export const api = {
 		return story.chapters;
 	},
 	storyIndexStatus: (storyId: string) => request<{ chapters: Array<Pick<Chapter, "id" | "revision" | "word_count" | "index_status" | "index_error" | "bible_scan_revision" | "bible_scan_error">> }>(`/stories/${storyId}/index-status`),
-	updateStory: (storyId: string, changes: Partial<Pick<Story, "title" | "collection_name" | "scan_interval_words" | "external_analysis_enabled">>) =>
+	updateStory: (storyId: string, changes: Partial<Pick<Story, "title" | "collection_name" | "scan_interval_words" | "external_analysis_enabled" | "monthly_ai_budget">>) =>
 		request<Story>(`/stories/${storyId}`, { method: "PATCH", body: JSON.stringify(changes) }),
+	aiUsage: (storyId: string) => request<AIUsage>(`/stories/${storyId}/ai-usage`),
+	askStory: (storyId: string, question: string) => request<AskStoryResponse>(`/stories/${storyId}/ask`, { method: "POST", body: JSON.stringify({ question }) }),
+	queueScan: (chapterId: string, force = false) => request<ScanJob>(`/stories/chapters/${chapterId}/scan-job?force=${force}`, { method: "POST" }),
+	cancelJob: (jobId: string) => request<JobStatus>(`/jobs/${jobId}/cancel`, { method: "POST" }),
 	createChapter: (storyId: string, title = "Untitled chapter", content = "") =>
 		request<Chapter>(`/stories/${storyId}/chapters`, {
 			method: "POST",

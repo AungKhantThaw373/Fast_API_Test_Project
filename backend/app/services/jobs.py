@@ -138,6 +138,48 @@ async def record_success(
     await session.commit()
 
 
+async def request_cancel(session: AsyncSession, job_id: UUID) -> Job | None:
+    """Cancel a queued job, or ask a running worker to stop between scenes."""
+    job = await session.scalar(select(Job).where(Job.id == job_id).with_for_update())
+    if job is None:
+        return None
+    if job.status == "queued":
+        job.status = "cancelled"
+        job.progress = {"stage": "cancelled"}
+        job.locked_at = None
+        job.locked_by = None
+    elif job.status == "running":
+        job.progress = {**(job.progress or {}), "cancel_requested": True}
+    await session.commit()
+    return job
+
+
+async def is_cancel_requested(session: AsyncSession, job_id: UUID) -> bool:
+    row = await session.execute(
+        select(Job.status, Job.progress).where(Job.id == job_id)
+    )
+    found = row.one_or_none()
+    if found is None:
+        return True
+    status, progress = found
+    return status == "cancelled" or bool((progress or {}).get("cancel_requested"))
+
+
+async def record_cancelled(session: AsyncSession, job_id: UUID) -> None:
+    await session.execute(
+        update(Job)
+        .where(Job.id == job_id)
+        .values(
+            status="cancelled",
+            progress={"stage": "cancelled"},
+            locked_at=None,
+            locked_by=None,
+            updated_at=func.now(),
+        )
+    )
+    await session.commit()
+
+
 async def record_failure(session: AsyncSession, job_id: UUID, error: BaseException) -> str:
     """Retry with backoff, or bury the job as ``dead`` once attempts run out."""
     job = await session.scalar(select(Job).where(Job.id == job_id).with_for_update())

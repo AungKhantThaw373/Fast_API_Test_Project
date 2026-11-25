@@ -46,8 +46,8 @@ select = ["E", "F", "I", "UP", "B"]
 ignore = ["B008"]
 
 [tool.ruff.lint.per-file-ignores]
-# Migration files are generated snapshots.
-"alembic/versions/*" = ["E501"]
+# Migration files are generated snapshots; keep their import order as written.
+"alembic/versions/*" = ["E501", "I001"]
 # These modules are being split in Phase 2. Long prompt strings and logger
 # calls are left alone rather than reformatted in the same commit as a change.
 "app/routes/*" = ["E501"]

@@ -10,8 +10,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.db import async_session, engine
 from app.logging_config import configure_app_logging
 from app.middleware import RequestContextMiddleware
+from app.routes.ai_usage import router as ai_usage_router
 from app.routes.arcs import arc_router
 from app.routes.arcs import router as story_arc_router
+from app.routes.ask import router as ask_router
 from app.routes.auth_routes import router as auth_router
 from app.routes.bible import router as bible_router
 from app.routes.chapters import router as chapter_router
@@ -119,6 +121,8 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(story_router)
+app.include_router(ai_usage_router)
+app.include_router(ask_router)
 app.include_router(story_arc_router)
 app.include_router(arc_router)
 app.include_router(chapter_router)

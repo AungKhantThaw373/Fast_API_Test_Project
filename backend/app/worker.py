@@ -33,7 +33,11 @@ os.environ.setdefault("STATEMENT_TIMEOUT_MS", "300000")
 from app.db import async_session, engine  # noqa: E402
 from app.logging_config import configure_app_logging, fields, get_logger  # noqa: E402
 from app.models.job_models import Job  # noqa: E402
-from app.services import indexing  # noqa: E402
+from app.models.story_models import Chapter, Story  # noqa: E402
+from app.services import (
+    continuity,  # noqa: E402
+    indexing,  # noqa: E402
+)
 from app.services import jobs as jobs_service  # noqa: E402
 
 logger = get_logger("worker")
@@ -58,9 +62,40 @@ async def _run_bible_scan(payload: dict[str, Any]) -> str:
     return await indexing.extract_story_bible(chapter_id, expected)
 
 
+async def _run_continuity(payload: dict[str, Any]) -> str:
+    chapter_id = UUID(str(payload.get("chapter_id")))
+    owner_id = UUID(str(payload.get("owner_id")))
+    force = bool(payload.get("force"))
+    job_id = UUID(str(payload["job_id"]))
+
+    async def progress(data: dict[str, int]) -> None:
+        async with async_session() as progress_session:
+            if await jobs_service.is_cancel_requested(progress_session, job_id):
+                raise continuity.ScanCancelled("Continuity scan cancelled.")
+            await jobs_service.set_progress(
+                progress_session,
+                job_id,
+                {"stage": "checking", **data},
+            )
+
+    async with async_session() as session:
+        chapter = await session.get(Chapter, chapter_id)
+        if chapter is None:
+            return indexing.SKIPPED
+        story = await session.get(Story, chapter.story_id)
+        if story is None or story.owner_id != owner_id:
+            return indexing.SKIPPED
+        await continuity.assert_ready_for_scan(session, story, chapter, owner_id)
+        await continuity.check_chapter(
+            session, story, chapter, owner_id, force=force, on_progress=progress
+        )
+    return indexing.DONE
+
+
 HANDLERS: dict[str, Callable[[dict[str, Any]], Awaitable[str]]] = {
     "reindex_chapter": _run_reindex,
     "bible_scan": _run_bible_scan,
+    "continuity_scan": _run_continuity,
 }
 
 
@@ -81,6 +116,13 @@ async def run_job(job: Job) -> str:
             payload = dict(job.payload or {})
             payload.setdefault("job_id", str(job.id))
             outcome = await handler(payload)
+        except continuity.ScanCancelled:
+            await jobs_service.record_cancelled(session, job.id)
+            logger.info(
+                "[jobs] cancel %s",
+                fields(job=str(job.id)[:8], type=job.type),
+            )
+            return "cancelled"
         except Exception as exc:
             status = await jobs_service.record_failure(session, job.id, exc)
             logger.warning(

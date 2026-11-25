@@ -35,11 +35,16 @@ class EvidenceRef:
 class DraftFinding:
     draft_quote: str
     draft_line: int
-    earlier_quote: str
-    earlier_chapter_id: UUID
+    earlier_quote: str | None
+    earlier_chapter_id: UUID | None
     earlier_chapter_number: int
     explanation: str
     confidence: int
+    source: str = "llm"
+    rule_id: str | None = None
+    scene_index: int | None = None
+    evidence_kind: str | None = None
+    evidence_id: str | None = None
 
 
 def filter_findings(
@@ -107,7 +112,7 @@ def filter_findings(
         key = (
             finding.draft_line,
             finding.draft_quote.casefold(),
-            finding.earlier_quote.casefold(),
+            (finding.earlier_quote or "").casefold(),
         )
         unique[key] = finding
     return [unique[key] for key in sorted(unique, key=lambda value: value[0])]
