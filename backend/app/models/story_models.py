@@ -9,6 +9,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
     Boolean,
+    Computed,
     DateTime,
     Float,
     ForeignKey,
@@ -20,7 +21,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.config import settings
@@ -189,6 +190,7 @@ class StoryChunk(Base):
         UniqueConstraint("chapter_id", "chunk_kind", "chunk_index", name="uq_story_chunk_index"),
         Index("ix_story_chunks_story_chapter", "story_id", "chapter_number"),
         Index("ix_story_chunks_entities", "entities", postgresql_using="gin"),
+        Index("ix_story_chunks_fts", "text_search", postgresql_using="gin"),
     )
 
     id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -219,6 +221,11 @@ class StoryChunk(Base):
     embedding: Mapped[list[float]] = mapped_column(Vector(settings.EMBEDDING_DIMENSIONS), nullable=False)
     embedding_model: Mapped[str] = mapped_column(
         String(200), nullable=False, default=settings.EMBEDDING_MODEL
+    )
+    text_search: Mapped[Any] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('simple', coalesce(text, ''))", persisted=True),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

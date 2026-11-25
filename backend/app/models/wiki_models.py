@@ -68,6 +68,12 @@ class Entity(Base):
         ),
         Index("ix_entities_story_type", "story_id", "entity_type"),
         Index("ix_entities_story_status", "story_id", "status"),
+        Index(
+            "ix_entities_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -98,6 +104,12 @@ class EntityAlias(Base):
     __table_args__ = (
         UniqueConstraint("entity_id", "normalized_alias", name="uq_entity_alias_normalized"),
         Index("ix_entity_aliases_normalized", "normalized_alias"),
+        Index(
+            "ix_entity_aliases_alias_trgm",
+            "alias",
+            postgresql_using="gin",
+            postgresql_ops={"alias": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
