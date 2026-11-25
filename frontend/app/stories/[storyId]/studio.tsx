@@ -1,20 +1,23 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
 import { Toaster, toast } from 'sonner';
 import Link from 'next/link';
 import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/components/wiki/capture-dialog';
 import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
 import { CommandPalette } from '@/components/command-palette';
+import { EditorPreferencesMenu } from '@/components/editor-preferences';
+import ManuscriptEditor, { type ManuscriptEditorHandle } from '@/components/manuscript-editor';
 import { StorySearch } from '@/components/story-search';
 import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
-import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type AIUsage, type Story, type StoryDetails, type StoryArc } from '@/lib/api';
+import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type AIUsage, type Story, type StoryDetails, type StoryArc, type WikiEntity } from '@/lib/api';
 import { clearBufferIfSaved, decideDraft, deleteDraft, getDraft, putDraft, type DraftRecord } from '@/lib/draft-buffer';
 import { retryDelayMs, saveStatus, shouldRetry, type SaveState } from '@/lib/save-state';
-import { lineNumberAt, lineRange, lineText } from '@/lib/selection';
+import { getEditorPreferencesSnapshot, getServerEditorPreferencesSnapshot, subscribeEditorPreferences, updateEditorPreferences } from '@/lib/editor-preferences';
+import { lineText } from '@/lib/selection';
 
 type Pane = 'notes' | 'findings' | 'mentions' | 'find';
 type SaveSnapshot = { title: string; content: string };
@@ -51,7 +54,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const deepChapterId = searchParams.get('chapter');
 	const deepLine = Number(searchParams.get('line') ?? '') || 0;
 	const jumpedRef = useRef('');
-	const editorRef = useRef<HTMLTextAreaElement>(null);
+	const editorRef = useRef<ManuscriptEditorHandle>(null);
 	const revisionRef = useRef(new Map<string, number>());
 	const savedRef = useRef(new Map<string, SaveSnapshot>());
 	const saveQueueRef = useRef(new Map<string, Promise<void>>());
@@ -71,6 +74,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [conflict, setConflict] = useState<ConflictPrompt | null>(null);
 	const [recovered, setRecovered] = useState(false);
 	const [capture, setCapture] = useState<CaptureSelection | null>(null);
+	const editorPreferences = useSyncExternalStore(subscribeEditorPreferences, getEditorPreferencesSnapshot, getServerEditorPreferencesSnapshot);
 	const [selection, setSelection] = useState<{ text: string; line: number } | null>(null);
 	const [historyDiff, setHistoryDiff] = useState<RevisionDiff | null>(null);
 	const [historySelection, setHistorySelection] = useState<number[]>([]);
@@ -82,6 +86,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [draftTitle, setDraftTitle] = useState('');
 	const [draftContent, setDraftContent] = useState('');
 	const [entries, setEntries] = useState<BibleEntry[]>([]);
+	const [wikiEntities, setWikiEntities] = useState<WikiEntity[]>([]);
 	const [findings, setFindings] = useState<ContinuityFinding[]>([]);
 	const [findingsChapterId, setFindingsChapterId] = useState('');
 	const [findingsTargetChapterId, setFindingsTargetChapterId] = useState('');
@@ -164,16 +169,21 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	}, []);
 
 	const refreshBible = useCallback(async () => {
-		try { setEntries(await api.bible(storyId)); } catch { /* Keep the draft available during brief reconnects. */ }
+		try {
+			const [bible, entities] = await Promise.all([api.bible(storyId), api.entities(storyId).catch(() => null)]);
+			setEntries(bible);
+			if (entities) setWikiEntities(entities);
+		} catch { /* Keep the draft available during brief reconnects. */ }
 	}, [storyId]);
 
 	useEffect(() => {
 		let alive = true;
 		async function load() {
 			try {
-				const [storyData, bible, storyList, arcList, usage] = await Promise.all([
+				const [storyData, bible, entityList, storyList, arcList, usage] = await Promise.all([
 					api.story(storyId),
 					api.bible(storyId),
+					api.entities(storyId).catch(() => [] as WikiEntity[]),
 					api.stories(),
 					// Arcs are optional furniture: an empty list must never block the draft.
 					api.arcs(storyId).catch(() => [] as StoryArc[]),
@@ -185,6 +195,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				setChapters(storyData.chapters);
 				setArcs(arcList);
 				setEntries(bible);
+				setWikiEntities(entityList);
 				setOtherStories(storyList.filter((item) => item.id !== storyId));
 				setBibleScanStart(1);
 				setBibleScanEnd(storyData.chapters.at(-1)?.chapter_number ?? 1);
@@ -226,23 +237,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		return () => { alive = false; };
 	}, [storyId, router, resolveChapterDraft, deepChapterId]);
 
-	// Track the manuscript selection. ``selectionchange`` is the only event that
-	// fires for mouse, keyboard, and programmatic selections alike.
-	useEffect(() => {
-		function readSelection() {
-			const editor = editorRef.current;
-			if (!editor || document.activeElement !== editor) return;
-			if (editor.selectionStart === editor.selectionEnd) {
-				setSelection(null);
-				return;
-			}
-			const text = editor.value.slice(editor.selectionStart, editor.selectionEnd).trim();
-			setSelection(text ? { text, line: lineNumberAt(editor.value, editor.selectionStart) } : null);
-		}
-		document.addEventListener('selectionchange', readSelection);
-		return () => document.removeEventListener('selectionchange', readSelection);
-	}, []);
-
 	// Once the linked chapter is on screen, put the caret on the cited line.
 	useEffect(() => {
 		if (!deepLine || !activeId || !editorRef.current) return;
@@ -250,11 +244,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		if (jumpedRef.current === marker) return;
 		if (!lineText(draftContent, deepLine)) return;
 		jumpedRef.current = marker;
-		const editor = editorRef.current;
-		const range = lineRange(draftContent, deepLine);
-		editor.focus();
-		editor.setSelectionRange(range.start, range.end);
-		editor.scrollTop = Math.max(0, (deepLine - 3) * 24);
+		editorRef.current.focusLine(deepLine);
 	}, [activeId, deepLine, draftContent]);
 
 	useEffect(() => {
@@ -1015,7 +1005,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				const editor = editorRef.current;
 				const offset = (full.content ?? '').indexOf(entry.source_quote ?? '');
 				if (!editor || offset < 0) return;
-				editor.focus(); editor.setSelectionRange(offset, offset + (entry.source_quote?.length ?? 0));
+				editor.focusRange(offset, offset + (entry.source_quote?.length ?? 0));
 			}, 0);
 		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Source chapter could not be opened.'); }
 	}
@@ -1042,10 +1032,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	}
 
 	function locateLine(lineNumber: number) {
-		const editor = editorRef.current;
-		if (!editor) return;
-		const range = lineRange(draftContent, lineNumber);
-		editor.focus(); editor.setSelectionRange(range.start, range.end);
+		editorRef.current?.focusLine(lineNumber);
 	}
 
 	async function openSearchHit(chapterId: string, line: number) {
@@ -1053,12 +1040,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		if (!target) return;
 		await selectChapter(target);
 		window.setTimeout(() => {
-			const editor = editorRef.current;
-			if (!editor) return;
-			const range = lineRange(editor.value, line);
-			editor.focus();
-			editor.setSelectionRange(range.start, range.end);
-			editor.scrollTop = Math.max(0, (line - 3) * 24);
+			editorRef.current?.focusLine(line);
 			setPaneOpen(false);
 		}, 60);
 	}
@@ -1070,6 +1052,35 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			await selectChapter(target);
 		}
 		window.setTimeout(() => locateLine(finding.draft_line), 0);
+	}
+
+	function openEntity(entityId: string) {
+		void go(`/stories/${storyId}/wiki/${entityId}`);
+	}
+
+	function handleFindingAction(finding: ContinuityFinding, action: 'resolve' | 'dismiss' | 'intentional') {
+		if (action === 'intentional') void markIntentional(finding);
+		else void reviewFinding(finding, action === 'resolve' ? 'resolved' : 'dismissed');
+	}
+
+	async function openFindingEvidence(finding: ContinuityFinding) {
+		if (!finding.earlier_chapter_id) return;
+		const target = chapters.find((chapter) => chapter.id === finding.earlier_chapter_id);
+		if (!target) return;
+		try {
+			await selectChapter(target);
+			window.setTimeout(async () => {
+				try {
+					const full = await api.chapter(target.id);
+					const offset = (full.content ?? '').indexOf(finding.earlier_quote);
+					if (offset >= 0) editorRef.current?.focusRange(offset, offset + finding.earlier_quote.length);
+				} catch (cause) {
+					setError(cause instanceof Error ? cause.message : 'That earlier passage could not be opened.');
+				}
+			}, 80);
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : 'That earlier chapter could not be opened.');
+		}
 	}
 
 	if (loading) return <main className="quiet-loading"><span className="loading-mark" /><p>Opening your writing desk…</p></main>;
@@ -1126,18 +1137,31 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				{error && <div className="studio-notice error-notice" role="alert">{error}</div>}
 				{notice && <div className="studio-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice('')}>×</button></div>}
 				{!activeChapter ? <div className="first-chapter"><div className="first-chapter-flower">✳</div><div className="eyebrow">A BLANK PAGE, ON PURPOSE</div><h1>Begin wherever you are.</h1><p>No prompts, no generated prose. Just your manuscript and a careful memory for its details.</p><button className="button button-primary" onClick={() => void addChapter()}>Start the first chapter</button></div> : <>
-					<div className="editor-toolbar"><div className="chapter-kicker">CHAPTER {String(activeChapter.chapter_number).padStart(2, '0')}</div><div className="editor-toolbar-right"><span>{words.toLocaleString()} words</span><button className="text-button history-trigger" onClick={() => void openChapterHistory()}>Version history</button><span className={'index-indicator index-' + activeChapter.index_status}>{activeChapter.index_status === 'indexed' ? 'Memory ready' : activeChapter.index_status === 'failed' ? 'Memory paused' : 'Updating memory'}</span></div></div>
+					<div className="editor-toolbar"><div className="chapter-kicker">CHAPTER {String(activeChapter.chapter_number).padStart(2, '0')}</div><div className="editor-toolbar-right"><span>{editorPreferences.wordGoal > 0 ? `${words.toLocaleString()} / ${editorPreferences.wordGoal.toLocaleString()} words` : `${words.toLocaleString()} words`}</span><EditorPreferencesMenu preferences={editorPreferences} onChange={updateEditorPreferences} /><button className="text-button history-trigger" onClick={() => void openChapterHistory()}>Version history</button><span className={'index-indicator index-' + activeChapter.index_status}>{activeChapter.index_status === 'indexed' ? 'Memory ready' : activeChapter.index_status === 'failed' ? 'Memory paused' : 'Updating memory'}</span></div></div>
 					{activeChapter.index_status === 'failed' && <div className="index-error">Story memory could not update. Check that the local Ollama embedding service is running. <button className="text-button" onClick={() => void retryIndex()}>Try again</button></div>}
 					<div className="editor-page">
 						<input className="chapter-title-input" aria-label="Chapter title" value={draftTitle} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, title: event.target.value }; setHasUnsavedChanges(true); setDraftTitle(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Chapter title" maxLength={200} />
 						<div className="editor-rule" />
-						<textarea ref={editorRef} className="manuscript-editor" value={draftContent} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, content: event.target.value }; setHasUnsavedChanges(true); setDraftContent(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Let the first sentence arrive in its own time." aria-label="Chapter manuscript" spellCheck onSelect={(event) => {
-							const target = event.currentTarget;
-							if (target.selectionStart === target.selectionEnd) { setSelection(null); return; }
-							const text = target.value.slice(target.selectionStart, target.selectionEnd).trim();
-							if (!text) { setSelection(null); return; }
-							setSelection({ text, line: lineNumberAt(target.value, target.selectionStart) });
-						}} onKeyDown={(event) => { if (event.key === 'Escape') setSelection(null); }} />
+						<ManuscriptEditor
+							ref={editorRef}
+							chapterId={activeChapter.id}
+							value={draftContent}
+							onChange={(content) => {
+								draftEditVersionRef.current += 1;
+								draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, content };
+								setHasUnsavedChanges(true);
+								setDraftContent(content);
+							}}
+							onSelectionChange={setSelection}
+							onBlur={() => void persistChapter(activeChapter.id, draftTitle, editorRef.current?.getValue() ?? draftContent)}
+							preferences={editorPreferences}
+							entities={wikiEntities}
+							findings={currentFindings}
+							onOpenEntity={openEntity}
+							onFindingAction={handleFindingAction}
+							onOpenEvidence={(finding) => void openFindingEvidence(finding)}
+							ariaLabel="Chapter manuscript"
+						/>
 						{activeChapter.index_status === 'indexing' && <div className="indexing-note"><span className="tiny-spinner" /> Story memory is quietly catching up.</div>}
 						{selection && (
 							<div className="selection-actions" role="toolbar" aria-label="Capture the selected passage">
