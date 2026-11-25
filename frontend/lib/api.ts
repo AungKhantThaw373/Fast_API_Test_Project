@@ -110,6 +110,44 @@ export interface Chapter {
 	deleted_at?: string | null;
 }
 
+export interface ChapterSynopsis {
+	chapter_id: string;
+	synopsis: string;
+	editable: boolean;
+	generated: boolean;
+}
+
+export interface RecapCitation {
+	chapter_id: string;
+	chapter_number: number;
+	chapter_title: string;
+	quote: string;
+	line: number;
+}
+
+export interface RecapChapter {
+	chapter_id: string;
+	chapter_number: number;
+	title: string;
+	synopsis: string;
+	citation: RecapCitation;
+}
+
+export interface RecapArc {
+	arc_id: string;
+	name: string;
+	summary: string;
+}
+
+export interface StorySoFar {
+	story_id: string;
+	range_label: string;
+	chapters: RecapChapter[];
+	arcs: RecapArc[];
+	read_only: boolean;
+	generated_at: string;
+}
+
 export interface StoryArc {
 	id: string;
 	story_id: string;
@@ -367,6 +405,18 @@ export interface WikiThread {
 	payoff_chapter_id: string | null;
 	state: "open" | "touched" | "resolved" | "abandoned";
 	linked_entity_ids: string[];
+	linked_entities: { id: string; name: string; entity_type: string }[];
+	setup_chapter_number: number | null;
+	setup_chapter_title: string | null;
+	payoff_chapter_number: number | null;
+	payoff_chapter_title: string | null;
+	last_mention: {
+		chapter_id: string;
+		chapter_number: number;
+		chapter_title: string;
+		line: number;
+		quote: string;
+	} | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -921,4 +971,26 @@ export const api = {
 	deleteDraftFile: (fileId: string) => request<void>(`/editing/files/${fileId}`, { method: "DELETE" }),
 	draftFileContentUrl: (fileId: string, inline = false) =>
 		`${API_BASE_URL}/editing/files/${fileId}/content${inline ? "?inline=true" : ""}`,
+	chapterSynopsis: (chapterId: string) =>
+		request<ChapterSynopsis>(`/stories/chapters/${chapterId}/synopsis`),
+	updateChapterSynopsis: (chapterId: string, synopsis: string) =>
+		request<ChapterSynopsis>(`/stories/chapters/${chapterId}/synopsis`, {
+			method: "PUT",
+			body: JSON.stringify({ synopsis }),
+		}),
+	generateChapterSynopsis: (chapterId: string, overwrite = false) =>
+		request<ChapterSynopsis>(
+			`/stories/chapters/${chapterId}/synopsis/generate${overwrite ? "?overwrite=true" : ""}`,
+			{ method: "POST" },
+		),
+	generateArcSummary: (storyId: string, arcId: string) =>
+		request<{ arc_id: string; summary: string; chapter_count: number }>(
+			`/stories/${storyId}/arcs/${arcId}/summary/generate`,
+			{ method: "POST" },
+		),
+	storySoFar: (storyId: string, limit = 5, arcId?: string) => {
+		const params = new URLSearchParams({ limit: String(limit) });
+		if (arcId) params.set("arc_id", arcId);
+		return request<StorySoFar>(`/stories/${storyId}/recap?${params.toString()}`);
+	},
 };

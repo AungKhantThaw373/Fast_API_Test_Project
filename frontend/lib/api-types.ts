@@ -1342,6 +1342,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stories/chapters/{chapter_id}/synopsis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chapter Synopsis */
+        get: operations["get_chapter_synopsis_stories_chapters__chapter_id__synopsis_get"];
+        /** Update Chapter Synopsis */
+        put: operations["update_chapter_synopsis_stories_chapters__chapter_id__synopsis_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/chapters/{chapter_id}/synopsis/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Chapter Synopsis */
+        post: operations["generate_chapter_synopsis_stories_chapters__chapter_id__synopsis_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/arcs/{arc_id}/summary/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Arc Summary */
+        post: operations["generate_arc_summary_stories__story_id__arcs__arc_id__summary_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/recap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Story So Far */
+        get: operations["story_so_far_stories__story_id__recap_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1492,6 +1561,30 @@ export interface components {
             first_chapter_number?: number | null;
             /** Last Chapter Number */
             last_chapter_number?: number | null;
+        };
+        /** ArcRecapOut */
+        ArcRecapOut: {
+            /**
+             * Arc Id
+             * Format: uuid
+             */
+            arc_id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string;
+        };
+        /** ArcSummaryOut */
+        ArcSummaryOut: {
+            /**
+             * Arc Id
+             * Format: uuid
+             */
+            arc_id: string;
+            /** Summary */
+            summary: string;
+            /** Chapter Count */
+            chapter_count: number;
         };
         /** ArcUpdate */
         ArcUpdate: {
@@ -1871,6 +1964,25 @@ export interface components {
             updated_at: string;
             /** Deleted At */
             deleted_at: string | null;
+        };
+        /** ChapterSynopsisOut */
+        ChapterSynopsisOut: {
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /** Synopsis */
+            synopsis: string;
+            /** Editable */
+            editable: boolean;
+            /** Generated */
+            generated: boolean;
+        };
+        /** ChapterSynopsisUpdate */
+        ChapterSynopsisUpdate: {
+            /** Synopsis */
+            synopsis: string;
         };
         /** ChapterUpdate */
         ChapterUpdate: {
@@ -2615,6 +2727,37 @@ export interface components {
             /** Sample */
             sample: string;
         };
+        /** RecapChapterOut */
+        RecapChapterOut: {
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /** Chapter Number */
+            chapter_number: number;
+            /** Title */
+            title: string;
+            /** Synopsis */
+            synopsis: string;
+            citation: components["schemas"]["RecapCitationOut"];
+        };
+        /** RecapCitationOut */
+        RecapCitationOut: {
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /** Chapter Number */
+            chapter_number: number;
+            /** Chapter Title */
+            chapter_title: string;
+            /** Quote */
+            quote: string;
+            /** Line */
+            line: number;
+        };
         /** RelationshipCreate */
         RelationshipCreate: {
             /**
@@ -2953,6 +3096,30 @@ export interface components {
             /** Deleted At */
             deleted_at: string | null;
         };
+        /** StorySoFarOut */
+        StorySoFarOut: {
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /** Range Label */
+            range_label: string;
+            /** Chapters */
+            chapters: components["schemas"]["RecapChapterOut"][];
+            /** Arcs */
+            arcs: components["schemas"]["ArcRecapOut"][];
+            /**
+             * Read Only
+             * @default true
+             */
+            read_only: boolean;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
         /** StorySummaryOut */
         StorySummaryOut: {
             /**
@@ -3024,10 +3191,38 @@ export interface components {
             /** Linked Entity Ids */
             linked_entity_ids?: string[];
         };
+        /** ThreadEntityOut */
+        ThreadEntityOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Entity Type */
+            entity_type: string;
+        };
         /** ThreadListOut */
         ThreadListOut: {
             /** Threads */
             threads: components["schemas"]["ThreadOut"][];
+        };
+        /** ThreadMentionOut */
+        ThreadMentionOut: {
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /** Chapter Number */
+            chapter_number: number;
+            /** Chapter Title */
+            chapter_title: string;
+            /** Line */
+            line: number;
+            /** Quote */
+            quote: string;
         };
         /** ThreadOut */
         ThreadOut: {
@@ -3055,6 +3250,17 @@ export interface components {
             state: string;
             /** Linked Entity Ids */
             linked_entity_ids: string[];
+            /** Linked Entities */
+            linked_entities?: components["schemas"]["ThreadEntityOut"][];
+            /** Setup Chapter Number */
+            setup_chapter_number?: number | null;
+            /** Setup Chapter Title */
+            setup_chapter_title?: string | null;
+            /** Payoff Chapter Number */
+            payoff_chapter_number?: number | null;
+            /** Payoff Chapter Title */
+            payoff_chapter_title?: string | null;
+            last_mention?: components["schemas"]["ThreadMentionOut"] | null;
             /**
              * Created At
              * Format: date-time
@@ -6750,6 +6956,181 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SearchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chapter_synopsis_stories_chapters__chapter_id__synopsis_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chapter_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterSynopsisOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_chapter_synopsis_stories_chapters__chapter_id__synopsis_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chapter_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChapterSynopsisUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterSynopsisOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_chapter_synopsis_stories_chapters__chapter_id__synopsis_generate_post: {
+        parameters: {
+            query?: {
+                overwrite?: boolean;
+            };
+            header?: never;
+            path: {
+                chapter_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterSynopsisOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_arc_summary_stories__story_id__arcs__arc_id__summary_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+                arc_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArcSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    story_so_far_stories__story_id__recap_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                arc_id?: string | null;
+            };
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorySoFarOut"];
                 };
             };
             /** @description Validation Error */

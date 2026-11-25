@@ -10,6 +10,7 @@ import { ChapterRail } from '@/components/studio/chapter-rail';
 import { CommandPalette } from '@/components/command-palette';
 import { EditorPreferencesMenu } from '@/components/editor-preferences';
 import { StylePanel } from '@/components/style-panel';
+import { RecapPanel } from '@/components/recap-panel';
 import ManuscriptEditor, { type ManuscriptEditorHandle } from '@/components/manuscript-editor';
 import { StorySearch } from '@/components/story-search';
 import { ConflictDialog } from '@/components/conflict-dialog';
@@ -21,7 +22,7 @@ import { getEditorPreferencesSnapshot, getServerEditorPreferencesSnapshot, subsc
 import { lineText } from '@/lib/selection';
 import { analyzeStyle, type StyleIssue } from '@/lib/style-analysis';
 
-type Pane = 'notes' | 'findings' | 'mentions' | 'find' | 'style';
+type Pane = 'notes' | 'findings' | 'mentions' | 'find' | 'style' | 'recap';
 type SaveSnapshot = { title: string; content: string };
 type ConflictPrompt = {
 	localTitle: string;
@@ -1256,7 +1257,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					}}
 				/>
 				<div className="insights-heading"><div><div className="eyebrow">THE STORY, REMEMBERED</div><h2>Chapter desk</h2></div><span className="provider-status">{story.external_analysis_enabled ? 'AI checks on' : 'AI checks off'}</span></div>
-				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages"><button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Notes</button><button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button><button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button><button role="tab" aria-selected={pane === 'style'} className={pane === 'style' ? 'active' : ''} onClick={() => setPane('style')}>Style</button><button role="tab" aria-selected={pane === 'find'} className={pane === 'find' ? 'active' : ''} onClick={() => setPane('find')}>Find</button><button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={() => setPaneOpen(false)}>›</button></div>
+				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages"><button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Notes</button><button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button><button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button><button role="tab" aria-selected={pane === 'style'} className={pane === 'style' ? 'active' : ''} onClick={() => setPane('style')}>Style</button><button role="tab" aria-selected={pane === 'recap'} className={pane === 'recap' ? 'active' : ''} onClick={() => setPane('recap')}>Recap</button><button role="tab" aria-selected={pane === 'find'} className={pane === 'find' ? 'active' : ''} onClick={() => setPane('find')}>Find</button><button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={() => setPaneOpen(false)}>›</button></div>
 				<div className="pane-content">
 					{pane === 'notes' && <section className="notes-pane">
 						<div className="pane-section-title"><strong>This chapter</strong><span>{activeChapter ? `Chapter ${activeChapter.chapter_number}` : 'No chapter open'}</span></div>
@@ -1312,6 +1313,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					</section>}
 					{pane === 'find' && <StorySearch storyId={storyId} chapters={chapters} arcs={arcs} focusAsk={askFocus} onOpen={(chapterId, line) => void openSearchHit(chapterId, line)} />}
 					{pane === 'style' && <StylePanel report={styleReport} issues={styleIssues} dismissedCount={dismissedStyleCount} onJump={jumpToStyleIssue} onDismiss={dismissStyleIssue} onDismissPattern={dismissStylePattern} onReset={resetStyleDismissals} />}
+					{pane === 'recap' && (activeChapter ? <RecapPanel key={activeChapter.id} storyId={storyId} chapter={activeChapter} arcs={arcs} onOpenCitation={(chapterId, line) => void openSearchHit(chapterId, line)} /> : <div className="pane-empty">Choose a chapter to see its synopsis.</div>)}
 					{pane === 'mentions' && <NameCandidatesPanel
 						storyId={storyId}
 						chapter={activeChapter ? { id: activeChapter.id, chapter_number: activeChapter.chapter_number, title: activeChapter.title } : null}

@@ -14,8 +14,16 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.story_models import Chapter
-from app.models.wiki_models import Entity, StoryEvent, StoryThread
-from app.schemas.wiki import EventCreate, EventUpdate, ThreadCreate, ThreadUpdate
+from app.models.wiki_models import Entity, EntityMention, StoryEvent, StoryThread
+from app.schemas.wiki import (
+    EventCreate,
+    EventUpdate,
+    ThreadCreate,
+    ThreadEntityOut,
+    ThreadMentionOut,
+    ThreadOut,
+    ThreadUpdate,
+)
 from app.services.entities import resolve_entity
 
 
@@ -54,6 +62,91 @@ async def list_threads(
     return list(
         await session.scalars(statement.order_by(StoryThread.created_at, StoryThread.id))
     )
+
+
+async def enrich_threads(
+    session: AsyncSession, threads: list[StoryThread]
+) -> list[ThreadOut]:
+    """Add the names and latest mention the board shows, in three queries total."""
+    if not threads:
+        return []
+    chapter_ids = {
+        chapter_id
+        for thread in threads
+        for chapter_id in (thread.setup_chapter_id, thread.payoff_chapter_id)
+        if chapter_id is not None
+    }
+    entity_ids = {entity_id for thread in threads for entity_id in thread.linked_entity_ids}
+    chapters = {
+        chapter.id: chapter
+        for chapter in await session.scalars(select(Chapter).where(Chapter.id.in_(chapter_ids)))
+    } if chapter_ids else {}
+    entities = {
+        entity.id: entity
+        for entity in await session.scalars(select(Entity).where(Entity.id.in_(entity_ids)))
+    } if entity_ids else {}
+    latest: dict[UUID, dict[str, object]] = {}
+    if entity_ids:
+        ranked = (
+            select(
+                EntityMention.entity_id,
+                EntityMention.chapter_id,
+                EntityMention.line_start,
+                EntityMention.quote,
+                Chapter.chapter_number,
+                Chapter.title.label("chapter_title"),
+                func.row_number()
+                .over(
+                    partition_by=EntityMention.entity_id,
+                    order_by=(Chapter.chapter_number.desc(), EntityMention.line_start.desc()),
+                )
+                .label("rank"),
+            )
+            .join(Chapter, Chapter.id == EntityMention.chapter_id)
+            .where(
+                EntityMention.entity_id.in_(entity_ids),
+                Chapter.deleted_at.is_(None),
+            )
+            .subquery()
+        )
+        rows = await session.execute(select(ranked).where(ranked.c.rank == 1))
+        latest = {row.entity_id: dict(row._mapping) for row in rows}
+
+    result: list[ThreadOut] = []
+    for thread in threads:
+        out = ThreadOut.model_validate(thread)
+        linked = [
+            ThreadEntityOut(
+                id=entity.id, name=entity.name, entity_type=entity.entity_type
+            )
+            for entity_id in thread.linked_entity_ids
+            if (entity := entities.get(entity_id)) is not None
+        ]
+        setup = chapters.get(thread.setup_chapter_id) if thread.setup_chapter_id else None
+        payoff = chapters.get(thread.payoff_chapter_id) if thread.payoff_chapter_id else None
+        mention = None
+        candidates = [
+            latest[entity_id]
+            for entity_id in thread.linked_entity_ids
+            if entity_id in latest
+        ]
+        if candidates:
+            best = max(candidates, key=lambda row: (row["chapter_number"], row["line_start"]))
+            mention = ThreadMentionOut(
+                chapter_id=best["chapter_id"],
+                chapter_number=best["chapter_number"],
+                chapter_title=best["chapter_title"],
+                line=best["line_start"],
+                quote=best["quote"],
+            )
+        out.linked_entities = linked
+        out.setup_chapter_number = setup.chapter_number if setup else None
+        out.setup_chapter_title = setup.title if setup else None
+        out.payoff_chapter_number = payoff.chapter_number if payoff else None
+        out.payoff_chapter_title = payoff.title if payoff else None
+        out.last_mention = mention
+        result.append(out)
+    return result
 
 
 async def get_thread(session: AsyncSession, thread_id: UUID) -> StoryThread:

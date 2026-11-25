@@ -22,6 +22,7 @@ from app.routes.editing_routes import router as editing_router
 from app.routes.entities import router as entities_router
 from app.routes.health import router as health_router
 from app.routes.jobs import router as job_router
+from app.routes.recaps import router as recap_router
 from app.routes.search import router as search_router
 from app.routes.stories import router as story_router
 from app.routes.system_routes import router as system_router
@@ -135,3 +136,4 @@ app.include_router(editing_router)
 app.include_router(entities_router)
 app.include_router(wiki_router)
 app.include_router(search_router)
+app.include_router(recap_router)

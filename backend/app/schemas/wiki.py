@@ -243,6 +243,20 @@ class ThreadUpdate(BaseModel):
     linked_entity_ids: list[UUID] | None = None
 
 
+class ThreadEntityOut(BaseModel):
+    id: UUID
+    name: str
+    entity_type: str
+
+
+class ThreadMentionOut(BaseModel):
+    chapter_id: UUID
+    chapter_number: int
+    chapter_title: str
+    line: int
+    quote: str
+
+
 class ThreadOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -255,6 +269,12 @@ class ThreadOut(BaseModel):
     payoff_chapter_id: UUID | None
     state: str
     linked_entity_ids: list[UUID]
+    linked_entities: list[ThreadEntityOut] = Field(default_factory=list)
+    setup_chapter_number: int | None = None
+    setup_chapter_title: str | None = None
+    payoff_chapter_number: int | None = None
+    payoff_chapter_title: str | None = None
+    last_mention: ThreadMentionOut | None = None
     created_at: datetime
     updated_at: datetime
 

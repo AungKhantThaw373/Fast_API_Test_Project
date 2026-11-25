@@ -64,7 +64,7 @@ async def list_threads(
 ) -> ThreadListOut:
     await stories_service.owned_story(session, story_id, user.id)
     rows = await threads_service.list_threads(session, story_id, state=state_filter)
-    return ThreadListOut(threads=[ThreadOut.model_validate(row) for row in rows])
+    return ThreadListOut(threads=await threads_service.enrich_threads(session, rows))
 
 
 @router.post(
@@ -82,7 +82,7 @@ async def create_thread(
     thread = await threads_service.create_thread(session, story_id, payload)
     await session.commit()
     await session.refresh(thread)
-    return ThreadOut.model_validate(thread)
+    return (await threads_service.enrich_threads(session, [thread]))[0]
 
 
 @router.patch("/threads/{thread_id}", response_model=ThreadOut)
@@ -97,7 +97,7 @@ async def update_thread(
     await threads_service.update_thread(session, thread, payload)
     await session.commit()
     await session.refresh(thread)
-    return ThreadOut.model_validate(thread)
+    return (await threads_service.enrich_threads(session, [thread]))[0]
 
 
 @router.delete("/threads/{thread_id}", status_code=status.HTTP_204_NO_CONTENT)

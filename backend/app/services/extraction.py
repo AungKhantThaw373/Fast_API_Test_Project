@@ -21,6 +21,7 @@ from app.config import settings
 from app.logging_config import fields, get_logger
 from app.models.story_models import Chapter
 from app.models.wiki_models import (
+    ChapterMeta,
     Entity,
     EntityAlias,
     EntityFact,
@@ -33,6 +34,7 @@ from app.services import auto_accept
 from app.services.ai_service import structured_ai_json
 from app.services.chunking import detect_scenes
 from app.services.entities import create_entity, normalize_name
+from app.services.recaps import extractive_synopsis
 
 logger = get_logger("extract")
 
@@ -495,6 +497,13 @@ async def extract_chapter(session: AsyncSession, chapter: Chapter, owner_id: UUI
     if stats.model_calls:
         decisions = await auto_accept.run(session, chapter.story_id)
         stats.auto_accepted = decisions["accepted"]
+    chapter_meta = await session.get(ChapterMeta, chapter.id)
+    if chapter_meta is None:
+        chapter_meta = ChapterMeta(chapter_id=chapter.id, synopsis="")
+        session.add(chapter_meta)
+    if not chapter_meta.synopsis.strip():
+        chapter_meta.synopsis = extractive_synopsis(chapter.content)
+    await session.flush()
     logger.info(
         "[extract] done %s",
         fields(

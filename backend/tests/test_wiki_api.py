@@ -4,6 +4,7 @@ from uuid import UUID
 
 import pytest
 
+from app.models.wiki_models import EntityMention
 from app.services import entities as entity_service
 
 
@@ -317,6 +318,62 @@ async def test_threads_and_events(user_client):
 
     assert (await user_client.delete(f"/events/{event.json()['id']}")).status_code == 204
     assert (await user_client.delete(f"/threads/{thread.json()['id']}")).status_code == 204
+
+
+
+
+async def test_thread_board_metadata_and_last_mention(user_client, session):
+    story_id = await _story(user_client)
+    first = await _chapter(user_client, story_id, 1)
+    second = await _chapter(user_client, story_id, 2)
+    entity = await _entity(user_client, story_id)
+    thread = await user_client.post(
+        f"/stories/{story_id}/threads",
+        json={
+            "title": "Who betrayed the Watch?",
+            "setup_chapter_id": first["id"],
+            "linked_entity_ids": [entity["id"]],
+        },
+    )
+    assert thread.status_code == 201, thread.text
+    session.add_all(
+        [
+            EntityMention(
+                entity_id=UUID(entity["id"]),
+                chapter_id=UUID(first["id"]),
+                line_start=1,
+                line_end=1,
+                quote="Mira Voss crossed the yard.",
+            ),
+            EntityMention(
+                entity_id=UUID(entity["id"]),
+                chapter_id=UUID(second["id"]),
+                line_start=2,
+                line_end=2,
+                quote="The captain watched Mira.",
+            ),
+        ]
+    )
+    await session.commit()
+
+    listed = await user_client.get(f"/stories/{story_id}/threads")
+    assert listed.status_code == 200
+    row = listed.json()["threads"][0]
+    assert row["linked_entities"] == [
+        {"id": entity["id"], "name": "Mira Voss", "entity_type": "character"}
+    ]
+    assert row["setup_chapter_number"] == 1
+    assert row["setup_chapter_title"] == "Chapter 1"
+    assert row["last_mention"]["chapter_number"] == 2
+    assert row["last_mention"]["line"] == 2
+    assert row["last_mention"]["quote"] == "The captain watched Mira."
+
+    moved = await user_client.patch(
+        f"/threads/{thread.json()['id']}",
+        json={"state": "resolved", "payoff_chapter_id": second["id"]},
+    )
+    assert moved.status_code == 200
+    assert moved.json()["payoff_chapter_number"] == 2
 
 
 async def test_inbox_lists_proposals_before_findings(user_client):
