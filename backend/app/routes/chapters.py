@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, Request, status
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +33,7 @@ from app.security import get_current_user
 from app.services import chapters as chapters_service
 from app.services import indexing
 from app.services import stories as stories_service
+from app.services.audit import record_audit
 
 router = APIRouter(prefix="/stories", tags=["chapters"])
 
@@ -249,12 +250,26 @@ async def move_chapter(
 @router.delete("/chapters/{chapter_id}", response_model=ChapterListOut)
 async def delete_chapter(
     chapter_id: UUID,
+    request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> ChapterListOut:
     chapter = await chapters_service.owned_chapter(session, chapter_id, user.id)
+    story_id, title = chapter.story_id, chapter.title
     remaining = await chapters_service.delete_chapter(session, chapter)
-    return ChapterListOut(chapters=[_summary(item) for item in remaining])
+    result = ChapterListOut(chapters=[_summary(item) for item in remaining])
+    record_audit(
+        session,
+        "chapter_trashed",
+        user_id=user.id,
+        email=user.email,
+        target_type="chapter",
+        target_id=str(chapter_id),
+        detail={"title": title, "story_id": str(story_id)},
+        request=request,
+    )
+    await session.commit()
+    return result
 
 
 @router.post(

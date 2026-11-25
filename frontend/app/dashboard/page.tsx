@@ -199,6 +199,7 @@ function DashboardInner() {
 					<Link className="story-card-link" href={`/stories/${story.id}`}>
 						<div className="story-card-top"><span className="story-card-mark">✳</span><span className="story-open">{story.collection_name || 'Unsorted'} · Open ↗</span></div>
 						<h3>{story.title}</h3><p>{story.chapter_count ?? 0} {(story.chapter_count ?? 0) === 1 ? 'chapter' : 'chapters'} <span>·</span> {(story.word_count ?? 0).toLocaleString()} words</p>
+						{(story.chapter_count ?? 0) >= (story.chapter_warning_at ?? 1000) && <p className="story-size-warning">This story is very long. Consider splitting the manuscript into volumes; Stillroom will keep working, but navigation gets heavy.</p>}
 						<div className="story-card-foot"><span>Last tended</span><time>{new Date(story.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</time></div>
 					</Link>
 					<div className="story-card-actions"><button className="story-delete-button" onClick={() => setRename({ story, field: 'title' })}>Rename</button><button className="story-delete-button" onClick={() => setRename({ story, field: 'collection_name' })}>Collection</button><button className="story-delete-button" onClick={() => void deleteStory(story)} disabled={deletingStoryId === story.id}>{deletingStoryId === story.id ? 'Deleting…' : 'Delete'}</button></div>

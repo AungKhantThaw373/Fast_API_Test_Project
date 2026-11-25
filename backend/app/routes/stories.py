@@ -2,9 +2,10 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db import get_async_session
 from app.models.app_models import User
 from app.models.story_models import Story
@@ -19,6 +20,7 @@ from app.schemas.stories import (
 )
 from app.security import get_current_user
 from app.services import stories as stories_service
+from app.services.audit import record_audit
 from app.services.trash import trash_story
 
 router = APIRouter(prefix="/stories", tags=["stories"])
@@ -30,7 +32,12 @@ CHAPTER_LIST_CAP = 2000
 
 def _summary(story: Story, chapter_count: int, word_count: int) -> StorySummaryOut:
     fields = StoryOut.model_validate(story).model_dump()
-    return StorySummaryOut(**fields, chapter_count=chapter_count, word_count=word_count)
+    return StorySummaryOut(
+        **fields,
+        chapter_count=chapter_count,
+        word_count=word_count,
+        chapter_warning_at=settings.STORY_CHAPTER_WARNING,
+    )
 
 
 @router.get("", response_model=StoryListOut)
@@ -61,11 +68,22 @@ async def create_story(
 @router.delete("/{story_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_story(
     story_id: UUID,
+    request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> Response:
     story = await stories_service.owned_story(session, story_id, user.id)
     await trash_story(session, story)
+    record_audit(
+        session,
+        "story_trashed",
+        user_id=user.id,
+        email=user.email,
+        target_type="story",
+        target_id=str(story.id),
+        detail={"title": story.title},
+        request=request,
+    )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

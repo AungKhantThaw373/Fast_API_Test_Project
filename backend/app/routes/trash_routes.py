@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,7 @@ from app.db import get_async_session
 from app.models.app_models import User
 from app.models.story_models import Chapter, Story
 from app.security import get_current_user
+from app.services.audit import record_audit
 from app.services.trash import TRASH_RETENTION_DAYS, next_free_number
 
 router = APIRouter(prefix="/trash", tags=["trash"])
@@ -180,11 +181,23 @@ async def restore_story(
 @router.delete("/chapters/{chapter_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_chapter_permanently(
     chapter_id: UUID,
+    request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     chapter = await _trashed_chapter(session, chapter_id, user.id)
+    title, story_id = chapter.title, chapter.story_id
     await session.delete(chapter)
+    record_audit(
+        session,
+        "chapter_deleted",
+        user_id=user.id,
+        email=user.email,
+        target_type="chapter",
+        target_id=str(chapter_id),
+        detail={"title": title, "story_id": str(story_id), "permanent": True},
+        request=request,
+    )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -192,10 +205,22 @@ async def delete_chapter_permanently(
 @router.delete("/stories/{story_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_story_permanently(
     story_id: UUID,
+    request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     story = await _trashed_story(session, story_id, user.id)
+    title = story.title
     await session.delete(story)
+    record_audit(
+        session,
+        "story_deleted",
+        user_id=user.id,
+        email=user.email,
+        target_type="story",
+        target_id=str(story_id),
+        detail={"title": title, "permanent": True},
+        request=request,
+    )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -37,6 +37,7 @@ class StoryOut(BaseModel):
 class StorySummaryOut(StoryOut):
     chapter_count: int
     word_count: int
+    chapter_warning_at: int = 1000
 
 
 class StoryListOut(BaseModel):

@@ -48,6 +48,7 @@ a { color: inherit; text-decoration: none; }
 .auth-form input { width: 100%; height: 41px; border: 1px solid #deddd4; border-radius: 5px; padding: 0 11px; background: #fffefa; color: var(--ink); }
 .auth-form input:focus { border-color: #91a18a; outline: none; }
 .form-error { margin: 0; color: #9b513e; font-size: 12px; }
+.form-notice { margin: 0; color: #486b4c; font-size: 12px; }
 .auth-switch { margin: 18px 0 0; text-align: center; color: #85877f; font-size: 12px; }
 .auth-footnote { margin: 21px 0 0; color: #98998f; font-size: 12px; text-align: center; }
 
@@ -441,11 +442,58 @@ a { color: inherit; text-decoration: none; }
 .profile-settings-card dl div:last-child { padding-bottom: 0; border-bottom: 0; }
 .profile-settings-card dt { color: #898b82; font-size: 12px; }
 .profile-settings-card dd { margin: 0; color: #4d5349; font-size: 12px; }
+.profile-settings-card + .profile-settings-card { margin-top: 22px; }
+.profile-settings-card > p { margin: -7px 0 16px; color: #7f8278; font-size: 12px; line-height: 1.6; }
+.account-form { display: grid; gap: 12px; max-width: 420px; }
+.account-form label { display: grid; gap: 6px; color: #72766c; font-size: 12px; }
+.account-form input { min-height: 38px; padding: 8px 10px; border: 1px solid #dedfd6; border-radius: 5px; background: #fffefa; color: var(--ink); font-size: 13px; }
+.session-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.session-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 0; border-top: 1px solid #efede6; }
+.session-row > div { display: grid; min-width: 0; gap: 5px; }
+.session-row strong { color: #4d5349; font-size: 12px; font-weight: 600; }
+.session-row span { color: #898b82; font-size: 12px; line-height: 1.5; }
+.session-current { margin-left: 7px; padding: 2px 6px; border-radius: 99px; background: #e9eee5; color: var(--forest-deep); font-size: 9px; font-weight: 600; vertical-align: 1px; }
+.session-list + .quiet-button { margin-top: 12px; }
 .ai-provider-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .ai-provider-heading h2, .ai-provider-heading h3 { margin: 6px 0 0; color: #41473e; font-family: Georgia, serif; font-size: 22px; font-weight: 400; }
 .provider-status { flex: none; padding: 5px 8px; border-radius: 99px; background: #f1efe9; color: #85867c; font-size: 9px; }
 .provider-status.connected { background: #edf2e8; color: #5f7457; }
 .settings-success { padding: 10px 12px; border: 1px solid #dbe5d4; border-radius: 5px; background: #f2f6ef; color: #53694c; font-size: 12px; }
+.data-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.data-actions .button { text-decoration: none; }
+.data-retention { margin: 14px 0 0 !important; padding-top: 12px; border-top: 1px solid #efede6; }
+.audit-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.audit-row { padding: 11px 0; border-top: 1px solid #efede6; }
+.audit-row:first-child { border-top: 0; padding-top: 0; }
+.audit-row div { display: grid; gap: 3px; }
+.audit-row strong { color: #4d5349; font-size: 12px; font-weight: 600; }
+.audit-row span { color: #8a8c83; font-size: 12px; }
+.diagnostics-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.diagnostics-heading h1 { margin: 7px 0 8px; font-family: Georgia, serif; font-size: 34px; font-weight: 400; }
+.diagnostics-heading .general-settings-intro { margin-top: 0; }
+.diagnostics-stamp { margin: 18px 0; color: #8a8c83; font-size: 12px; }
+.diagnostics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.diagnostic-card { min-width: 0; }
+.diagnostic-card h2 { margin-bottom: 16px; }
+.diagnostic-card dl { gap: 9px; }
+.diagnostic-card dl div { padding-bottom: 9px; }
+.diagnostic-status { font-weight: 600; }
+.diagnostic-status.ok { color: #4f6b4a; }
+.diagnostic-status.warn { color: #9c5547; }
+.diagnostic-note { margin: 14px 0 0 !important; padding-top: 12px; border-top: 1px solid #efede6; font-size: 12px; }
+.diagnostic-note code { font-size: 11px; }
+.diagnostic-filename { overflow-wrap: anywhere; text-align: right; }
+.diagnostics-usage { margin-top: 18px; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.usage-table th { padding: 8px 6px; border-bottom: 1px solid #dedcd2; color: #898b82; font-weight: 500; text-align: right; }
+.usage-table th:first-child, .usage-table td:first-child { padding-left: 0; text-align: left; }
+.usage-table td { padding: 9px 6px; border-bottom: 1px solid #efede6; color: #4d5349; text-align: right; }
+.usage-table tr:last-child td { border-bottom: 0; }
+@media (max-width: 720px) { .diagnostics-grid { grid-template-columns: 1fr; } .diagnostics-heading { flex-direction: column; } }
+.danger-card { border-color: #e5c9c2; background: #fffaf8; }
+.danger-card .eyebrow { color: #9c5547; }
+.danger-button { border: 1px solid #9c5547; background: #9c5547; color: #fff; }
+.danger-button:hover { background: #864538; }
 .general-privacy { margin-top: 22px; padding: 18px 20px; border: 1px solid #e5e6dc; border-radius: 7px; background: #f7f7f2; }
 .general-privacy h2 { margin: 7px 0; color: #4a5146; font-family: Georgia, serif; font-size: 18px; font-weight: 400; }
 .general-privacy p { max-width: 660px; margin: 0; color: #7f8278; font-size: 12px; line-height: 1.65; }
@@ -489,6 +537,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Manuscript organization, draft safety, and review tools */
 .story-card-actions { display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #efede6; }
+.story-size-warning { margin: 8px 0 0; color: #8a5d45; font-size: 12px; line-height: 1.5; }
 .story-library-tools { display: flex; gap: 8px; margin: -3px 0 15px; }
 .story-library-tools input, .story-library-tools select { min-height: 36px; padding: 0 10px; border: 1px solid #dedfd6; border-radius: 5px; background: #fffefa; color: var(--ink); font-size: 12px; }
 .story-library-tools input { flex: 1; }

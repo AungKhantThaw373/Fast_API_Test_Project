@@ -89,6 +89,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Forgot Password */
+        post: operations["forgot_password_forgot_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Password */
+        post: operations["reset_password_reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -137,6 +171,125 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sessions */
+        get: operations["list_sessions_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Session */
+        delete: operations["revoke_session_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/revoke-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke All */
+        post: operations["revoke_all_sessions_revoke_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Password */
+        post: operations["change_password_account_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Audit Events */
+        get: operations["list_audit_events_account_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Account */
+        get: operations["export_account_account_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Account */
+        delete: operations["delete_account_account_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -740,6 +893,23 @@ export interface paths {
         };
         /** System Status */
         get: operations["system_status_system_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** System Diagnostics */
+        get: operations["system_diagnostics_system_diagnostics_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1480,6 +1650,19 @@ export interface components {
             /** Base Url */
             base_url?: string | null;
         };
+        /** AIUsageMetric */
+        AIUsageMetric: {
+            /** Purpose */
+            purpose: string;
+            /** Calls */
+            calls: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cost Estimate */
+            cost_estimate: number;
+        };
         /** AIUsageOut */
         AIUsageOut: {
             /** Month */
@@ -1517,6 +1700,13 @@ export interface components {
             cost_usd: number;
             /** Average Duration Ms */
             average_duration_ms: number;
+        };
+        /** AccountDelete */
+        AccountDelete: {
+            /** Password */
+            password: string;
+            /** Confirmation */
+            confirmation: string;
         };
         /** AliasCreate */
         AliasCreate: {
@@ -1672,6 +1862,36 @@ export interface components {
             unsure: boolean;
             /** Citations */
             citations: components["schemas"]["AskCitationOut"][];
+        };
+        /** AuditEventView */
+        AuditEventView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Action */
+            action: string;
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            };
+            /** Ip */
+            ip: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AuditListOut */
+        AuditListOut: {
+            /** Events */
+            events: components["schemas"]["AuditEventView"][];
         };
         /** AutoAcceptPreviewOut */
         AutoAcceptPreviewOut: {
@@ -2011,6 +2231,18 @@ export interface components {
              * @default 0
              */
             char_count: number;
+        };
+        /** BackupStatus */
+        BackupStatus: {
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /**
+             * Modified At
+             * Format: date-time
+             */
+            modified_at: string;
         };
         /** BackupStory */
         BackupStory: {
@@ -2412,6 +2644,36 @@ export interface components {
             created_at: string;
             /** Label */
             label: string | null;
+        };
+        /** DiagnosticsOut */
+        DiagnosticsOut: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Database */
+            database: string;
+            /** Database Size Bytes */
+            database_size_bytes: number;
+            /** Pgvector */
+            pgvector: string;
+            /** Schema Status */
+            schema_status: string;
+            /** Worker */
+            worker: string;
+            /** Ollama */
+            ollama: string;
+            jobs: components["schemas"]["JobStatusCounts"];
+            /** Ai Provider */
+            ai_provider: string;
+            /** Ai Model */
+            ai_model: string;
+            /** Ai Usage 30D */
+            ai_usage_30d: components["schemas"]["AIUsageMetric"][];
+            last_backup: components["schemas"]["BackupStatus"] | null;
+            /** Slow Query Ms */
+            slow_query_ms: number;
         };
         /** DiffHunkOut */
         DiffHunkOut: {
@@ -3000,6 +3262,19 @@ export interface components {
              */
             updated_at: string;
         };
+        /** JobStatusCounts */
+        JobStatusCounts: {
+            /** Queued */
+            queued: number;
+            /** Running */
+            running: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Failed */
+            failed: number;
+            /** Dead */
+            dead: number;
+        };
         /** LatestScanOut */
         LatestScanOut: {
             scan: components["schemas"]["ScanSummaryOut"] | null;
@@ -3080,6 +3355,11 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** MessageOut */
+        MessageOut: {
+            /** Message */
+            message: string;
+        };
         /** NameCandidateAccept */
         NameCandidateAccept: {
             /** Name */
@@ -3121,6 +3401,28 @@ export interface components {
             first_line: number;
             /** Sample */
             sample: string;
+        };
+        /** PasswordChange */
+        PasswordChange: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** PasswordResetConfirm */
+        PasswordResetConfirm: {
+            /** Token */
+            token: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** PasswordResetRequest */
+        PasswordResetRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
         };
         /** RecapChapterOut */
         RecapChapterOut: {
@@ -3408,6 +3710,38 @@ export interface components {
             /** Results */
             results?: components["schemas"]["SearchHitOut"][];
         };
+        /** SessionListOut */
+        SessionListOut: {
+            /** Sessions */
+            sessions: components["schemas"]["SessionView"][];
+        };
+        /** SessionView */
+        SessionView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** User Agent */
+            user_agent: string;
+            /** Ip */
+            ip: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /**
+             * Current
+             * @default false
+             */
+            current: boolean;
+        };
         /** StoryBackup */
         StoryBackup: {
             /**
@@ -3476,6 +3810,11 @@ export interface components {
             chapter_count: number;
             /** Word Count */
             word_count: number;
+            /**
+             * Chapter Warning At
+             * @default 1000
+             */
+            chapter_warning_at: number;
             /** Chapters */
             chapters: components["schemas"]["ChapterSummaryOut"][];
             /**
@@ -3578,6 +3917,11 @@ export interface components {
             chapter_count: number;
             /** Word Count */
             word_count: number;
+            /**
+             * Chapter Warning At
+             * @default 1000
+             */
+            chapter_warning_at: number;
         };
         /** StoryUpdate */
         StoryUpdate: {
@@ -3887,7 +4231,10 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3897,7 +4244,82 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    forgot_password_forgot_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_password_reset_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3909,6 +4331,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -3940,6 +4363,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -3971,6 +4395,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4006,6 +4431,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4050,6 +4476,242 @@ export interface operations {
             };
         };
     };
+    list_sessions_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_session_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_all_sessions_revoke_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_password_account_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_events_account_audit_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_account_account_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_account_account_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountDelete"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_stories_stories_get: {
         parameters: {
             query?: {
@@ -4060,6 +4722,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4091,6 +4754,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4128,6 +4792,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4161,6 +4826,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4192,6 +4858,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4229,6 +4896,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4264,6 +4932,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4297,6 +4966,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4334,6 +5004,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4367,6 +5038,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4406,6 +5078,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4443,6 +5116,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4474,6 +5148,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4511,6 +5186,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4548,6 +5224,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4585,6 +5262,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4624,6 +5302,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4664,6 +5343,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4701,6 +5381,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4734,6 +5415,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4767,6 +5449,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4800,6 +5483,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4839,6 +5523,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4873,6 +5558,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4906,6 +5592,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -4943,6 +5630,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -4979,6 +5667,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5012,6 +5701,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5049,6 +5739,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5086,6 +5777,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5123,6 +5815,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5160,6 +5853,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5191,6 +5885,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5231,6 +5926,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5266,6 +5962,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5301,6 +5998,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5334,6 +6032,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5371,6 +6070,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5408,6 +6108,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5441,6 +6142,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5472,6 +6174,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5505,6 +6208,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5538,6 +6242,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5571,6 +6276,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5602,6 +6308,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5631,6 +6338,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5655,6 +6363,38 @@ export interface operations {
             };
         };
     };
+    system_diagnostics_system_diagnostics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiagnosticsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_folders_editing_folders_get: {
         parameters: {
             query?: never;
@@ -5662,6 +6402,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5693,6 +6434,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5730,6 +6472,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5761,6 +6504,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5798,6 +6542,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5829,6 +6574,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5866,6 +6612,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5897,6 +6644,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -5936,6 +6684,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -5976,6 +6725,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6009,6 +6759,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6048,6 +6799,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6081,6 +6833,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6114,6 +6867,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6151,6 +6905,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6182,6 +6937,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6220,6 +6976,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6251,6 +7008,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6288,6 +7046,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6324,6 +7083,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6360,6 +7120,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6393,6 +7154,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6430,6 +7192,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6467,6 +7230,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6498,6 +7262,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6531,6 +7296,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6564,6 +7330,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6597,6 +7364,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6634,6 +7402,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6667,6 +7436,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6700,6 +7470,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6737,6 +7508,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6768,6 +7540,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6807,6 +7580,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6840,6 +7614,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6877,6 +7652,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -6914,6 +7690,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6946,6 +7723,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -6979,6 +7757,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -7016,6 +7795,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7049,6 +7829,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -7086,6 +7867,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7117,6 +7899,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -7154,6 +7937,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7187,6 +7971,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -7224,6 +8009,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7257,6 +8043,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7290,6 +8077,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7329,6 +8117,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7370,6 +8159,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7403,6 +8193,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7436,6 +8227,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {
@@ -7475,6 +8267,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7509,6 +8302,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7545,6 +8339,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7581,6 +8376,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7614,6 +8410,7 @@ export interface operations {
             };
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody?: never;
@@ -7645,6 +8442,7 @@ export interface operations {
             path?: never;
             cookie?: {
                 token?: string | null;
+                "__Host-token"?: string | null;
             };
         };
         requestBody: {

@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_async_session
@@ -33,6 +33,7 @@ from app.security import get_current_user
 from app.services import entities as entity_service
 from app.services import facts as fact_service
 from app.services import stories as stories_service
+from app.services.audit import record_audit
 
 router = APIRouter(tags=["entities"])
 
@@ -224,6 +225,7 @@ async def delete_alias(
 async def merge_entity(
     entity_id: UUID,
     payload: MergeRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> MergeResultOut:
@@ -238,6 +240,16 @@ async def merge_entity(
     if payload.dry_run:
         await session.rollback()
     else:
+        record_audit(
+            session,
+            "entity_merged",
+            user_id=user.id,
+            email=user.email,
+            target_type="entity",
+            target_id=str(entity_id),
+            detail={"target_id": str(payload.target_id), "moved": result},
+            request=request,
+        )
         await session.commit()
     return MergeResultOut(
         source_id=entity_id,
@@ -250,6 +262,7 @@ async def merge_entity(
 @router.post("/entities/{entity_id}/unmerge", response_model=UnmergeOut)
 async def undo_merge(
     entity_id: UUID,
+    request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> UnmergeOut:
@@ -264,6 +277,16 @@ async def undo_merge(
         target_id=merge.target_id,
         merge_id=merge.id,
         reverted_at=merge.reverted_at,
+    )
+    record_audit(
+        session,
+        "entity_unmerged",
+        user_id=user.id,
+        email=user.email,
+        target_type="entity",
+        target_id=str(entity_id),
+        detail={"merge_id": str(merge.id)},
+        request=request,
     )
     await session.commit()
     return result
