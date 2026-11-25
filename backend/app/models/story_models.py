@@ -7,6 +7,7 @@ from uuid import UUID as UUIDType
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    ARRAY,
     Boolean,
     DateTime,
     Float,
@@ -120,6 +121,9 @@ class Chapter(Base):
     scenes: Mapped[list[SceneEmbedding]] = relationship(
         "SceneEmbedding", back_populates="chapter", cascade="all, delete-orphan"
     )
+    chunks: Mapped[list[StoryChunk]] = relationship(
+        "StoryChunk", back_populates="chapter", cascade="all, delete-orphan"
+    )
     revisions: Mapped[list[ChapterRevision]] = relationship(
         "ChapterRevision", back_populates="chapter", cascade="all, delete-orphan",
         order_by="ChapterRevision.revision_number.desc()",
@@ -176,6 +180,51 @@ class SceneEmbedding(Base):
 
     chapter: Mapped[Chapter] = relationship("Chapter", back_populates="scenes")
 
+
+class StoryChunk(Base):
+    """A retrieval chunk built by the Phase 5 sentence-aware chunker."""
+
+    __tablename__ = "story_chunks"
+    __table_args__ = (
+        UniqueConstraint("chapter_id", "chunk_kind", "chunk_index", name="uq_story_chunk_index"),
+        Index("ix_story_chunks_story_chapter", "story_id", "chapter_number"),
+        Index("ix_story_chunks_entities", "entities", postgresql_using="gin"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False
+    )
+    chapter_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("story_chapters.id", ondelete="CASCADE"), nullable=False
+    )
+    chapter_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    scene_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    chunk_kind: Mapped[str] = mapped_column(String(20), nullable=False, default="scene")
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    start_line: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_line: Mapped[int] = mapped_column(Integer, nullable=False)
+    entities: Mapped[list[UUIDType]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), nullable=False, default=list, server_default="{}"
+    )
+    pov_entity_id: Mapped[UUIDType | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True
+    )
+    location_entity_id: Mapped[UUIDType | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(settings.EMBEDDING_DIMENSIONS), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(
+        String(200), nullable=False, default=settings.EMBEDDING_MODEL
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    chapter: Mapped[Chapter] = relationship("Chapter", back_populates="chunks")
 
 class StoryBibleEntry(Base):
     __tablename__ = "story_bible_entries"

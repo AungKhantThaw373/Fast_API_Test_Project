@@ -32,7 +32,7 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
 TABLES = (
     "users, user_ai_settings, stories, story_chapters, story_chapter_revisions, "
-    "story_scene_embeddings, story_bible_entries, continuity_scans, "
+    "story_scene_embeddings, story_chunks, story_bible_entries, continuity_scans, "
     "continuity_findings, editing_folders, editing_draft_files, jobs, worker_heartbeats, "
     "entities, entity_aliases, entity_facts, entity_relationships, story_events, "
     "story_threads, entity_mentions, canon_exceptions, chapter_meta, scene_meta, ai_usage"

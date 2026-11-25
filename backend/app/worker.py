@@ -45,7 +45,10 @@ MAX_CONCURRENT_JOBS = 1
 
 async def _run_reindex(payload: dict[str, Any]) -> str:
     chapter_id = UUID(str(payload.get("chapter_id")))
-    return await indexing.reindex_chapter(chapter_id)
+    raw_job_id = payload.get("job_id")
+    return await indexing.reindex_chapter(
+        chapter_id, UUID(str(raw_job_id)) if raw_job_id else None
+    )
 
 
 async def _run_bible_scan(payload: dict[str, Any]) -> str:
@@ -75,7 +78,9 @@ async def run_job(job: Job) -> str:
             )
             return "unknown"
         try:
-            outcome = await handler(job.payload or {})
+            payload = dict(job.payload or {})
+            payload.setdefault("job_id", str(job.id))
+            outcome = await handler(payload)
         except Exception as exc:
             status = await jobs_service.record_failure(session, job.id, exc)
             logger.warning(

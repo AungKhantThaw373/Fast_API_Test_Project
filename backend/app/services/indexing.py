@@ -11,9 +11,12 @@ from starlette.concurrency import run_in_threadpool
 from app.config import settings
 from app.db import async_session
 from app.logging_config import fields, get_logger
-from app.models.story_models import Chapter, SceneEmbedding, Story, StoryBibleEntry
+from app.models.story_models import Chapter, SceneEmbedding, Story, StoryBibleEntry, StoryChunk
+from app.models.wiki_models import ChapterMeta, SceneMeta
 from app.services import jobs
 from app.services.ai_service import ENTRIES_SCHEMA, AIProviderHTTPError, embed_texts, structured_ai_json
+from app.services.chunking import chunk_chapter
+from app.services.entities import alias_map, extract_mentions, find_mentions
 
 logger = get_logger("index")
 SCENE_HEADING = re.compile(r"^(?:#{1,3}\s+\S.*|(?:INT\.|EXT\.|INT/EXT\.).+|\*\s*\*\s*\*\s*)$", re.IGNORECASE)
@@ -314,7 +317,15 @@ async def _suggest_story_bible(
         return DONE
 
 
-async def reindex_chapter(chapter_id: UUID) -> str:
+async def _job_progress(job_id: UUID | None, progress: dict) -> None:
+    if job_id is None:
+        return
+    async with async_session() as session:
+        await jobs.set_progress(session, job_id, progress)
+        await session.commit()
+
+
+async def reindex_chapter(chapter_id: UUID, job_id: UUID | None = None) -> str:
     revision: int | None = None
     started = time.monotonic()
     try:
@@ -330,25 +341,42 @@ async def reindex_chapter(chapter_id: UUID) -> str:
             chapter.index_error = None
             await session.commit()
 
-        scenes = split_into_scenes(content)
+        chunks = chunk_chapter(content)
+        await _job_progress(job_id, {"stage": "chunking", "chunks": len(chunks)})
         async with async_session() as session:
-            previous = list(await session.scalars(
-                select(SceneEmbedding).where(SceneEmbedding.chapter_id == chapter_id)
-            ))
+            previous = (
+                list(
+                    await session.scalars(
+                        select(StoryChunk).where(StoryChunk.chapter_id == chapter_id)
+                    )
+                )
+                if can_reuse_vectors
+                else []
+            )
         reusable: dict[str, deque[list[float]]] = defaultdict(deque)
-        if can_reuse_vectors:
-            for item in previous:
-                reusable[item.text].append(item.embedding)
-        embeddings_by_text: dict[str, deque[list[float]]] = defaultdict(deque)
-        to_embed: list[SceneText] = []
-        for scene in scenes:
-            if reusable[scene.text]:
-                embeddings_by_text[scene.text].append(reusable[scene.text].popleft())
-            else:
-                to_embed.append(scene)
-        new_vectors = await run_in_threadpool(embed_texts, [scene.text for scene in to_embed])
-        for scene, vector in zip(to_embed, new_vectors, strict=True):
-            embeddings_by_text[scene.text].append(vector)
+        for item in previous:
+            reusable[item.content_hash].append(item.embedding)
+        vectors: dict[str, list[float]] = {}
+        for chunk in chunks:
+            if reusable[chunk.content_hash]:
+                vectors[chunk.content_hash] = reusable[chunk.content_hash].popleft()
+        missing = {
+            chunk.content_hash: chunk.text
+            for chunk in chunks
+            if chunk.content_hash not in vectors
+        }
+        embedded = await run_in_threadpool(embed_texts, list(missing.values()))
+        for content_digest, vector in zip(missing, embedded, strict=True):
+            vectors[content_digest] = vector
+        await _job_progress(
+            job_id,
+            {
+                "stage": "embedding",
+                "chunks": len(chunks),
+                "embedded": len(missing),
+                "reused": len(chunks) - len(missing),
+            },
+        )
 
         async with async_session() as session:
             current = await session.scalar(
@@ -365,45 +393,72 @@ async def reindex_chapter(chapter_id: UUID) -> str:
                     current.index_status = "pending"
                     await session.commit()
                 return SUPERSEDED
-            current_embeddings = list(await session.scalars(
-                select(SceneEmbedding).where(SceneEmbedding.chapter_id == chapter_id)
-            ))
-            current_by_text: dict[str, deque[SceneEmbedding]] = defaultdict(deque)
-            current_vectors_match = current.indexed_embedding_model == settings.EMBEDDING_MODEL
-            if current_vectors_match:
-                for item in current_embeddings:
-                    current_by_text[item.text].append(item)
-            new_scene_rows: list[tuple[int, SceneText, list[float]]] = []
-            for index, scene in enumerate(scenes):
-                if current_by_text[scene.text]:
-                    embedding = current_by_text[scene.text].popleft()
-                    embedding.story_id = story_id
-                    embedding.chapter_number = current.chapter_number
-                    embedding.chunk_index = index
-                    embedding.start_line = scene.start_line
-                    embedding.end_line = scene.end_line
-                    continue
-                vector = embeddings_by_text[scene.text].popleft()
-                new_scene_rows.append((index, scene, vector))
-            unused_ids = (
-                {item.id for item in current_embeddings}
-                if not current_vectors_match
-                else {item.id for queue in current_by_text.values() for item in queue}
-            )
-            if unused_ids:
-                await session.execute(delete(SceneEmbedding).where(SceneEmbedding.id.in_(unused_ids)))
-            for index, scene, vector in new_scene_rows:
-                session.add(SceneEmbedding(
-                    story_id=story_id,
-                    chapter_id=chapter_id,
-                    chapter_number=current.chapter_number,
-                    chunk_index=index,
-                    text=scene.text,
-                    start_line=scene.start_line,
-                    end_line=scene.end_line,
-                    chunk_metadata={},
-                    embedding=vector,
-                ))
+
+            chapter_meta = await session.get(ChapterMeta, chapter_id)
+            scene_meta = {
+                row.scene_index: row
+                for row in await session.scalars(
+                    select(SceneMeta).where(SceneMeta.chapter_id == chapter_id)
+                )
+            }
+            display = await alias_map(session, story_id)
+            await session.execute(delete(StoryChunk).where(StoryChunk.chapter_id == chapter_id))
+            # Keep the legacy table in step until Phase 6 retires it; continuity
+            # still reads SceneEmbedding and should see the same passages.
+            await session.execute(delete(SceneEmbedding).where(SceneEmbedding.chapter_id == chapter_id))
+            for chunk in chunks:
+                mentioned = list(
+                    dict.fromkeys(
+                        entity_id
+                        for entity_id, _start, _end, _quote in find_mentions(
+                            chunk.text.splitlines(), display
+                        )
+                    )
+                )
+                scene = scene_meta.get(chunk.scene_index)
+                pov_entity_id = (
+                    (scene.pov_entity_id if scene else None)
+                    or (chapter_meta.pov_entity_id if chapter_meta else None)
+                )
+                location_entity_id = (
+                    (scene.location_entity_id if scene else None)
+                    or (chapter_meta.location_entity_id if chapter_meta else None)
+                )
+                session.add(
+                    StoryChunk(
+                        story_id=story_id,
+                        chapter_id=chapter_id,
+                        chapter_number=current.chapter_number,
+                        scene_index=chunk.scene_index,
+                        chunk_index=chunk.chunk_index,
+                        chunk_kind="scene",
+                        text=chunk.text,
+                        token_count=chunk.token_count,
+                        start_line=chunk.start_line,
+                        end_line=chunk.end_line,
+                        entities=mentioned,
+                        pov_entity_id=pov_entity_id,
+                        location_entity_id=location_entity_id,
+                        content_hash=chunk.content_hash,
+                        embedding=vectors[chunk.content_hash],
+                        embedding_model=settings.EMBEDDING_MODEL,
+                    )
+                )
+                session.add(
+                    SceneEmbedding(
+                        story_id=story_id,
+                        chapter_id=chapter_id,
+                        chapter_number=current.chapter_number,
+                        chunk_index=chunk.chunk_index,
+                        text=chunk.text,
+                        start_line=chunk.start_line,
+                        end_line=chunk.end_line,
+                        chunk_metadata={},
+                        embedding=vectors[chunk.content_hash],
+                    )
+                )
+            # New chapters now record mentions on save, not only in the backfill.
+            await extract_mentions(session, story_id, chapter_id, content)
             current.index_status = "indexed"
             current.index_error = None
             current.indexed_embedding_model = settings.EMBEDDING_MODEL
@@ -413,9 +468,9 @@ async def reindex_chapter(chapter_id: UUID) -> str:
                 fields(
                     chapter=str(chapter_id)[:8],
                     revision=revision,
-                    scenes=len(scenes),
-                    reused=len(scenes) - len(to_embed),
-                    embedded=len(to_embed),
+                    chunks=len(chunks),
+                    reused=len(chunks) - len(missing),
+                    embedded=len(missing),
                     elapsed=f"{time.monotonic() - started:.2f}s",
                 ),
             )
