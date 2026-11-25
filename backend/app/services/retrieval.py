@@ -1,6 +1,6 @@
 """Hybrid retrieval and entity-first context for Phase 5.
 
-The retrieval path is deliberately boring: one exact vector scan, one
+The retrieval path is deliberately boring: one indexed vector scan, one
 full-text scan, one name scan, then reciprocal rank fusion. No provider call
 is needed to answer "where did I say X?", and no loop runs one query per scene.
 
@@ -38,6 +38,8 @@ VECTOR_LIMIT = 30
 LEXICAL_LIMIT = 30
 NAME_LIMIT = 10
 MAX_CHUNKS_PER_CHAPTER = 3
+# Vector first; lexical and name recover exact phrases and proper nouns.
+RRF_WEIGHTS = [8.0, 0.5, 0.2]
 
 
 @dataclass(frozen=True)
@@ -134,7 +136,7 @@ def apply_filters(statement, filters: SearchFilters):
 
 
 def lexical_query_for(scene_text: str, entity_names: list[str], limit: int = 14) -> str:
-    """OR the distinctive terms so one missing word does not erase the query."""
+    """AND the distinctive terms; the vector list carries the broad recall."""
     words: list[str] = []
     for name in entity_names:
         words.extend(part for part in name.replace("-", " ").split() if len(part) > 1)
@@ -160,7 +162,7 @@ def lexical_query_for(scene_text: str, entity_names: list[str], limit: int = 14)
         seen.append(cleaned)
         if len(seen) >= limit:
             break
-    return " OR ".join(seen)
+    return " ".join(seen)
 
 
 async def match_entity_ids(
@@ -255,14 +257,22 @@ async def vector_search(
     limit: int = VECTOR_LIMIT,
 ) -> list[tuple[StoryChunk, float]]:
     distance = StoryChunk.embedding.cosine_distance(vector)
-    statement = apply_filters(
-        select(StoryChunk, (1.0 - distance).label("score")).where(
+    # Keep the sort tuple narrow. Selecting the ORM entity here makes Postgres
+    # detoast every embedding and scene text in the table before the top-N
+    # sort; ids plus a score cut the scanned width from kilobytes to bytes.
+    ranking = apply_filters(
+        select(StoryChunk.id, (1.0 - distance).label("score")).where(
             StoryChunk.story_id == story_id
         ),
         filters,
     )
-    statement = statement.order_by(distance, StoryChunk.id).limit(limit)
-    return [(row[0], float(row[1])) for row in (await session.execute(statement)).all()]
+    rows = (await session.execute(ranking.order_by(distance).limit(limit))).all()
+    if not rows:
+        return []
+    scores = {row[0]: float(row[1]) for row in rows}
+    chunks = await session.scalars(select(StoryChunk).where(StoryChunk.id.in_(scores)))
+    hits = [(chunk, scores[chunk.id]) for chunk in chunks]
+    return sorted(hits, key=lambda row: (-row[1], str(row[0].id)))
 
 
 async def lexical_search(
@@ -387,6 +397,9 @@ class RetrievalCache:
         self.hits += 1
         return item[1]
 
+    def clear(self) -> None:
+        self._data.clear()
+
     def put(self, key: str, result: RetrievalResult) -> None:
         if len(self._data) >= self.maxsize:
             oldest = min(self._data, key=lambda item: self._data[item][0])
@@ -460,13 +473,19 @@ async def search_chunks(
     embed_started = time.perf_counter()
     vector = (await run_in_threadpool(embed_queries, [semantic]))[0]
     embed_ms = (time.perf_counter() - embed_started) * 1000
+    vector_started = time.perf_counter()
     vector_rows = await vector_search(session, story_id, vector, filters)
+    vector_ms = (time.perf_counter() - vector_started) * 1000
+    lexical_started = time.perf_counter()
     lexical_rows = await lexical_search(session, story_id, lexical, filters)
+    lexical_ms = (time.perf_counter() - lexical_started) * 1000
     matched_ids = list(entity_ids)
     for entity_id in await match_entity_ids(session, story_id, query or names_query):
         if entity_id not in matched_ids:
             matched_ids.append(entity_id)
+    name_started = time.perf_counter()
     name_rows = await name_chunk_search(session, story_id, matched_ids, filters)
+    name_ms = (time.perf_counter() - name_started) * 1000
 
     by_id: dict[UUID, StoryChunk] = {}
     raw_scores: dict[UUID, dict[str, float]] = {}
@@ -483,7 +502,7 @@ async def search_chunks(
             ids.append(chunk.id)
         rank_lists.append(ids)
 
-    fused = reciprocal_rank_fusion(rank_lists, weights=[8.0, 0.5, 0.2])
+    fused = reciprocal_rank_fusion(rank_lists, weights=RRF_WEIGHTS)
     hits: list[ChunkHit] = []
     for chunk_id, score in fused:
         chunk = by_id[chunk_id]
@@ -513,6 +532,9 @@ async def search_chunks(
         name_query=names_query,
         timings_ms={
             "embed": round(embed_ms, 2),
+            "vector": round(vector_ms, 2),
+            "lexical": round(lexical_ms, 2),
+            "name": round(name_ms, 2),
             "total": round(elapsed_ms, 2),
         },
     )

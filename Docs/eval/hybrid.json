@@ -1,7 +1,7 @@
 {
   "phase": 5,
   "harness": "retrieval-v1",
-  "generated_at": "2026-11-25T03:49:28.329891+00:00",
+  "generated_at": "2026-11-25T05:31:39.044201+00:00",
   "mode": "hybrid",
   "embedding_model": "nomic-embed-text",
   "dataset": "C:\\Users\\ACER\\OneDrive\\Desktop\\AI\\backend\\eval\\datasets\\stillroom.json",
@@ -15,13 +15,13 @@
     "questions": 70,
     "recall@5": 1.0,
     "recall@10": 1.0,
-    "mrr": 0.7779,
-    "ndcg@10": 0.8336,
+    "mrr": 0.7674,
+    "ndcg@10": 0.8259,
     "hit_rate": 1.0,
     "latency_ms": {
-      "p50": 112.84,
-      "p95": 187.75,
-      "max": 942.38
+      "p50": 142.75,
+      "p95": 176.24,
+      "max": 206.51
     },
     "top_k": 10
   },
@@ -30,13 +30,13 @@
       "questions": 47,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "mrr": 0.7897,
-      "ndcg@10": 0.8434,
+      "mrr": 0.7762,
+      "ndcg@10": 0.8337,
       "hit_rate": 1.0,
       "latency_ms": {
-        "p50": 116.7,
-        "p95": 185.03,
-        "max": 942.38
+        "p50": 142.53,
+        "p95": 167.85,
+        "max": 206.51
       },
       "top_k": 10
     },
@@ -48,9 +48,9 @@
       "ndcg@10": 0.9385,
       "hit_rate": 1.0,
       "latency_ms": {
-        "p50": 108.48,
-        "p95": 186.06,
-        "max": 187.42
+        "p50": 158.28,
+        "p95": 184.16,
+        "max": 190.98
       },
       "top_k": 10
     },
@@ -62,9 +62,9 @@
       "ndcg@10": 1.0,
       "hit_rate": 1.0,
       "latency_ms": {
-        "p50": 102.63,
-        "p95": 103.29,
-        "max": 103.36
+        "p50": 129.5,
+        "p95": 135.04,
+        "max": 135.66
       },
       "top_k": 10
     },
@@ -72,13 +72,13 @@
       "questions": 3,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "mrr": 0.2778,
-      "ndcg@10": 0.4538,
+      "mrr": 0.2444,
+      "ndcg@10": 0.4246,
       "hit_rate": 1.0,
       "latency_ms": {
-        "p50": 146.62,
-        "p95": 168.89,
-        "max": 171.36
+        "p50": 145.77,
+        "p95": 172.48,
+        "max": 175.45
       },
       "top_k": 10
     },
@@ -90,9 +90,9 @@
       "ndcg@10": 0.6181,
       "hit_rate": 1.0,
       "latency_ms": {
-        "p50": 114.28,
-        "p95": 179.27,
-        "max": 189.78
+        "p50": 108.28,
+        "p95": 167.48,
+        "max": 170.29
       },
       "top_k": 10
     }
@@ -102,8 +102,8 @@
       "id": "q001",
       "type": "entity_fact",
       "question": "What colour are Mira's eyes?",
-      "latency_ms": 522.2,
-      "embedding_ms": 121.61,
+      "latency_ms": 174.46,
+      "embedding_ms": 106.48,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -166,8 +166,8 @@
       "id": "q002",
       "type": "entity_fact",
       "question": "What colour are the captain's eyes?",
-      "latency_ms": 178.05,
-      "embedding_ms": 132.12,
+      "latency_ms": 136.37,
+      "embedding_ms": 102.35,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -230,19 +230,14 @@
       "id": "q003",
       "type": "entity_fact",
       "question": "What is Mira's rank?",
-      "latency_ms": 125.71,
-      "embedding_ms": 107.84,
-      "first_relevant_rank": 3,
+      "latency_ms": 87.24,
+      "embedding_ms": 65.11,
+      "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "reciprocal_rank": 0.3333,
-      "ndcg@10": 0.5,
+      "reciprocal_rank": 0.5,
+      "ndcg@10": 0.6309,
       "retrieved": [
-        {
-          "chapter_number": 11,
-          "relevant": false,
-          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
-        },
         {
           "chapter_number": 4,
           "relevant": false,
@@ -252,6 +247,11 @@
           "chapter_number": 1,
           "relevant": true,
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
+        },
+        {
+          "chapter_number": 11,
+          "relevant": false,
+          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
           "chapter_number": 12,
@@ -294,18 +294,23 @@
       "id": "q004",
       "type": "entity_fact",
       "question": "What is the name of Mira's ship?",
-      "latency_ms": 143.44,
-      "embedding_ms": 112.57,
-      "first_relevant_rank": 2,
+      "latency_ms": 117.16,
+      "embedding_ms": 89.59,
+      "first_relevant_rank": 3,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "reciprocal_rank": 0.5,
-      "ndcg@10": 0.6309,
+      "reciprocal_rank": 0.3333,
+      "ndcg@10": 0.5,
       "retrieved": [
         {
           "chapter_number": 11,
           "relevant": false,
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
+        },
+        {
+          "chapter_number": 4,
+          "relevant": false,
+          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
         },
         {
           "chapter_number": 1,
@@ -316,16 +321,6 @@
           "chapter_number": 12,
           "relevant": false,
           "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
-        },
-        {
-          "chapter_number": 4,
-          "relevant": false,
-          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
-        },
-        {
-          "chapter_number": 5,
-          "relevant": false,
-          "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         },
         {
           "chapter_number": 6,
@@ -343,6 +338,11 @@
           "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         },
         {
+          "chapter_number": 5,
+          "relevant": false,
+          "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
+        },
+        {
           "chapter_number": 8,
           "relevant": false,
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
@@ -358,8 +358,8 @@
       "id": "q005",
       "type": "entity_fact",
       "question": "Which port town does Mira return to?",
-      "latency_ms": 188.02,
-      "embedding_ms": 127.71,
+      "latency_ms": 137.85,
+      "embedding_ms": 91.66,
       "first_relevant_rank": 5,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -422,8 +422,8 @@
       "id": "q006",
       "type": "entity_fact",
       "question": "What colour is Kael's hair?",
-      "latency_ms": 120.14,
-      "embedding_ms": 91.04,
+      "latency_ms": 129.24,
+      "embedding_ms": 98.26,
       "first_relevant_rank": 4,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -486,8 +486,8 @@
       "id": "q007",
       "type": "entity_fact",
       "question": "What is Kael's trade?",
-      "latency_ms": 133.86,
-      "embedding_ms": 112.2,
+      "latency_ms": 128.0,
+      "embedding_ms": 98.78,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -510,11 +510,6 @@
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
-          "chapter_number": 4,
-          "relevant": false,
-          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
-        },
-        {
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
@@ -535,6 +530,11 @@
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
+          "chapter_number": 4,
+          "relevant": false,
+          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
+        },
+        {
           "chapter_number": 3,
           "relevant": false,
           "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
@@ -550,13 +550,13 @@
       "id": "q008",
       "type": "relationship",
       "question": "Who is Kael to Mira?",
-      "latency_ms": 171.36,
-      "embedding_ms": 124.15,
-      "first_relevant_rank": 4,
+      "latency_ms": 145.77,
+      "embedding_ms": 110.17,
+      "first_relevant_rank": 5,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "reciprocal_rank": 0.25,
-      "ndcg@10": 0.4307,
+      "reciprocal_rank": 0.2,
+      "ndcg@10": 0.3869,
       "retrieved": [
         {
           "chapter_number": 8,
@@ -567,6 +567,11 @@
           "chapter_number": 6,
           "relevant": false,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+        },
+        {
+          "chapter_number": 1,
+          "relevant": false,
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
           "chapter_number": 11,
@@ -582,11 +587,6 @@
           "chapter_number": 4,
           "relevant": false,
           "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
-        },
-        {
-          "chapter_number": 1,
-          "relevant": false,
-          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
           "chapter_number": 10,
@@ -614,8 +614,8 @@
       "id": "q009",
       "type": "entity_fact",
       "question": "What scar does Kael have?",
-      "latency_ms": 151.47,
-      "embedding_ms": 116.17,
+      "latency_ms": 158.18,
+      "embedding_ms": 121.13,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -678,8 +678,8 @@
       "id": "q010",
       "type": "entity_fact",
       "question": "How did Kael get the scar on his hand?",
-      "latency_ms": 139.02,
-      "embedding_ms": 97.92,
+      "latency_ms": 161.61,
+      "embedding_ms": 122.22,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -722,19 +722,19 @@
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
-          "chapter_number": 7,
-          "relevant": false,
-          "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
-        },
-        {
           "chapter_number": 3,
           "relevant": false,
           "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         },
         {
-          "chapter_number": 12,
+          "chapter_number": 7,
           "relevant": false,
-          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
+          "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
+        },
+        {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         }
       ]
     },
@@ -742,8 +742,8 @@
       "id": "q011",
       "type": "entity_fact",
       "question": "What is the lighthouse keeper's name?",
-      "latency_ms": 160.61,
-      "embedding_ms": 114.79,
+      "latency_ms": 139.09,
+      "embedding_ms": 111.62,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -806,8 +806,8 @@
       "id": "q012",
       "type": "entity_fact",
       "question": "What is Orin's job?",
-      "latency_ms": 124.3,
-      "embedding_ms": 94.4,
+      "latency_ms": 143.78,
+      "embedding_ms": 114.7,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -870,8 +870,8 @@
       "id": "q013",
       "type": "entity_fact",
       "question": "How many fingers has Orin lost?",
-      "latency_ms": 154.33,
-      "embedding_ms": 122.21,
+      "latency_ms": 156.71,
+      "embedding_ms": 117.44,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -904,11 +904,6 @@
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
-          "chapter_number": 2,
-          "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
-        },
-        {
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
@@ -922,6 +917,11 @@
           "chapter_number": 8,
           "relevant": false,
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
+        },
+        {
+          "chapter_number": 2,
+          "relevant": false,
+          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
         },
         {
           "chapter_number": 9,
@@ -934,8 +934,8 @@
       "id": "q014",
       "type": "entity_fact",
       "question": "What is wrong with the lighthouse lens?",
-      "latency_ms": 155.17,
-      "embedding_ms": 114.52,
+      "latency_ms": 147.1,
+      "embedding_ms": 109.8,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -973,11 +973,6 @@
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
-        },
-        {
           "chapter_number": 11,
           "relevant": false,
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
@@ -991,6 +986,11 @@
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
+        },
+        {
+          "chapter_number": 2,
+          "relevant": false,
+          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
         }
       ]
     },
@@ -998,8 +998,8 @@
       "id": "q015",
       "type": "entity_fact",
       "question": "How long has the lighthouse lens been cracked?",
-      "latency_ms": 141.03,
-      "embedding_ms": 117.39,
+      "latency_ms": 156.21,
+      "embedding_ms": 113.3,
       "first_relevant_rank": 4,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1032,9 +1032,19 @@
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
         },
         {
+          "chapter_number": 7,
+          "relevant": false,
+          "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
+        },
+        {
           "chapter_number": 6,
           "relevant": false,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+        },
+        {
+          "chapter_number": 11,
+          "relevant": false,
+          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
           "chapter_number": 2,
@@ -1042,19 +1052,9 @@
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
         },
         {
-          "chapter_number": 7,
+          "chapter_number": 5,
           "relevant": false,
-          "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
-        },
-        {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
-        },
-        {
-          "chapter_number": 11,
-          "relevant": false,
-          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
+          "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         }
       ]
     },
@@ -1062,13 +1062,13 @@
       "id": "q016",
       "type": "entity_fact",
       "question": "What does the tide bell ring for?",
-      "latency_ms": 135.35,
-      "embedding_ms": 101.95,
-      "first_relevant_rank": 4,
+      "latency_ms": 139.66,
+      "embedding_ms": 108.32,
+      "first_relevant_rank": 5,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "reciprocal_rank": 0.25,
-      "ndcg@10": 0.4307,
+      "reciprocal_rank": 0.2,
+      "ndcg@10": 0.3869,
       "retrieved": [
         {
           "chapter_number": 7,
@@ -1086,6 +1086,11 @@
           "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
         },
         {
+          "chapter_number": 1,
+          "relevant": false,
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
+        },
+        {
           "chapter_number": 3,
           "relevant": true,
           "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
@@ -1096,14 +1101,14 @@
           "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         },
         {
+          "chapter_number": 6,
+          "relevant": false,
+          "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+        },
+        {
           "chapter_number": 11,
           "relevant": false,
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
-        },
-        {
-          "chapter_number": 1,
-          "relevant": false,
-          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
           "chapter_number": 10,
@@ -1114,11 +1119,6 @@
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
-        },
-        {
-          "chapter_number": 6,
-          "relevant": false,
-          "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         }
       ]
     },
@@ -1126,8 +1126,8 @@
       "id": "q017",
       "type": "entity_fact",
       "question": "How many times does the tide bell ring during the storm?",
-      "latency_ms": 166.47,
-      "embedding_ms": 127.57,
+      "latency_ms": 154.07,
+      "embedding_ms": 116.63,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1190,8 +1190,8 @@
       "id": "q018",
       "type": "entity_fact",
       "question": "What colour coat does Sera wear?",
-      "latency_ms": 108.75,
-      "embedding_ms": 89.34,
+      "latency_ms": 124.92,
+      "embedding_ms": 97.65,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1219,14 +1219,14 @@
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
-          "chapter_number": 8,
-          "relevant": false,
-          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
-        },
-        {
           "chapter_number": 2,
           "relevant": false,
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+        },
+        {
+          "chapter_number": 8,
+          "relevant": false,
+          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
           "chapter_number": 7,
@@ -1254,23 +1254,23 @@
       "id": "q019",
       "type": "entity_fact",
       "question": "What is Sera's trade?",
-      "latency_ms": 116.7,
-      "embedding_ms": 89.31,
-      "first_relevant_rank": 1,
+      "latency_ms": 161.1,
+      "embedding_ms": 119.6,
+      "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "reciprocal_rank": 1.0,
-      "ndcg@10": 1.0,
+      "reciprocal_rank": 0.5,
+      "ndcg@10": 0.6309,
       "retrieved": [
-        {
-          "chapter_number": 4,
-          "relevant": true,
-          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
-        },
         {
           "chapter_number": 10,
           "relevant": false,
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
+        },
+        {
+          "chapter_number": 4,
+          "relevant": true,
+          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
         },
         {
           "chapter_number": 5,
@@ -1318,8 +1318,8 @@
       "id": "q020",
       "type": "entity_fact",
       "question": "What does Sera carry under her arm?",
-      "latency_ms": 145.08,
-      "embedding_ms": 99.18,
+      "latency_ms": 166.97,
+      "embedding_ms": 122.35,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1342,11 +1342,6 @@
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         },
         {
-          "chapter_number": 12,
-          "relevant": false,
-          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
-        },
-        {
           "chapter_number": 2,
           "relevant": false,
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
@@ -1367,6 +1362,11 @@
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
+          "chapter_number": 12,
+          "relevant": false,
+          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
+        },
+        {
           "chapter_number": 1,
           "relevant": false,
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
@@ -1382,8 +1382,8 @@
       "id": "q021",
       "type": "entity_fact",
       "question": "Where do Sera's tide charts lead?",
-      "latency_ms": 149.39,
-      "embedding_ms": 116.92,
+      "latency_ms": 142.98,
+      "embedding_ms": 116.94,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1446,8 +1446,8 @@
       "id": "q022",
       "type": "event",
       "question": "Where was the Night Watch betrayed?",
-      "latency_ms": 150.81,
-      "embedding_ms": 112.51,
+      "latency_ms": 168.69,
+      "embedding_ms": 114.33,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1465,14 +1465,14 @@
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
         },
         {
-          "chapter_number": 8,
-          "relevant": false,
-          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
-        },
-        {
           "chapter_number": 2,
           "relevant": false,
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+        },
+        {
+          "chapter_number": 8,
+          "relevant": false,
+          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
           "chapter_number": 1,
@@ -1510,8 +1510,8 @@
       "id": "q023",
       "type": "entity_fact",
       "question": "What did the traitor wear?",
-      "latency_ms": 140.99,
-      "embedding_ms": 119.93,
+      "latency_ms": 147.63,
+      "embedding_ms": 115.84,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1574,8 +1574,8 @@
       "id": "q024",
       "type": "entity_fact",
       "question": "What accent did the traitor have?",
-      "latency_ms": 156.45,
-      "embedding_ms": 120.82,
+      "latency_ms": 144.77,
+      "embedding_ms": 115.58,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1638,8 +1638,8 @@
       "id": "q025",
       "type": "entity_fact",
       "question": "What clue linked the traitor to Sera?",
-      "latency_ms": 942.38,
-      "embedding_ms": 917.86,
+      "latency_ms": 152.21,
+      "embedding_ms": 117.24,
       "first_relevant_rank": 3,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1702,8 +1702,8 @@
       "id": "q026",
       "type": "entity_fact",
       "question": "What did Mira find in the ashes of the forge?",
-      "latency_ms": 114.14,
-      "embedding_ms": 88.15,
+      "latency_ms": 155.46,
+      "embedding_ms": 117.88,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1766,8 +1766,8 @@
       "id": "q027",
       "type": "entity_fact",
       "question": "Where does the brass compass point?",
-      "latency_ms": 102.29,
-      "embedding_ms": 81.79,
+      "latency_ms": 162.47,
+      "embedding_ms": 116.87,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1795,6 +1795,11 @@
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
+          "chapter_number": 2,
+          "relevant": false,
+          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+        },
+        {
           "chapter_number": 4,
           "relevant": false,
           "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
@@ -1810,19 +1815,14 @@
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
-          "chapter_number": 2,
+          "chapter_number": 5,
           "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+          "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         },
         {
           "chapter_number": 3,
           "relevant": false,
           "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
-        },
-        {
-          "chapter_number": 5,
-          "relevant": false,
-          "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         }
       ]
     },
@@ -1830,8 +1830,8 @@
       "id": "q028",
       "type": "entity_fact",
       "question": "Who did the brass compass belong to?",
-      "latency_ms": 105.02,
-      "embedding_ms": 84.43,
+      "latency_ms": 206.51,
+      "embedding_ms": 148.63,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1869,24 +1869,24 @@
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
-          "chapter_number": 4,
-          "relevant": false,
-          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
-        },
-        {
-          "chapter_number": 11,
-          "relevant": false,
-          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
-        },
-        {
           "chapter_number": 2,
           "relevant": false,
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
         },
         {
+          "chapter_number": 4,
+          "relevant": false,
+          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
+        },
+        {
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
+        },
+        {
+          "chapter_number": 11,
+          "relevant": false,
+          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         }
       ]
     },
@@ -1894,14 +1894,19 @@
       "id": "q029",
       "type": "entity_fact",
       "question": "What was Mira's mother's occupation?",
-      "latency_ms": 101.69,
-      "embedding_ms": 82.13,
-      "first_relevant_rank": 3,
+      "latency_ms": 132.27,
+      "embedding_ms": 112.46,
+      "first_relevant_rank": 4,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "reciprocal_rank": 0.3333,
-      "ndcg@10": 0.5438,
+      "reciprocal_rank": 0.25,
+      "ndcg@10": 0.5013,
       "retrieved": [
+        {
+          "chapter_number": 4,
+          "relevant": false,
+          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
+        },
         {
           "chapter_number": 11,
           "relevant": false,
@@ -1916,11 +1921,6 @@
           "chapter_number": 6,
           "relevant": true,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
-        },
-        {
-          "chapter_number": 4,
-          "relevant": false,
-          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
         },
         {
           "chapter_number": 9,
@@ -1958,8 +1958,8 @@
       "id": "q030",
       "type": "entity_fact",
       "question": "Was Mira's mother only a lighthouse keeper?",
-      "latency_ms": 107.06,
-      "embedding_ms": 84.84,
+      "latency_ms": 129.04,
+      "embedding_ms": 90.04,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -1992,14 +1992,14 @@
           "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         },
         {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
-        },
-        {
           "chapter_number": 4,
           "relevant": false,
           "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
+        },
+        {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         },
         {
           "chapter_number": 8,
@@ -2022,8 +2022,8 @@
       "id": "q031",
       "type": "event",
       "question": "When did the storm strike Brinehold?",
-      "latency_ms": 104.07,
-      "embedding_ms": 84.08,
+      "latency_ms": 190.98,
+      "embedding_ms": 147.85,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2086,8 +2086,8 @@
       "id": "q032",
       "type": "event",
       "question": "Where did the storm strike?",
-      "latency_ms": 101.75,
-      "embedding_ms": 82.89,
+      "latency_ms": 169.68,
+      "embedding_ms": 150.19,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2105,16 +2105,6 @@
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         },
         {
-          "chapter_number": 10,
-          "relevant": false,
-          "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
-        },
-        {
-          "chapter_number": 1,
-          "relevant": false,
-          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
-        },
-        {
           "chapter_number": 12,
           "relevant": false,
           "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
@@ -2125,9 +2115,19 @@
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
         },
         {
+          "chapter_number": 10,
+          "relevant": false,
+          "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
+        },
+        {
           "chapter_number": 9,
           "relevant": false,
           "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
+        },
+        {
+          "chapter_number": 1,
+          "relevant": false,
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
           "chapter_number": 11,
@@ -2150,8 +2150,8 @@
       "id": "q033",
       "type": "event",
       "question": "What rang in the harbour during the storm?",
-      "latency_ms": 99.8,
-      "embedding_ms": 82.52,
+      "latency_ms": 153.0,
+      "embedding_ms": 108.14,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2169,9 +2169,19 @@
           "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
         },
         {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
+        },
+        {
           "chapter_number": 1,
           "relevant": false,
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
+        },
+        {
+          "chapter_number": 3,
+          "relevant": false,
+          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         },
         {
           "chapter_number": 10,
@@ -2182,16 +2192,6 @@
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
-        },
-        {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
-        },
-        {
-          "chapter_number": 3,
-          "relevant": false,
-          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         },
         {
           "chapter_number": 11,
@@ -2214,8 +2214,8 @@
       "id": "q034",
       "type": "event",
       "question": "Did anyone drown on the night the bell rang?",
-      "latency_ms": 132.45,
-      "embedding_ms": 86.43,
+      "latency_ms": 142.37,
+      "embedding_ms": 121.63,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2268,9 +2268,9 @@
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
-          "chapter_number": 2,
+          "chapter_number": 6,
           "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+          "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         }
       ]
     },
@@ -2278,8 +2278,8 @@
       "id": "q035",
       "type": "entity_fact",
       "question": "What did Kael confess at dawn?",
-      "latency_ms": 123.04,
-      "embedding_ms": 98.01,
+      "latency_ms": 122.37,
+      "embedding_ms": 93.46,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2322,11 +2322,6 @@
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
-          "chapter_number": 12,
-          "relevant": false,
-          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
-        },
-        {
           "chapter_number": 9,
           "relevant": false,
           "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
@@ -2335,6 +2330,11 @@
           "chapter_number": 3,
           "relevant": false,
           "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
+        },
+        {
+          "chapter_number": 12,
+          "relevant": false,
+          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
         }
       ]
     },
@@ -2342,8 +2342,8 @@
       "id": "q036",
       "type": "entity_fact",
       "question": "Why did Kael sell the lighthouse lens?",
-      "latency_ms": 108.52,
-      "embedding_ms": 85.82,
+      "latency_ms": 152.34,
+      "embedding_ms": 125.42,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2406,8 +2406,8 @@
       "id": "q037",
       "type": "entity_fact",
       "question": "Did Kael sell the Night Watch?",
-      "latency_ms": 106.54,
-      "embedding_ms": 85.08,
+      "latency_ms": 118.63,
+      "embedding_ms": 94.77,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2455,14 +2455,14 @@
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
-          "chapter_number": 7,
-          "relevant": false,
-          "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
-        },
-        {
           "chapter_number": 12,
           "relevant": false,
           "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
+        },
+        {
+          "chapter_number": 7,
+          "relevant": false,
+          "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
         }
       ]
     },
@@ -2470,8 +2470,8 @@
       "id": "q038",
       "type": "entity_fact",
       "question": "Who bought the lighthouse lens?",
-      "latency_ms": 110.73,
-      "embedding_ms": 87.72,
+      "latency_ms": 110.51,
+      "embedding_ms": 87.85,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2484,14 +2484,14 @@
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
-          "chapter_number": 3,
-          "relevant": false,
-          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
-        },
-        {
           "chapter_number": 10,
           "relevant": false,
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
+        },
+        {
+          "chapter_number": 3,
+          "relevant": false,
+          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         },
         {
           "chapter_number": 1,
@@ -2507,11 +2507,6 @@
           "chapter_number": 6,
           "relevant": false,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
-        },
-        {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         },
         {
           "chapter_number": 11,
@@ -2527,6 +2522,11 @@
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
+        },
+        {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         }
       ]
     },
@@ -2534,8 +2534,8 @@
       "id": "q039",
       "type": "entity_fact",
       "question": "How did the lens buyer pay?",
-      "latency_ms": 103.36,
-      "embedding_ms": 84.66,
+      "latency_ms": 110.87,
+      "embedding_ms": 91.58,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2568,19 +2568,14 @@
           "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
         },
         {
-          "chapter_number": 6,
-          "relevant": false,
-          "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
-        },
-        {
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         },
         {
-          "chapter_number": 9,
+          "chapter_number": 6,
           "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
+          "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
           "chapter_number": 2,
@@ -2591,6 +2586,11 @@
           "chapter_number": 11,
           "relevant": false,
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
+        },
+        {
+          "chapter_number": 7,
+          "relevant": false,
+          "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
         }
       ]
     },
@@ -2598,8 +2598,8 @@
       "id": "q040",
       "type": "entity_fact",
       "question": "Where is the Drowned Abbey?",
-      "latency_ms": 103.39,
-      "embedding_ms": 83.59,
+      "latency_ms": 110.21,
+      "embedding_ms": 88.08,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2617,14 +2617,14 @@
           "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
         },
         {
-          "chapter_number": 11,
-          "relevant": false,
-          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
-        },
-        {
           "chapter_number": 6,
           "relevant": false,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+        },
+        {
+          "chapter_number": 11,
+          "relevant": false,
+          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
           "chapter_number": 7,
@@ -2635,11 +2635,6 @@
           "chapter_number": 10,
           "relevant": false,
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
-        },
-        {
-          "chapter_number": 3,
-          "relevant": false,
-          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         },
         {
           "chapter_number": 2,
@@ -2655,6 +2650,11 @@
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
+        },
+        {
+          "chapter_number": 1,
+          "relevant": false,
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         }
       ]
     },
@@ -2662,8 +2662,8 @@
       "id": "q041",
       "type": "entity_fact",
       "question": "How did Mira reach the abbey?",
-      "latency_ms": 107.21,
-      "embedding_ms": 81.45,
+      "latency_ms": 103.06,
+      "embedding_ms": 83.43,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2726,8 +2726,8 @@
       "id": "q042",
       "type": "event",
       "question": "Whose voice does Mira hear in the abbey?",
-      "latency_ms": 106.64,
-      "embedding_ms": 83.57,
+      "latency_ms": 109.89,
+      "embedding_ms": 86.18,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2790,8 +2790,8 @@
       "id": "q043",
       "type": "thread",
       "question": "What secret did Mira's mother keep?",
-      "latency_ms": 100.12,
-      "embedding_ms": 82.1,
+      "latency_ms": 108.28,
+      "embedding_ms": 86.64,
       "first_relevant_rank": 4,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2819,24 +2819,14 @@
           "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         },
         {
-          "chapter_number": 1,
-          "relevant": false,
-          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
-        },
-        {
-          "chapter_number": 12,
-          "relevant": false,
-          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
-        },
-        {
           "chapter_number": 10,
           "relevant": false,
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
         },
         {
-          "chapter_number": 2,
+          "chapter_number": 1,
           "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
           "chapter_number": 8,
@@ -2844,9 +2834,19 @@
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
+          "chapter_number": 12,
+          "relevant": false,
+          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
+        },
+        {
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
+        },
+        {
+          "chapter_number": 2,
+          "relevant": false,
+          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
         }
       ]
     },
@@ -2854,8 +2854,8 @@
       "id": "q044",
       "type": "thread",
       "question": "Who betrayed the Night Watch?",
-      "latency_ms": 114.28,
-      "embedding_ms": 85.63,
+      "latency_ms": 106.77,
+      "embedding_ms": 85.46,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2873,6 +2873,11 @@
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
         },
         {
+          "chapter_number": 2,
+          "relevant": false,
+          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+        },
+        {
           "chapter_number": 8,
           "relevant": false,
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
@@ -2886,11 +2891,6 @@
           "chapter_number": 1,
           "relevant": false,
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
-        },
-        {
-          "chapter_number": 2,
-          "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
         },
         {
           "chapter_number": 7,
@@ -2918,8 +2918,8 @@
       "id": "q045",
       "type": "entity_fact",
       "question": "How does Sera justify the betrayal?",
-      "latency_ms": 100.64,
-      "embedding_ms": 81.59,
+      "latency_ms": 104.4,
+      "embedding_ms": 85.51,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -2982,8 +2982,8 @@
       "id": "q046",
       "type": "entity_fact",
       "question": "Who bought the lens from Kael?",
-      "latency_ms": 105.48,
-      "embedding_ms": 82.44,
+      "latency_ms": 108.42,
+      "embedding_ms": 82.1,
       "first_relevant_rank": 3,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3036,9 +3036,9 @@
           "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
         },
         {
-          "chapter_number": 9,
+          "chapter_number": 7,
           "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
+          "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
         }
       ]
     },
@@ -3046,8 +3046,8 @@
       "id": "q047",
       "type": "event",
       "question": "How many lives did the Night Watch lose?",
-      "latency_ms": 110.32,
-      "embedding_ms": 87.92,
+      "latency_ms": 163.56,
+      "embedding_ms": 114.02,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3110,8 +3110,8 @@
       "id": "q048",
       "type": "entity_fact",
       "question": "What weapon does Sera hold at the abbey?",
-      "latency_ms": 109.65,
-      "embedding_ms": 87.63,
+      "latency_ms": 168.23,
+      "embedding_ms": 128.33,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3139,6 +3139,11 @@
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
+          "chapter_number": 2,
+          "relevant": false,
+          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+        },
+        {
           "chapter_number": 6,
           "relevant": false,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
@@ -3154,19 +3159,14 @@
           "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
         },
         {
-          "chapter_number": 2,
-          "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
-        },
-        {
-          "chapter_number": 3,
-          "relevant": false,
-          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
-        },
-        {
           "chapter_number": 8,
           "relevant": false,
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
+        },
+        {
+          "chapter_number": 1,
+          "relevant": false,
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         }
       ]
     },
@@ -3174,8 +3174,8 @@
       "id": "q049",
       "type": "entity_fact",
       "question": "What does Mira see in her reflection?",
-      "latency_ms": 114.66,
-      "embedding_ms": 89.36,
+      "latency_ms": 143.78,
+      "embedding_ms": 112.72,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3238,8 +3238,8 @@
       "id": "q050",
       "type": "event",
       "question": "What does Kael say to Mira at the abbey?",
-      "latency_ms": 111.53,
-      "embedding_ms": 87.84,
+      "latency_ms": 143.05,
+      "embedding_ms": 100.2,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3302,8 +3302,8 @@
       "id": "q051",
       "type": "relationship",
       "question": "What does Mira call Kael at the end?",
-      "latency_ms": 106.54,
-      "embedding_ms": 82.35,
+      "latency_ms": 135.39,
+      "embedding_ms": 110.25,
       "first_relevant_rank": 3,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3366,8 +3366,8 @@
       "id": "q052",
       "type": "entity_fact",
       "question": "Which way does the compass point after the abbey?",
-      "latency_ms": 106.29,
-      "embedding_ms": 83.53,
+      "latency_ms": 112.03,
+      "embedding_ms": 88.72,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3430,8 +3430,8 @@
       "id": "q053",
       "type": "event",
       "question": "When does The Lantern sail?",
-      "latency_ms": 99.87,
-      "embedding_ms": 82.02,
+      "latency_ms": 108.94,
+      "embedding_ms": 88.76,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3449,19 +3449,14 @@
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
-          "chapter_number": 11,
-          "relevant": false,
-          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
-        },
-        {
           "chapter_number": 7,
           "relevant": false,
           "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
         },
         {
-          "chapter_number": 9,
+          "chapter_number": 11,
           "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
+          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
           "chapter_number": 3,
@@ -3487,6 +3482,11 @@
           "chapter_number": 6,
           "relevant": false,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+        },
+        {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         }
       ]
     },
@@ -3494,8 +3494,8 @@
       "id": "q054",
       "type": "entity_fact",
       "question": "Was the lighthouse lens recovered by the end?",
-      "latency_ms": 105.47,
-      "embedding_ms": 82.08,
+      "latency_ms": 101.94,
+      "embedding_ms": 81.82,
       "first_relevant_rank": 3,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3533,16 +3533,6 @@
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
-        },
-        {
-          "chapter_number": 2,
-          "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
-        },
-        {
           "chapter_number": 11,
           "relevant": false,
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
@@ -3551,6 +3541,16 @@
           "chapter_number": 7,
           "relevant": false,
           "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
+        },
+        {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
+        },
+        {
+          "chapter_number": 5,
+          "relevant": false,
+          "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         }
       ]
     },
@@ -3558,8 +3558,8 @@
       "id": "q055",
       "type": "event",
       "question": "How does Orin say farewell?",
-      "latency_ms": 100.02,
-      "embedding_ms": 81.72,
+      "latency_ms": 111.31,
+      "embedding_ms": 89.43,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3622,8 +3622,8 @@
       "id": "q056",
       "type": "entity_fact",
       "question": "What does Orin say the bell will do?",
-      "latency_ms": 105.32,
-      "embedding_ms": 83.47,
+      "latency_ms": 102.22,
+      "embedding_ms": 83.21,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3646,6 +3646,11 @@
           "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         },
         {
+          "chapter_number": 6,
+          "relevant": false,
+          "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+        },
+        {
           "chapter_number": 10,
           "relevant": false,
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
@@ -3656,9 +3661,14 @@
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
         },
         {
-          "chapter_number": 6,
+          "chapter_number": 8,
           "relevant": false,
-          "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
+        },
+        {
+          "chapter_number": 1,
+          "relevant": false,
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
           "chapter_number": 9,
@@ -3669,16 +3679,6 @@
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
-        },
-        {
-          "chapter_number": 8,
-          "relevant": false,
-          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
-        },
-        {
-          "chapter_number": 4,
-          "relevant": false,
-          "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
         }
       ]
     },
@@ -3686,8 +3686,8 @@
       "id": "q057",
       "type": "thread",
       "question": "What question about Mira's mother remains open?",
-      "latency_ms": 105.49,
-      "embedding_ms": 82.98,
+      "latency_ms": 102.78,
+      "embedding_ms": 84.85,
       "first_relevant_rank": 4,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3725,11 +3725,6 @@
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
-          "chapter_number": 2,
-          "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
-        },
-        {
           "chapter_number": 10,
           "relevant": false,
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
@@ -3743,6 +3738,11 @@
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
+        },
+        {
+          "chapter_number": 2,
+          "relevant": false,
+          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
         }
       ]
     },
@@ -3750,8 +3750,8 @@
       "id": "q058",
       "type": "exact_phrase",
       "question": "Where did I write the phrase 'grey eyes'?",
-      "latency_ms": 102.63,
-      "embedding_ms": 86.03,
+      "latency_ms": 109.81,
+      "embedding_ms": 89.81,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3814,8 +3814,8 @@
       "id": "q059",
       "type": "exact_phrase",
       "question": "Where did I write about the tide bell?",
-      "latency_ms": 101.26,
-      "embedding_ms": 81.71,
+      "latency_ms": 129.5,
+      "embedding_ms": 91.7,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3858,11 +3858,6 @@
           "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         },
         {
-          "chapter_number": 10,
-          "relevant": false,
-          "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
-        },
-        {
           "chapter_number": 1,
           "relevant": false,
           "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
@@ -3871,6 +3866,11 @@
           "chapter_number": 6,
           "relevant": false,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+        },
+        {
+          "chapter_number": 10,
+          "relevant": false,
+          "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
         }
       ]
     },
@@ -3878,8 +3878,8 @@
       "id": "q060",
       "type": "exact_phrase",
       "question": "Where did I write 'Drowned Abbey'?",
-      "latency_ms": 103.36,
-      "embedding_ms": 81.7,
+      "latency_ms": 135.66,
+      "embedding_ms": 107.71,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -3917,11 +3917,6 @@
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
         },
         {
-          "chapter_number": 3,
-          "relevant": false,
-          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
-        },
-        {
           "chapter_number": 12,
           "relevant": false,
           "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
@@ -3935,6 +3930,11 @@
           "chapter_number": 2,
           "relevant": false,
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+        },
+        {
+          "chapter_number": 5,
+          "relevant": false,
+          "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         }
       ]
     },
@@ -3942,8 +3942,8 @@
       "id": "q061",
       "type": "entity_fact",
       "question": "What colour are the captain's eyes, using her title?",
-      "latency_ms": 103.3,
-      "embedding_ms": 86.87,
+      "latency_ms": 142.53,
+      "embedding_ms": 110.48,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4006,8 +4006,8 @@
       "id": "q062",
       "type": "entity_fact",
       "question": "How many fingers has the lighthouse keeper lost?",
-      "latency_ms": 104.32,
-      "embedding_ms": 82.04,
+      "latency_ms": 144.65,
+      "embedding_ms": 102.16,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4035,14 +4035,14 @@
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
-          "chapter_number": 12,
-          "relevant": false,
-          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
-        },
-        {
           "chapter_number": 8,
           "relevant": false,
           "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
+        },
+        {
+          "chapter_number": 12,
+          "relevant": false,
+          "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
         },
         {
           "chapter_number": 7,
@@ -4050,19 +4050,19 @@
           "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
         },
         {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
-        },
-        {
-          "chapter_number": 2,
-          "relevant": false,
-          "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
-        },
-        {
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
+        },
+        {
+          "chapter_number": 11,
+          "relevant": false,
+          "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
+        },
+        {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         }
       ]
     },
@@ -4070,8 +4070,8 @@
       "id": "q063",
       "type": "entity_fact",
       "question": "What colour is the smuggler's coat?",
-      "latency_ms": 106.18,
-      "embedding_ms": 86.38,
+      "latency_ms": 163.32,
+      "embedding_ms": 144.1,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4089,24 +4089,24 @@
           "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
         },
         {
-          "chapter_number": 1,
-          "relevant": false,
-          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
-        },
-        {
-          "chapter_number": 8,
-          "relevant": false,
-          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
-        },
-        {
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
         },
         {
+          "chapter_number": 1,
+          "relevant": false,
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
+        },
+        {
           "chapter_number": 2,
           "relevant": false,
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
+        },
+        {
+          "chapter_number": 8,
+          "relevant": false,
+          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
           "chapter_number": 7,
@@ -4134,8 +4134,8 @@
       "id": "q064",
       "type": "entity_fact",
       "question": "Where is the blacksmith's scar?",
-      "latency_ms": 99.08,
-      "embedding_ms": 80.54,
+      "latency_ms": 163.99,
+      "embedding_ms": 110.03,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4146,11 +4146,6 @@
           "chapter_number": 2,
           "relevant": true,
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
-        },
-        {
-          "chapter_number": 8,
-          "relevant": false,
-          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
           "chapter_number": 6,
@@ -4171,6 +4166,11 @@
           "chapter_number": 7,
           "relevant": false,
           "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
+        },
+        {
+          "chapter_number": 8,
+          "relevant": false,
+          "preview": "Kael confessed at dawn. He had sold the lighthouse lens to pay a debt, and the debt had been called in by men from the Salt Road. \"I did not sell the Night Watch,\" he said. \"Only the light.\" Mira wanted to hit him. Inste"
         },
         {
           "chapter_number": 4,
@@ -4198,13 +4198,13 @@
       "id": "q065",
       "type": "relationship",
       "question": "Who is Mira to Kael?",
-      "latency_ms": 146.62,
-      "embedding_ms": 89.61,
-      "first_relevant_rank": 4,
+      "latency_ms": 175.45,
+      "embedding_ms": 127.65,
+      "first_relevant_rank": 5,
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "reciprocal_rank": 0.25,
-      "ndcg@10": 0.4307,
+      "reciprocal_rank": 0.2,
+      "ndcg@10": 0.3869,
       "retrieved": [
         {
           "chapter_number": 8,
@@ -4215,6 +4215,11 @@
           "chapter_number": 6,
           "relevant": false,
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
+        },
+        {
+          "chapter_number": 1,
+          "relevant": false,
+          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
           "chapter_number": 11,
@@ -4230,11 +4235,6 @@
           "chapter_number": 4,
           "relevant": false,
           "preview": "Sera Dunne found Mira on the Salt Road at dusk. She wore a green coat that had been mended at both elbows, and she carried a roll of tide charts under one arm. \"The smuggler,\" Mira said. \"The trader,\" Sera corrected. \"Sm"
-        },
-        {
-          "chapter_number": 1,
-          "relevant": false,
-          "preview": "The Lantern came into Brinehold on a grey morning, her sails furled and her deck slick with rain. Mira Voss stood at the bow with the brass compass in her fist. She was the captain of the Night Watch now, though the titl"
         },
         {
           "chapter_number": 10,
@@ -4262,8 +4262,8 @@
       "id": "q066",
       "type": "event",
       "question": "What happened at the Salt Road?",
-      "latency_ms": 184.94,
-      "embedding_ms": 133.2,
+      "latency_ms": 178.58,
+      "embedding_ms": 133.72,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4326,8 +4326,8 @@
       "id": "q067",
       "type": "event",
       "question": "What happened at midnight in Brinehold?",
-      "latency_ms": 187.42,
-      "embedding_ms": 138.98,
+      "latency_ms": 176.89,
+      "embedding_ms": 125.32,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4390,8 +4390,8 @@
       "id": "q068",
       "type": "thread",
       "question": "What happened to the lighthouse lens?",
-      "latency_ms": 189.78,
-      "embedding_ms": 132.09,
+      "latency_ms": 170.29,
+      "embedding_ms": 129.71,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4429,11 +4429,6 @@
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
-        },
-        {
           "chapter_number": 11,
           "relevant": false,
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
@@ -4447,6 +4442,11 @@
           "chapter_number": 7,
           "relevant": false,
           "preview": "The storm struck Brinehold at midnight. Rain came sideways off the sea, and the windows of the Salt Road shook in their frames. Mira stood on the quay with the brass compass in her hand. The needle spun once and then hel"
+        },
+        {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         }
       ]
     },
@@ -4454,8 +4454,8 @@
       "id": "q069",
       "type": "thread",
       "question": "Who stole the lighthouse light?",
-      "latency_ms": 137.22,
-      "embedding_ms": 110.42,
+      "latency_ms": 156.24,
+      "embedding_ms": 112.79,
       "first_relevant_rank": 2,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4493,11 +4493,6 @@
           "preview": "In the ashes of Kael's forge, Mira found a brass compass. It was small enough to hide in a fist, and the needle did not point north. The needle pointed east, toward the Drowned Abbey. Kael came in from the yard and saw t"
         },
         {
-          "chapter_number": 9,
-          "relevant": false,
-          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
-        },
-        {
           "chapter_number": 5,
           "relevant": false,
           "preview": "The Night Watch had been betrayed at the Salt Road on the night of the storm. Eight men had died, and the ship that was meant to meet them had never come. Mira read the old report by candlelight. A witness said the trait"
@@ -4511,6 +4506,11 @@
           "chapter_number": 11,
           "relevant": false,
           "preview": "Mira looked into the still water of the abbey. Her grey eyes looked back at her, and for the first time she did not see her mother in them. She saw a captain. Kael waited in the boat with the lantern. \"I am sorry,\" he sa"
+        },
+        {
+          "chapter_number": 9,
+          "relevant": false,
+          "preview": "The Drowned Abbey stood in the shallows east of Brinehold, its roof open to the rain. The tide charts had been right: a channel ran between the sandbars, deep enough for a small boat. Mira lit a lantern and stepped into "
         }
       ]
     },
@@ -4518,8 +4518,8 @@
       "id": "q070",
       "type": "entity_fact",
       "question": "What is the name of the abbey in the shallows?",
-      "latency_ms": 130.78,
-      "embedding_ms": 89.95,
+      "latency_ms": 130.74,
+      "embedding_ms": 98.75,
       "first_relevant_rank": 1,
       "recall@5": 1.0,
       "recall@10": 1.0,
@@ -4557,11 +4557,6 @@
           "preview": "Sera Dunne was waiting at the abbey door, still wearing her green coat. The tide charts were gone. In their place she held a long knife. \"It was you,\" Mira said. \"You betrayed the Night Watch.\" \"I warned them about the s"
         },
         {
-          "chapter_number": 3,
-          "relevant": false,
-          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
-        },
-        {
           "chapter_number": 2,
           "relevant": false,
           "preview": "Kael's forge sat at the end of the Salt Road, where the cobbles gave way to packed sand. The sign above the door was a horseshoe, and the heat rolled out of it like breath. \"You are still a blacksmith,\" Mira said. \"Someo"
@@ -4575,6 +4570,11 @@
           "chapter_number": 12,
           "relevant": false,
           "preview": "The Lantern sailed at dawn. The lighthouse lens was still missing, and the tower stayed dark, but the harbour opened before them like a hand. Orin stood on the quay with his two remaining fingers raised in farewell. \"The"
+        },
+        {
+          "chapter_number": 3,
+          "relevant": false,
+          "preview": "The lighthouse keeper was named Orin Hale. He was older than the tower itself, or so the fishermen said, and he had lost two fingers to a cold winter. \"Three years,\" Orin said, tapping the cracked lens. \"Three years sinc"
         }
       ]
     }

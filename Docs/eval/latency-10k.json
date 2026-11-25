@@ -1,0 +1,564 @@
+{
+  "generated_at": "2026-11-25T05:31:12.208868+00:00",
+  "chunks": 10000,
+  "queries": 50,
+  "embedding_model": "nomic-embed-text",
+  "story_chunks_table_mb": 66.1,
+  "latency_ms": {
+    "p50": 381.17,
+    "p95": 437.26,
+    "max": 1099.93
+  },
+  "results": [
+    {
+      "query": "What colour are Mira's eyes?",
+      "latency_ms": 1099.93,
+      "timings_ms": {
+        "embed": 910.17,
+        "vector": 156.02,
+        "lexical": 4.82,
+        "name": 0.0,
+        "total": 1099.8
+      }
+    },
+    {
+      "query": "What colour are the captain's eyes?",
+      "latency_ms": 300.61,
+      "timings_ms": {
+        "embed": 104.42,
+        "vector": 186.01,
+        "lexical": 1.51,
+        "name": 0.0,
+        "total": 300.53
+      }
+    },
+    {
+      "query": "What is Mira's rank?",
+      "latency_ms": 181.29,
+      "timings_ms": {
+        "embed": 85.55,
+        "vector": 78.32,
+        "lexical": 3.07,
+        "name": 0.0,
+        "total": 181.1
+      }
+    },
+    {
+      "query": "What is the name of Mira's ship?",
+      "latency_ms": 347.7,
+      "timings_ms": {
+        "embed": 135.05,
+        "vector": 199.17,
+        "lexical": 2.77,
+        "name": 0.0,
+        "total": 347.62
+      }
+    },
+    {
+      "query": "Which port town does Mira return to?",
+      "latency_ms": 385.69,
+      "timings_ms": {
+        "embed": 112.34,
+        "vector": 257.0,
+        "lexical": 1.79,
+        "name": 0.0,
+        "total": 385.59
+      }
+    },
+    {
+      "query": "What colour is Kael's hair?",
+      "latency_ms": 368.22,
+      "timings_ms": {
+        "embed": 110.58,
+        "vector": 240.86,
+        "lexical": 3.0,
+        "name": 0.0,
+        "total": 368.11
+      }
+    },
+    {
+      "query": "What is Kael's trade?",
+      "latency_ms": 412.31,
+      "timings_ms": {
+        "embed": 109.31,
+        "vector": 286.24,
+        "lexical": 2.81,
+        "name": 0.0,
+        "total": 412.19
+      }
+    },
+    {
+      "query": "Who is Kael to Mira?",
+      "latency_ms": 571.51,
+      "timings_ms": {
+        "embed": 98.23,
+        "vector": 283.49,
+        "lexical": 172.06,
+        "name": 0.0,
+        "total": 571.3
+      }
+    },
+    {
+      "query": "What scar does Kael have?",
+      "latency_ms": 404.16,
+      "timings_ms": {
+        "embed": 119.58,
+        "vector": 271.1,
+        "lexical": 1.91,
+        "name": 0.0,
+        "total": 404.04
+      }
+    },
+    {
+      "query": "How did Kael get the scar on his hand?",
+      "latency_ms": 374.73,
+      "timings_ms": {
+        "embed": 100.13,
+        "vector": 259.07,
+        "lexical": 2.78,
+        "name": 0.0,
+        "total": 374.63
+      }
+    },
+    {
+      "query": "What is the lighthouse keeper's name?",
+      "latency_ms": 382.24,
+      "timings_ms": {
+        "embed": 114.43,
+        "vector": 250.44,
+        "lexical": 2.8,
+        "name": 0.0,
+        "total": 382.12
+      }
+    },
+    {
+      "query": "What is Orin's job?",
+      "latency_ms": 376.08,
+      "timings_ms": {
+        "embed": 100.91,
+        "vector": 258.68,
+        "lexical": 2.6,
+        "name": 0.0,
+        "total": 375.96
+      }
+    },
+    {
+      "query": "How many fingers has Orin lost?",
+      "latency_ms": 393.55,
+      "timings_ms": {
+        "embed": 110.1,
+        "vector": 267.47,
+        "lexical": 2.86,
+        "name": 0.0,
+        "total": 393.44
+      }
+    },
+    {
+      "query": "What is wrong with the lighthouse lens?",
+      "latency_ms": 388.49,
+      "timings_ms": {
+        "embed": 108.91,
+        "vector": 262.72,
+        "lexical": 2.65,
+        "name": 0.0,
+        "total": 388.38
+      }
+    },
+    {
+      "query": "How long has the lighthouse lens been cracked?",
+      "latency_ms": 337.62,
+      "timings_ms": {
+        "embed": 110.25,
+        "vector": 211.51,
+        "lexical": 2.5,
+        "name": 0.0,
+        "total": 337.52
+      }
+    },
+    {
+      "query": "What does the tide bell ring for?",
+      "latency_ms": 388.06,
+      "timings_ms": {
+        "embed": 116.43,
+        "vector": 255.68,
+        "lexical": 2.52,
+        "name": 0.0,
+        "total": 387.91
+      }
+    },
+    {
+      "query": "How many times does the tide bell ring during the storm?",
+      "latency_ms": 416.48,
+      "timings_ms": {
+        "embed": 109.01,
+        "vector": 291.06,
+        "lexical": 2.96,
+        "name": 0.0,
+        "total": 416.37
+      }
+    },
+    {
+      "query": "What colour coat does Sera wear?",
+      "latency_ms": 341.93,
+      "timings_ms": {
+        "embed": 96.03,
+        "vector": 229.25,
+        "lexical": 3.32,
+        "name": 0.0,
+        "total": 341.82
+      }
+    },
+    {
+      "query": "What is Sera's trade?",
+      "latency_ms": 370.11,
+      "timings_ms": {
+        "embed": 104.24,
+        "vector": 249.82,
+        "lexical": 2.62,
+        "name": 0.0,
+        "total": 370.01
+      }
+    },
+    {
+      "query": "What does Sera carry under her arm?",
+      "latency_ms": 384.35,
+      "timings_ms": {
+        "embed": 109.45,
+        "vector": 261.82,
+        "lexical": 3.05,
+        "name": 0.0,
+        "total": 384.24
+      }
+    },
+    {
+      "query": "Where do Sera's tide charts lead?",
+      "latency_ms": 393.96,
+      "timings_ms": {
+        "embed": 111.26,
+        "vector": 265.79,
+        "lexical": 2.52,
+        "name": 0.0,
+        "total": 393.86
+      }
+    },
+    {
+      "query": "Where was the Night Watch betrayed?",
+      "latency_ms": 369.13,
+      "timings_ms": {
+        "embed": 96.33,
+        "vector": 253.13,
+        "lexical": 3.17,
+        "name": 0.0,
+        "total": 369.0
+      }
+    },
+    {
+      "query": "What did the traitor wear?",
+      "latency_ms": 406.7,
+      "timings_ms": {
+        "embed": 105.63,
+        "vector": 288.11,
+        "lexical": 2.74,
+        "name": 0.0,
+        "total": 406.58
+      }
+    },
+    {
+      "query": "What accent did the traitor have?",
+      "latency_ms": 372.62,
+      "timings_ms": {
+        "embed": 101.63,
+        "vector": 252.32,
+        "lexical": 3.56,
+        "name": 0.0,
+        "total": 372.49
+      }
+    },
+    {
+      "query": "What clue linked the traitor to Sera?",
+      "latency_ms": 436.17,
+      "timings_ms": {
+        "embed": 111.9,
+        "vector": 308.62,
+        "lexical": 1.79,
+        "name": 0.0,
+        "total": 436.06
+      }
+    },
+    {
+      "query": "What did Mira find in the ashes of the forge?",
+      "latency_ms": 374.04,
+      "timings_ms": {
+        "embed": 104.03,
+        "vector": 255.63,
+        "lexical": 3.31,
+        "name": 0.0,
+        "total": 373.94
+      }
+    },
+    {
+      "query": "Where does the brass compass point?",
+      "latency_ms": 341.66,
+      "timings_ms": {
+        "embed": 97.49,
+        "vector": 226.33,
+        "lexical": 3.72,
+        "name": 0.0,
+        "total": 341.54
+      }
+    },
+    {
+      "query": "Who did the brass compass belong to?",
+      "latency_ms": 368.27,
+      "timings_ms": {
+        "embed": 108.14,
+        "vector": 247.09,
+        "lexical": 3.17,
+        "name": 0.0,
+        "total": 368.16
+      }
+    },
+    {
+      "query": "What was Mira's mother's occupation?",
+      "latency_ms": 438.16,
+      "timings_ms": {
+        "embed": 113.37,
+        "vector": 304.47,
+        "lexical": 4.08,
+        "name": 0.0,
+        "total": 437.89
+      }
+    },
+    {
+      "query": "Was Mira's mother only a lighthouse keeper?",
+      "latency_ms": 352.03,
+      "timings_ms": {
+        "embed": 113.53,
+        "vector": 222.67,
+        "lexical": 3.31,
+        "name": 0.0,
+        "total": 351.91
+      }
+    },
+    {
+      "query": "When did the storm strike Brinehold?",
+      "latency_ms": 358.4,
+      "timings_ms": {
+        "embed": 112.76,
+        "vector": 227.99,
+        "lexical": 2.4,
+        "name": 0.0,
+        "total": 358.29
+      }
+    },
+    {
+      "query": "Where did the storm strike?",
+      "latency_ms": 391.31,
+      "timings_ms": {
+        "embed": 107.35,
+        "vector": 266.97,
+        "lexical": 2.78,
+        "name": 0.0,
+        "total": 391.17
+      }
+    },
+    {
+      "query": "What rang in the harbour during the storm?",
+      "latency_ms": 400.73,
+      "timings_ms": {
+        "embed": 107.65,
+        "vector": 275.24,
+        "lexical": 3.29,
+        "name": 0.0,
+        "total": 400.62
+      }
+    },
+    {
+      "query": "Did anyone drown on the night the bell rang?",
+      "latency_ms": 363.41,
+      "timings_ms": {
+        "embed": 97.53,
+        "vector": 249.78,
+        "lexical": 2.84,
+        "name": 0.0,
+        "total": 363.3
+      }
+    },
+    {
+      "query": "What did Kael confess at dawn?",
+      "latency_ms": 373.58,
+      "timings_ms": {
+        "embed": 109.47,
+        "vector": 246.5,
+        "lexical": 2.57,
+        "name": 0.0,
+        "total": 373.47
+      }
+    },
+    {
+      "query": "Why did Kael sell the lighthouse lens?",
+      "latency_ms": 388.17,
+      "timings_ms": {
+        "embed": 108.63,
+        "vector": 262.37,
+        "lexical": 2.96,
+        "name": 0.0,
+        "total": 388.04
+      }
+    },
+    {
+      "query": "Did Kael sell the Night Watch?",
+      "latency_ms": 403.21,
+      "timings_ms": {
+        "embed": 111.81,
+        "vector": 272.47,
+        "lexical": 2.57,
+        "name": 0.0,
+        "total": 403.09
+      }
+    },
+    {
+      "query": "Who bought the lighthouse lens?",
+      "latency_ms": 421.72,
+      "timings_ms": {
+        "embed": 115.82,
+        "vector": 287.87,
+        "lexical": 3.04,
+        "name": 0.0,
+        "total": 421.59
+      }
+    },
+    {
+      "query": "How did the lens buyer pay?",
+      "latency_ms": 342.12,
+      "timings_ms": {
+        "embed": 94.65,
+        "vector": 232.63,
+        "lexical": 3.0,
+        "name": 0.0,
+        "total": 342.02
+      }
+    },
+    {
+      "query": "Where is the Drowned Abbey?",
+      "latency_ms": 396.36,
+      "timings_ms": {
+        "embed": 112.23,
+        "vector": 265.26,
+        "lexical": 3.39,
+        "name": 0.0,
+        "total": 396.24
+      }
+    },
+    {
+      "query": "How did Mira reach the abbey?",
+      "latency_ms": 330.27,
+      "timings_ms": {
+        "embed": 114.59,
+        "vector": 201.33,
+        "lexical": 2.47,
+        "name": 0.0,
+        "total": 330.16
+      }
+    },
+    {
+      "query": "Whose voice does Mira hear in the abbey?",
+      "latency_ms": 392.95,
+      "timings_ms": {
+        "embed": 102.25,
+        "vector": 274.65,
+        "lexical": 3.24,
+        "name": 0.0,
+        "total": 392.83
+      }
+    },
+    {
+      "query": "What secret did Mira's mother keep?",
+      "latency_ms": 329.58,
+      "timings_ms": {
+        "embed": 111.41,
+        "vector": 198.69,
+        "lexical": 2.9,
+        "name": 0.0,
+        "total": 329.48
+      }
+    },
+    {
+      "query": "Who betrayed the Night Watch?",
+      "latency_ms": 353.2,
+      "timings_ms": {
+        "embed": 108.61,
+        "vector": 227.0,
+        "lexical": 2.99,
+        "name": 0.0,
+        "total": 353.07
+      }
+    },
+    {
+      "query": "How does Sera justify the betrayal?",
+      "latency_ms": 400.85,
+      "timings_ms": {
+        "embed": 115.31,
+        "vector": 268.21,
+        "lexical": 3.4,
+        "name": 0.0,
+        "total": 400.72
+      }
+    },
+    {
+      "query": "Who bought the lens from Kael?",
+      "latency_ms": 381.11,
+      "timings_ms": {
+        "embed": 109.43,
+        "vector": 256.49,
+        "lexical": 2.65,
+        "name": 0.0,
+        "total": 380.98
+      }
+    },
+    {
+      "query": "How many lives did the Night Watch lose?",
+      "latency_ms": 364.18,
+      "timings_ms": {
+        "embed": 111.56,
+        "vector": 236.1,
+        "lexical": 3.08,
+        "name": 0.0,
+        "total": 364.06
+      }
+    },
+    {
+      "query": "What weapon does Sera hold at the abbey?",
+      "latency_ms": 381.22,
+      "timings_ms": {
+        "embed": 103.65,
+        "vector": 260.46,
+        "lexical": 2.68,
+        "name": 0.0,
+        "total": 381.1
+      }
+    },
+    {
+      "query": "What does Mira see in her reflection?",
+      "latency_ms": 378.01,
+      "timings_ms": {
+        "embed": 112.25,
+        "vector": 249.21,
+        "lexical": 3.24,
+        "name": 0.0,
+        "total": 377.9
+      }
+    },
+    {
+      "query": "What does Kael say to Mira at the abbey?",
+      "latency_ms": 388.12,
+      "timings_ms": {
+        "embed": 115.72,
+        "vector": 255.48,
+        "lexical": 3.35,
+        "name": 0.0,
+        "total": 388.0
+      }
+    }
+  ]
+}
