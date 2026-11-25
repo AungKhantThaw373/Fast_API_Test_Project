@@ -518,6 +518,26 @@ export interface DraftFile {
 	previewable: boolean;
 }
 
+async function download(path: string): Promise<{ blob: Blob; filename: string }> {
+	let response: Response;
+	try {
+		response = await fetch(`${API_BASE_URL}${path}`, { credentials: "include", cache: "no-store" });
+	} catch {
+		throw new ApiRequestError("Could not reach the server. Check that the backend is running, then try again.", 0);
+	}
+	if (!response.ok) {
+		const body = await response.json().catch(() => null);
+		throw new ApiRequestError(typeof body?.detail === "string" ? body.detail : "That file could not be prepared.", response.status);
+	}
+	const disposition = response.headers.get("Content-Disposition") ?? "";
+	const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+	const plain = /filename="?([^";]+)"?/i.exec(disposition)?.[1];
+	return {
+		blob: await response.blob(),
+		filename: encoded ? decodeURIComponent(encoded) : plain || "manuscript",
+	};
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const headers = new Headers(init?.headers);
 	if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
@@ -553,6 +573,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	if (response.status === 204) return undefined as T;
 	return response.json() as Promise<T>;
 }
+
+export type BackupDocument = Record<string, unknown>;
 
 export const api = {
 	me: () => request<CurrentUser>("/me"),
@@ -988,6 +1010,14 @@ export const api = {
 			`/stories/${storyId}/arcs/${arcId}/summary/generate`,
 			{ method: "POST" },
 		),
+	exportStory: (storyId: string, format: "markdown" | "docx" | "epub" | "pdf", includeWiki: boolean) =>
+		download(`/stories/${storyId}/export?format=${format}&include_wiki=${includeWiki}`),
+	exportBackup: (storyId: string) => request<BackupDocument>(`/stories/${storyId}/backup`),
+	importBackup: (document: BackupDocument) =>
+		request<{ story_id: string; chapters: number; entities: number; facts: number; relationships: number; threads: number; events: number }>("/stories/import-backup", {
+			method: "POST",
+			body: JSON.stringify(document),
+		}),
 	storySoFar: (storyId: string, limit = 5, arcId?: string) => {
 		const params = new URLSearchParams({ limit: String(limit) });
 		if (arcId) params.set("arc_id", arcId);

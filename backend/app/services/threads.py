@@ -7,6 +7,7 @@ the continuity context and the chapter review cards.
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -85,7 +86,7 @@ async def enrich_threads(
         entity.id: entity
         for entity in await session.scalars(select(Entity).where(Entity.id.in_(entity_ids)))
     } if entity_ids else {}
-    latest: dict[UUID, dict[str, object]] = {}
+    latest: dict[UUID, dict[str, Any]] = {}
     if entity_ids:
         ranked = (
             select(

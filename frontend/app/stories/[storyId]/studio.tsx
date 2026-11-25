@@ -9,6 +9,7 @@ import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
 import { CommandPalette } from '@/components/command-palette';
 import { EditorPreferencesMenu } from '@/components/editor-preferences';
+import { ExportPanel } from '@/components/export-panel';
 import { StylePanel } from '@/components/style-panel';
 import { RecapPanel } from '@/components/recap-panel';
 import ManuscriptEditor, { type ManuscriptEditorHandle } from '@/components/manuscript-editor';
@@ -123,6 +124,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	});
 	const [error, setError] = useState('');
 	const [notice, setNotice] = useState('');
+	const [exportOpen, setExportOpen] = useState(false);
 
 	const activeChapter = chapters.find((chapter) => chapter.id === activeId) ?? null;
 	const activeChapterId = activeChapter?.id;
@@ -832,22 +834,15 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		} catch (cause) { setError(cause instanceof Error ? cause.message : 'The manuscript could not be imported.'); }
 	}
 
-	async function exportManuscript() {
-		if (!story) return;
-		if (activeChapter) await persistChapter(activeChapter.id, draftTitle, draftContent);
-		const chaptersToExport = await Promise.all(chapters.map(async (chapter) => {
-			if (chapter.id === activeId) return { ...chapter, title: draftTitle, content: draftContent };
-			return api.chapter(chapter.id);
-		}));
-		const body = ['# ' + story.title, '', ...chaptersToExport.sort((a, b) => a.chapter_number - b.chapter_number).flatMap((chapter) => [
-			'## Chapter ' + chapter.chapter_number + ': ' + chapter.title, '', chapter.content ?? '', '',
-		])].join('\n');
-		const url = URL.createObjectURL(new Blob([body], { type: 'text/markdown;charset=utf-8' }));
-		const anchor = document.createElement('a');
-		anchor.href = url;
-		anchor.download = (story.title || 'manuscript').replace(/[\\/:*?"<>|]+/g, '-').trim() + '.md';
-		anchor.click();
-		window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+	async function prepareExport() {
+		if (!story) throw new Error('The story is still loading.');
+		if (activeChapter) {
+			await persistChapter(activeChapter.id, draftTitle, draftContent);
+			const saved = savedRef.current.get(activeChapter.id);
+			if (!saved || saved.title !== draftTitle || saved.content !== draftContent) {
+				throw new Error('This chapter still has unsaved changes. Save it before exporting.');
+			}
+		}
 	}
 
 	async function changeStorySetting(changes: { external_analysis_enabled?: boolean; scan_interval_words?: number; monthly_ai_budget?: number }): Promise<boolean> {
@@ -1148,7 +1143,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				<button className="new-chapter-button" onClick={() => void addChapter()}>＋ <span>New chapter</span></button>
 				{activeChapter && otherStories.length > 0 && <label className="move-chapter-control"><span>Move active chapter</span><select defaultValue="" onChange={(event) => { if (event.target.value) void moveActiveChapter(event.target.value); event.target.value = ''; }}><option value="">Choose a story…</option>{otherStories.map((item) => <option value={item.id} key={item.id}>{item.title}</option>)}</select></label>}
 				<label className="import-button">↥ <span>Import .txt or .md</span><input type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(event) => void importManuscript(event)} /></label>
-				<button className="import-button" onClick={() => void exportManuscript()}>↓ <span>Export manuscript</span></button>
+				<button className="import-button" onClick={() => setExportOpen(true)}>↓ <span>Export manuscript</span></button>
 				<div className="rail-footer"><span className="quiet-dot" /> Your words stay yours</div>
 			</aside>
 
@@ -1408,6 +1403,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					</section>}
 				</section>
 			</div>}
+			{exportOpen && story && <ExportPanel storyId={storyId} title={story.title} onClose={() => setExportOpen(false)} onPrepare={prepareExport} />}
 		</main>
 	);
 }

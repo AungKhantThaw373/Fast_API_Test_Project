@@ -1411,6 +1411,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stories/{story_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Story */
+        get: operations["export_story_stories__story_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Backup */
+        get: operations["export_backup_stories__story_id__backup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/import-backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Story Backup */
+        post: operations["import_story_backup_stories_import_backup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1664,6 +1715,350 @@ export interface components {
             accepted: number;
             /** Held */
             held: number;
+        };
+        /** BackupAlias */
+        BackupAlias: {
+            /** Alias */
+            alias: string;
+            /**
+             * Alias Type
+             * @default name
+             */
+            alias_type: string;
+        };
+        /** BackupArc */
+        BackupArc: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Position
+             * @default 1024
+             */
+            position: number;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+        };
+        /** BackupCanonException */
+        BackupCanonException: {
+            /** Scope */
+            scope: string;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Predicate */
+            predicate?: string | null;
+            /** Pattern */
+            pattern?: string | null;
+            /** Reason */
+            reason: string;
+        };
+        /** BackupChapter */
+        BackupChapter: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Chapter Number */
+            chapter_number: number;
+            /**
+             * Position
+             * @default 1024
+             */
+            position: number;
+            /** Arc Id */
+            arc_id?: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Content
+             * @default
+             */
+            content: string;
+            /**
+             * Word Count
+             * @default 0
+             */
+            word_count: number;
+            /**
+             * Revision
+             * @default 1
+             */
+            revision: number;
+            /** Revisions */
+            revisions?: components["schemas"]["BackupRevision"][];
+        };
+        /** BackupChapterMeta */
+        BackupChapterMeta: {
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /**
+             * Synopsis
+             * @default
+             */
+            synopsis: string;
+            /** Pov Entity Id */
+            pov_entity_id?: string | null;
+            /** Location Entity Id */
+            location_entity_id?: string | null;
+            /** Story Time */
+            story_time?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+        };
+        /** BackupEntity */
+        BackupEntity: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Name */
+            name: string;
+            /**
+             * Canonical Name
+             * @default
+             */
+            canonical_name: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Status
+             * @default active
+             */
+            status: string;
+            /** Merged Into Id */
+            merged_into_id?: string | null;
+            /** First Chapter Number */
+            first_chapter_number?: number | null;
+            /** Last Chapter Number */
+            last_chapter_number?: number | null;
+            /** Aliases */
+            aliases?: components["schemas"]["BackupAlias"][];
+            /** Facts */
+            facts?: components["schemas"]["BackupFact"][];
+        };
+        /** BackupEvent */
+        BackupEvent: {
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /** Scene Index */
+            scene_index?: number | null;
+            /** Timeline Order */
+            timeline_order?: number | null;
+            /** Summary */
+            summary: string;
+            /** Location Entity Id */
+            location_entity_id?: string | null;
+            /** Participant Entity Ids */
+            participant_entity_ids?: string[];
+            /** Quote */
+            quote?: string | null;
+        };
+        /** BackupFact */
+        BackupFact: {
+            /** Predicate */
+            predicate: string;
+            /** Value Text */
+            value_text?: string | null;
+            /** Value Number */
+            value_number?: number | null;
+            /** Value Date */
+            value_date?: string | null;
+            /** Value Entity Id */
+            value_entity_id?: string | null;
+            /**
+             * Value Type
+             * @default text
+             */
+            value_type: string;
+            /** Chapter Id */
+            chapter_id?: string | null;
+            /** Scene Index */
+            scene_index?: number | null;
+            /** Line Start */
+            line_start?: number | null;
+            /** Line End */
+            line_end?: number | null;
+            /** Quote */
+            quote?: string | null;
+            /**
+             * Confidence
+             * @default 50
+             */
+            confidence: number;
+            /**
+             * Status
+             * @default proposed
+             */
+            status: string;
+            /** Valid From Chapter */
+            valid_from_chapter?: number | null;
+            /** Valid To Chapter */
+            valid_to_chapter?: number | null;
+            /** Context */
+            context?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created By
+             * @default human
+             */
+            created_by: string;
+        };
+        /** BackupImportOut */
+        BackupImportOut: {
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /** Chapters */
+            chapters: number;
+            /** Entities */
+            entities: number;
+            /** Facts */
+            facts: number;
+            /** Relationships */
+            relationships: number;
+            /** Threads */
+            threads: number;
+            /** Events */
+            events: number;
+        };
+        /** BackupRelationship */
+        BackupRelationship: {
+            /**
+             * From Entity Id
+             * Format: uuid
+             */
+            from_entity_id: string;
+            /**
+             * To Entity Id
+             * Format: uuid
+             */
+            to_entity_id: string;
+            /** Relationship Type */
+            relationship_type: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Since Chapter */
+            since_chapter?: number | null;
+            /** Until Chapter */
+            until_chapter?: number | null;
+            /** Chapter Id */
+            chapter_id?: string | null;
+            /** Quote */
+            quote?: string | null;
+            /**
+             * Status
+             * @default accepted
+             */
+            status: string;
+        };
+        /** BackupRevision */
+        BackupRevision: {
+            /** Revision Number */
+            revision_number: number;
+            /** Title */
+            title: string;
+            /**
+             * Content
+             * @default
+             */
+            content: string;
+            /**
+             * Word Count
+             * @default 0
+             */
+            word_count: number;
+            /**
+             * Kind
+             * @default autosave
+             */
+            kind: string;
+            /**
+             * Content Hash
+             * @default
+             */
+            content_hash: string;
+            /**
+             * Char Count
+             * @default 0
+             */
+            char_count: number;
+        };
+        /** BackupStory */
+        BackupStory: {
+            /** Title */
+            title: string;
+            /**
+             * Collection Name
+             * @default
+             */
+            collection_name: string;
+            /**
+             * Scan Interval Words
+             * @default 1500
+             */
+            scan_interval_words: number;
+            /**
+             * External Analysis Enabled
+             * @default false
+             */
+            external_analysis_enabled: boolean;
+            /**
+             * Monthly Ai Budget
+             * @default 0
+             */
+            monthly_ai_budget: number;
+        };
+        /** BackupThread */
+        BackupThread: {
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Setup Chapter Id */
+            setup_chapter_id?: string | null;
+            /** Setup Quote */
+            setup_quote?: string | null;
+            /** Payoff Chapter Id */
+            payoff_chapter_id?: string | null;
+            /**
+             * State
+             * @default open
+             */
+            state: string;
+            /** Linked Entity Ids */
+            linked_entity_ids?: string[];
         };
         /** BibleDecision */
         BibleDecision: {
@@ -3012,6 +3407,36 @@ export interface components {
             };
             /** Results */
             results?: components["schemas"]["SearchHitOut"][];
+        };
+        /** StoryBackup */
+        StoryBackup: {
+            /**
+             * Format Version
+             * @default 1
+             */
+            format_version: number;
+            /**
+             * Exported At
+             * Format: date-time
+             */
+            exported_at: string;
+            story: components["schemas"]["BackupStory"];
+            /** Arcs */
+            arcs?: components["schemas"]["BackupArc"][];
+            /** Chapters */
+            chapters?: components["schemas"]["BackupChapter"][];
+            /** Entities */
+            entities?: components["schemas"]["BackupEntity"][];
+            /** Relationships */
+            relationships?: components["schemas"]["BackupRelationship"][];
+            /** Threads */
+            threads?: components["schemas"]["BackupThread"][];
+            /** Events */
+            events?: components["schemas"]["BackupEvent"][];
+            /** Chapter Meta */
+            chapter_meta?: components["schemas"]["BackupChapterMeta"][];
+            /** Canon Exceptions */
+            canon_exceptions?: components["schemas"]["BackupCanonException"][];
         };
         /** StoryCreate */
         StoryCreate: {
@@ -7131,6 +7556,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StorySoFarOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_story_stories__story_id__export_get: {
+        parameters: {
+            query?: {
+                format?: "markdown" | "docx" | "epub" | "pdf";
+                include_wiki?: boolean;
+            };
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_backup_stories__story_id__backup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryBackup"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_story_backup_stories_import_backup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoryBackup"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupImportOut"];
                 };
             };
             /** @description Validation Error */
