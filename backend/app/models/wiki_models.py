@@ -356,6 +356,10 @@ class SceneMeta(Base):
         UUID(as_uuid=True), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True
     )
     story_time: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Hash of the scene text at the last extraction. Re-running an unchanged
+    # scene costs zero model calls. The timestamp makes stale hashes visible.
+    last_extracted_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_extracted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     character_entity_ids: Mapped[list[UUIDType]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), nullable=False, default=list, server_default="{}"
     )
