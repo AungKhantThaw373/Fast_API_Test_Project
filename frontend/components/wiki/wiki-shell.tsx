@@ -7,7 +7,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { AddEntityDialog } from "@/components/wiki/add-entity-dialog";
 import { CommandPalette } from "@/components/command-palette";
 import { SavedViews } from "@/components/wiki/saved-views";
-import { useArcs, useChapters, useEntities, useStory } from "@/components/wiki/use-wiki";
+import { useArcs, useCanonCoverage, useChapters, useEntities, useStory } from "@/components/wiki/use-wiki";
 import {
 	ENTITY_TYPE_LABELS,
 	ENTITY_TYPES,
@@ -51,8 +51,11 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 	const story = useStory(storyId);
 	const arcs = useArcs(storyId);
 	const chapters = useChapters(storyId);
+	const coverage = useCanonCoverage(storyId);
 	const entities = useEntities(storyId, filtersForApi(filters));
 	const rows = entities.data ?? [];
+	const currentArc = coverage.data?.arcs.find((arc) => arc.arc_id === coverage.data?.current_arc_id);
+	const currentArcIndex = currentArc ? (coverage.data?.arcs.indexOf(currentArc) ?? -1) + 1 : 0;
 
 	// `/` focuses search from anywhere on the page.
 	useEffect(() => {
@@ -92,6 +95,34 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 				<div className="rail-story-title" title={story.data?.title ?? ""}>
 					{story.data?.title ?? "Loading story…"}
 				</div>
+
+				{coverage.data && coverage.data.chapters > 0 ? (
+					currentArc ? (
+						<Link
+							className="wiki-canon-summary"
+							href={`/stories/${storyId}/wiki/arcs/${currentArc.arc_id}`}
+							aria-label={`Canon coverage: arc ${currentArcIndex} of ${coverage.data.arcs.length}, ${currentArc.extracted_count} of ${currentArc.chapter_count} chapters extracted`}
+						>
+							<span className="wiki-canon-summary-label">Canon coverage</span>
+							<strong>
+								Arc {currentArcIndex} of {coverage.data.arcs.length}
+							</strong>
+							<small>
+								{currentArc.extracted_count.toLocaleString()} of{" "}
+								{currentArc.chapter_count.toLocaleString()} chapters extracted
+							</small>
+						</Link>
+					) : (
+						<div className="wiki-canon-summary">
+							<span className="wiki-canon-summary-label">Canon coverage</span>
+							<strong>
+								{coverage.data.extracted.toLocaleString()} of{" "}
+								{coverage.data.chapters.toLocaleString()}
+							</strong>
+							<small>Assign chapters to an arc to track it here.</small>
+						</div>
+					)
+				) : null}
 
 				<nav className="wiki-rail-links" aria-label="Wiki sections">
 					<Link className="wiki-nav-link" href={`/stories/${storyId}/wiki`} aria-current={pathname.endsWith("/wiki") ? "page" : undefined}>

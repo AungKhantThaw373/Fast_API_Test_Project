@@ -101,3 +101,11 @@ export function useArcs(storyId: string) {
 		enabled: Boolean(storyId),
 	});
 }
+
+export function useCanonCoverage(storyId: string) {
+	return useQuery({
+		queryKey: qk.canon(storyId),
+		queryFn: () => api.canonCoverage(storyId),
+		enabled: Boolean(storyId),
+	});
+}

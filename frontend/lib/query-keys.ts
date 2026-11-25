@@ -19,6 +19,7 @@ export const qk = {
 	story: (id: string) => ["story", id] as const,
 	chapters: (id: string) => ["story", id, "chapters"] as const,
 	arcs: (id: string) => ["story", id, "arcs"] as const,
+	canon: (id: string) => ["story", id, "canon"] as const,
 	chapter: (id: string) => ["chapter", id] as const,
 	bible: (id: string) => ["story", id, "bible"] as const,
 	entities: (storyId: string, filters: EntityFilters = {}) => ["entities", storyId, filters] as const,

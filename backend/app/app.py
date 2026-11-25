@@ -18,6 +18,7 @@ from app.routes.arcs import router as story_arc_router
 from app.routes.ask import router as ask_router
 from app.routes.auth_routes import router as auth_router
 from app.routes.bible import router as bible_router
+from app.routes.canon import router as canon_router
 from app.routes.chapters import router as chapter_router
 from app.routes.continuity import router as continuity_router
 from app.routes.editing_routes import router as editing_router
@@ -136,6 +137,7 @@ app.include_router(story_arc_router)
 app.include_router(arc_router)
 app.include_router(chapter_router)
 app.include_router(bible_router)
+app.include_router(canon_router)
 app.include_router(continuity_router)
 app.include_router(job_router)
 app.include_router(trash_router)

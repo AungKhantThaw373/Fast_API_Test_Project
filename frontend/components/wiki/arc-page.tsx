@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { useArcs, useChapters, useThreads } from "@/components/wiki/use-wiki";
+import { useArcs, useCanonCoverage, useChapters, useThreads } from "@/components/wiki/use-wiki";
 import { api } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
 
@@ -15,7 +15,9 @@ export function ArcPage({ storyId, arcId }: { storyId: string; arcId: string }) 
 	const arcs = useArcs(storyId);
 	const chapters = useChapters(storyId);
 	const threads = useThreads(storyId);
+	const coverage = useCanonCoverage(storyId);
 	const arc = arcs.data?.find((item) => item.id === arcId);
+	const arcCoverage = coverage.data?.arcs.find((item) => item.arc_id === arcId);
 
 	const arcChapters = (chapters.data ?? []).filter((chapter) => chapter.arc_id === arcId);
 	const chapterIds = new Set(arcChapters.map((chapter) => chapter.id));
@@ -42,6 +44,19 @@ export function ArcPage({ storyId, arcId }: { storyId: string; arcId: string }) 
 		onError: (error) => toast.error(error instanceof Error ? error.message : "That summary could not be saved."),
 	});
 
+	const extract = useMutation({
+		mutationFn: () => api.extractArc(storyId, arcId),
+		onSuccess: async (result) => {
+			toast.success(
+				result.scheduled_count
+					? `Queued ${result.scheduled_count} ${result.scheduled_count === 1 ? "chapter" : "chapters"} for canon extraction.`
+					: "Every chapter in this arc already has canon extracted.",
+			);
+			await queryClient.invalidateQueries({ queryKey: qk.canon(storyId) });
+		},
+		onError: (error) => toast.error(error instanceof Error ? error.message : "That arc could not be queued."),
+	});
+
 	if (arcs.isPending) return <p className="wiki-quiet">Opening the arc…</p>;
 	if (!arc) {
 		return (
@@ -54,6 +69,11 @@ export function ArcPage({ storyId, arcId }: { storyId: string; arcId: string }) 
 		);
 	}
 
+	const extractedPercent =
+		arcCoverage && arcCoverage.chapter_count
+			? Math.round((arcCoverage.extracted_count / arcCoverage.chapter_count) * 100)
+			: 0;
+
 	return (
 		<div className="wiki-page">
 			<header className="wiki-page-head">
@@ -63,6 +83,7 @@ export function ArcPage({ storyId, arcId }: { storyId: string; arcId: string }) 
 						{arc.first_chapter_number !== null && arc.last_chapter_number !== null
 							? ` · CHAPTERS ${arc.first_chapter_number}–${arc.last_chapter_number}`
 							: ""}
+						{coverage.data?.current_arc_id === arc.id ? " · CURRENT ARC" : ""}
 					</div>
 					<h1>{arc.name}</h1>
 				</div>
@@ -70,6 +91,59 @@ export function ArcPage({ storyId, arcId }: { storyId: string; arcId: string }) 
 					See its entries
 				</Link>
 			</header>
+
+			<section className="canon-card" aria-labelledby="canon-card-heading">
+				<div className="wiki-section-head">
+					<h2 id="canon-card-heading">Canon extraction</h2>
+					<span className="wiki-count">
+						{arcCoverage ? `${arcCoverage.extracted_count} / ${arcCoverage.chapter_count}` : "—"}
+					</span>
+				</div>
+				{coverage.isPending ? (
+					<p className="wiki-quiet">Reading coverage…</p>
+				) : arcCoverage ? (
+					<>
+						<p className="canon-card-copy">
+							Canon is extracted arc by arc. Importing text and vectors never scans the whole
+							manuscript; chapters here wait until you ask for them.
+						</p>
+						<div
+							className="canon-meter"
+							role="progressbar"
+							aria-valuemin={0}
+							aria-valuemax={arcCoverage.chapter_count}
+							aria-valuenow={arcCoverage.extracted_count}
+							aria-label={`${arcCoverage.extracted_count} of ${arcCoverage.chapter_count} chapters extracted`}
+						>
+							<span style={{ width: `${extractedPercent}%` }} />
+						</div>
+						<div className="canon-card-actions">
+							<small>
+								{arcCoverage.chapter_count === 0
+									? "No chapters in this arc yet."
+									: `${arcCoverage.pending_count} ${arcCoverage.pending_count === 1 ? "chapter" : "chapters"} still to extract.`}
+							</small>
+							<button
+								className="button button-approve"
+								disabled={
+									extract.isPending ||
+									arcCoverage.chapter_count === 0 ||
+									arcCoverage.pending_count === 0
+								}
+								onClick={() => extract.mutate()}
+							>
+								{extract.isPending
+									? "Queueing…"
+									: arcCoverage.pending_count === 0
+										? "Up to date"
+										: "Extract remaining"}
+							</button>
+						</div>
+					</>
+				) : (
+					<p className="wiki-quiet">Coverage is unavailable right now.</p>
+				)}
+			</section>
 
 			<section className="arc-summary" aria-labelledby="arc-summary-heading">
 				<div className="wiki-section-head">

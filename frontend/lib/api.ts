@@ -195,6 +195,35 @@ export interface StoryArc {
 	last_chapter_number: number | null;
 }
 
+export interface ArcCoverage {
+	arc_id: string;
+	arc_name: string;
+	position: number;
+	chapter_count: number;
+	first_chapter_number: number | null;
+	last_chapter_number: number | null;
+	extracted_count: number;
+	pending_count: number;
+	complete: boolean;
+}
+
+export interface CanonCoverage {
+	story_id: string;
+	current_arc_id: string | null;
+	chapters: number;
+	extracted: number;
+	pending: number;
+	unassigned_chapters: number;
+	arcs: ArcCoverage[];
+}
+
+export interface ArcExtractResult {
+	arc_id: string;
+	scheduled_count: number;
+	skipped_count: number;
+	chapter_count: number;
+}
+
 export interface StoryDetails extends Story {
 	chapters: Chapter[];
 }
@@ -1037,6 +1066,11 @@ export const api = {
 			`/stories/${storyId}/merge-proposals`,
 		),
 	arcs: (storyId: string) => request<Array<StoryArc>>(`/stories/${storyId}/arcs`),
+	canonCoverage: (storyId: string) => request<CanonCoverage>(`/stories/${storyId}/canon/coverage`),
+	extractArc: (storyId: string, arcId: string, force = false) =>
+		request<ArcExtractResult>(`/stories/${storyId}/canon/arcs/${arcId}/extract?force=${force}`, {
+			method: "POST",
+		}),
 	createArc: (storyId: string, name: string, summary = "") =>
 		request<StoryArc>(`/stories/${storyId}/arcs`, { method: "POST", body: JSON.stringify({ name, summary }) }),
 	updateArc: (arcId: string, changes: { name?: string; summary?: string; position?: number }) =>
