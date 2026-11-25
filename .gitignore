@@ -131,6 +131,9 @@ sandbox/
 Jupyter/
 data/
 datasets/
+# The retrieval eval corpus is application test data, not personal research.
+!backend/eval/datasets/
+!backend/eval/datasets/**
 
 # ---------- Database dumps (contain manuscript data) ----------
 backups/

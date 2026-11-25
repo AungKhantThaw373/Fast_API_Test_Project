@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "c001",
+      "established": "Mira has grey eyes.",
+      "draft": "Mira's blue eyes narrowed at the door.",
+      "expected_flag": true,
+      "note": "direct contradiction"
+    },
+    {
+      "id": "c002",
+      "established": "Kael is Mira's brother.",
+      "draft": "Kael, her cousin, waited by the forge.",
+      "expected_flag": true,
+      "note": "relationship contradiction"
+    },
+    {
+      "id": "c003",
+      "established": "Orin lost two fingers.",
+      "draft": "Orin still had all five fingers when he climbed the stair.",
+      "expected_flag": true,
+      "note": "body detail contradiction"
+    },
+    {
+      "id": "c004",
+      "established": "Kael is a blacksmith.",
+      "draft": "Kael, a baker by trade, wiped the flour from his hands.",
+      "expected_flag": true,
+      "note": "occupation contradiction"
+    },
+    {
+      "id": "c005",
+      "established": "Sera wore a green coat.",
+      "draft": "Sera's red coat hung by the abbey door.",
+      "expected_flag": true,
+      "note": "clothing contradiction"
+    },
+    {
+      "id": "c006",
+      "established": "The Night Watch was betrayed at the Salt Road.",
+      "draft": "The Night Watch was betrayed at the Drowned Abbey.",
+      "expected_flag": true,
+      "note": "place contradiction"
+    },
+    {
+      "id": "c007",
+      "established": "The traitor wore a grey cloak.",
+      "draft": "The traitor wore a white cloak and spoke softly.",
+      "expected_flag": true,
+      "note": "clothing contradiction"
+    },
+    {
+      "id": "c008",
+      "established": "The lighthouse lens was cracked.",
+      "draft": "The lighthouse lens was flawless and bright.",
+      "expected_flag": true,
+      "note": "object state contradiction"
+    },
+    {
+      "id": "c009",
+      "established": "The tide bell rings only for the drowned.",
+      "draft": "The bell rings for the living, Orin said.",
+      "expected_flag": true,
+      "note": "rule contradiction"
+    },
+    {
+      "id": "c010",
+      "established": "Kael sold the lighthouse lens.",
+      "draft": "Kael never sold the lens; the silver was his own.",
+      "expected_flag": true,
+      "note": "event contradiction"
+    },
+    {
+      "id": "c011",
+      "established": "Mira's mother was a lighthouse keeper.",
+      "draft": "Mira's mother was a fisherman's widow who never climbed the tower.",
+      "expected_flag": true,
+      "note": "occupation contradiction"
+    },
+    {
+      "id": "c012",
+      "established": "The brass compass points east.",
+      "draft": "The brass compass pointed west across the water.",
+      "expected_flag": true,
+      "note": "direction contradiction"
+    },
+    {
+      "id": "c013",
+      "established": "Sera bought the lens.",
+      "draft": "Sera refused to buy the lens, though Kael begged her.",
+      "expected_flag": true,
+      "note": "event contradiction"
+    },
+    {
+      "id": "c014",
+      "established": "Eight men died at the Salt Road.",
+      "draft": "Seven men died at the Salt Road.",
+      "expected_flag": true,
+      "note": "number contradiction"
+    },
+    {
+      "id": "c015",
+      "established": "Mira is the captain of the Night Watch.",
+      "draft": "Mira was a deckhand with no command.",
+      "expected_flag": true,
+      "note": "rank contradiction"
+    },
+    {
+      "id": "c016",
+      "established": "Mira has grey eyes.",
+      "draft": "'My eyes are blue,' Mira lied, and watched him believe it.",
+      "expected_flag": false,
+      "note": "a character lying"
+    },
+    {
+      "id": "c017",
+      "established": "Mira has grey eyes.",
+      "draft": "Mira had never seen her own eyes clearly in the dark.",
+      "expected_flag": false,
+      "note": "uncertainty, not contradiction"
+    },
+    {
+      "id": "c018",
+      "established": "Kael is Mira's brother.",
+      "draft": "Kael said he had no sister, and the lie cost him.",
+      "expected_flag": false,
+      "note": "a character lying"
+    },
+    {
+      "id": "c019",
+      "established": "Kael is a blacksmith.",
+      "draft": "Kael had once trained as a baker before the forge.",
+      "expected_flag": false,
+      "note": "new backstory detail"
+    },
+    {
+      "id": "c020",
+      "established": "Sera wore a green coat.",
+      "draft": "Sera changed into a red coat for the funeral.",
+      "expected_flag": false,
+      "note": "deliberate change of clothes"
+    },
+    {
+      "id": "c021",
+      "established": "The Night Watch was betrayed at the Salt Road.",
+      "draft": "The Night Watch had been betrayed before, at another road.",
+      "expected_flag": false,
+      "note": "a different event"
+    },
+    {
+      "id": "c022",
+      "established": "The traitor wore a grey cloak.",
+      "draft": "The witness could not recall what the traitor wore.",
+      "expected_flag": false,
+      "note": "uncertainty, not contradiction"
+    },
+    {
+      "id": "c023",
+      "established": "The lighthouse lens was cracked.",
+      "draft": "The lens cracked again after the storm.",
+      "expected_flag": false,
+      "note": "a new event after the fact"
+    },
+    {
+      "id": "c024",
+      "established": "The tide bell rings only for the drowned.",
+      "draft": "Orin said the bell rings only for the drowned, but he was superstitious.",
+      "expected_flag": false,
+      "note": "belief, not fact"
+    },
+    {
+      "id": "c025",
+      "established": "Kael sold the lighthouse lens.",
+      "draft": "Kael denied selling the lens, and Mira believed him.",
+      "expected_flag": false,
+      "note": "a denial, not a contradiction"
+    },
+    {
+      "id": "c026",
+      "established": "Mira's mother was a lighthouse keeper.",
+      "draft": "Mira's mother had wanted to be a lighthouse keeper but never was.",
+      "expected_flag": false,
+      "note": "counterfactual wish"
+    },
+    {
+      "id": "c027",
+      "established": "The brass compass points east.",
+      "draft": "The compass needle spun, then settled north after the storm.",
+      "expected_flag": false,
+      "note": "a later change"
+    },
+    {
+      "id": "c028",
+      "established": "Sera bought the lens.",
+      "draft": "Sera said she had bought the lens, but the silver was Kael's.",
+      "expected_flag": false,
+      "note": "same event, disputed detail"
+    },
+    {
+      "id": "c029",
+      "established": "Eight men died at the Salt Road.",
+      "draft": "Eight names were read at the Salt Road memorial.",
+      "expected_flag": false,
+      "note": "memorial, not deaths"
+    },
+    {
+      "id": "c030",
+      "established": "Mira is the captain.",
+      "draft": "Mira had been called captain since the mutiny.",
+      "expected_flag": false,
+      "note": "same rank, new detail"
+    }
+  ]
+}
