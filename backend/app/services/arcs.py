@@ -4,6 +4,7 @@ The rail groups chapters by arc once a story outgrows a flat list. Assignment is
 explicit rather than computed from numbering, so a writer can regroup freely.
 """
 
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -29,7 +30,8 @@ async def list_arcs(session: AsyncSession, story_id: UUID) -> list[dict]:
             .order_by(Arc.position, Arc.name)
         )
     ).all()
-    return [_arc_dict(arc, low, high, count) for arc, low, high, count in rows]
+    values = cast("list[tuple[Arc, int | None, int | None, int | None]]", rows)
+    return [_arc_dict(arc, low, high, count) for arc, low, high, count in values]
 
 
 def _arc_dict(arc: Arc, low: int | None, high: int | None, count: int | None) -> dict:

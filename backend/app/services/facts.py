@@ -263,7 +263,7 @@ async def superseded_by(session: AsyncSession, fact_ids: list[UUID]) -> dict[UUI
             )
         )
     ).all()
-    return {old_id: new_id for new_id, old_id in rows}
+    return {old_id: new_id for new_id, old_id in rows if old_id is not None}
 
 
 async def accepted_facts_for(
