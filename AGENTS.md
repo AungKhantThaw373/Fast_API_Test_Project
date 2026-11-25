@@ -8,7 +8,7 @@ Read this first, then `Docs/build-log.md` for the chronological record.
 |---|---|
 | Repo | `C:\Users\ACER\OneDrive\Desktop\AI` (still inside OneDrive; see gotchas) |
 | Branch | `hardening/phase-0` (all work so far lives here) |
-| Tags | `pre-hardening`, `phase-0-complete` … `phase-6-complete` |
+| Tags | `pre-hardening`, `phase-0-complete` … `phase-7-complete` |
 | Backend | `backend/` — FastAPI + SQLAlchemy 2 async + Alembic + pgvector |
 | Frontend | `frontend/` — Next 16, React 19, npm |
 | Database | Native PostgreSQL 18 on `127.0.0.1:5432`, databases `stillroom` and `stillroom_test`, password `death373` (`backend/.env`) |
@@ -26,9 +26,10 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (178 tests)
-make test-frontend    # vitest (31 tests)
+make test             # backend pytest (190 tests)
+make test-frontend    # vitest (47 tests)
 make qa-phase6        # 8 Playwright local-AI checks
+make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
 make lint typecheck   # ruff + eslint, pyright + tsc
 ./scripts/backup.sh   # pg_dump, no Docker
 ```
@@ -73,15 +74,22 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   rules, per-scene evidence, durable scan jobs with progress/cancel, an AI usage
   ledger and monthly budget, and cited ask-your-story. 178 backend tests, 31
   frontend tests, and 8 Playwright checks in `frontend/scripts/phase6-qa.mjs`.
-- Backend: 178 tests pass, ruff and pyright clean.
-- Frontend: lint, `tsc --noEmit`, `next build`, and 31 vitest tests pass.
+- **Phase 7 complete** (`Docs/phase-7-acceptance.md`): CodeMirror 6 with inline
+  canon marks and findings, command-palette actions and recents, a read-only
+  style/line-edit panel, cited chapter and arc recaps, the four-column thread
+  board with keyboard drag and required payoff, Markdown/DOCX/EPUB/PDF export
+  with a wiki appendix, JSON backup/restore, and the accessibility/responsive
+  pass. 190 backend tests, 47 frontend tests, and 85 Playwright checks in eight
+  suites via `frontend/scripts/phase7-qa.mjs`.
+- Backend: 190 tests pass, ruff and pyright clean.
+- Frontend: lint, `tsc --noEmit`, `next build`, and 47 vitest tests pass.
 - CI workflow is committed but has never run on GitHub.
 
 ## Pick up here (in this order)
 
-1. **Phase 7** - see the manual. Read `Docs/phase-6-acceptance.md` first for the
-   deliberate omissions (timeline arithmetic, duplicate-spelling rules, and a
-   separate cloud-call confirmation dialog).
+1. **Next manual phase** - Phase 7 ends at `phase-7-complete`. Read
+   `Docs/phase-7-acceptance.md` for what was deliberately left out before
+   extending the writing surface.
 2. **Entity-scoped exceptions** - findings carry quotes and rule/evidence ids,
    but only pattern exceptions can suppress them. Once findings know the entity
    and predicate, `canon_exceptions.matches` should also honour those scopes.
@@ -108,6 +116,10 @@ make lint typecheck   # ruff + eslint, pyright + tsc
 - **OneDrive** syncs `node_modules`, `.next`, `.venv`. Builds can be slow and file
   locks appear. Moving the repo to `C:\dev\stillroom` is still recommended.
 - **`ACCESS_TOKEN_EXPIRE_MINUTES=30`** in `backend/.env` — sessions are short.
+- **PDF page numbers need Chrome margin boxes.** `app/services/export.py` uses
+  `@page { @bottom-center { content: counter(page) } }` and
+  `--no-pdf-header-footer`. Current Chrome/Edge print the number; older engines
+  produce a valid PDF without it.
 - **Two uvicorn processes can fight over :8000** on this machine (one on
   `0.0.0.0`, one on `127.0.0.1`). After restarting, check
   `netstat -ano | grep ":8000" | grep LISTENING` for more than one PID; the

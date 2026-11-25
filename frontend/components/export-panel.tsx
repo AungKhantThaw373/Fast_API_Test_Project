@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 
 import { api, type BackupDocument } from '@/lib/api';
+import { useFocusTrap } from '@/lib/focus-trap';
 
 type Format = 'docx' | 'epub' | 'pdf' | 'markdown';
 
@@ -35,6 +36,7 @@ export function ExportPanel({
 	onPrepare: () => Promise<void>;
 }) {
 	const router = useRouter();
+	const dialogRef = useFocusTrap<HTMLDivElement>();
 	const fileRef = useRef<HTMLInputElement>(null);
 	const [format, setFormat] = useState<Format>('docx');
 	const [includeWiki, setIncludeWiki] = useState(true);
@@ -107,12 +109,12 @@ export function ExportPanel({
 
 	return (
 		<div className="export-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-			<div className="export-panel" role="dialog" aria-modal="true" aria-labelledby="export-title">
+			<div ref={dialogRef} className="export-panel" role="dialog" aria-modal="true" aria-labelledby="export-title" aria-describedby="export-intro" tabIndex={-1}>
 				<header>
 					<div><div className="eyebrow">LEAVE THE ROOM</div><h2 id="export-title">Export</h2></div>
-					<button className="export-close" onClick={onClose} aria-label="Close export panel">×</button>
+					<button className="export-close" onClick={onClose} aria-label="Close export panel" data-autofocus>×</button>
 				</header>
-				<p className="export-intro">The manuscript is saved first. Formatting follows the house style; nothing here edits the text.</p>
+				<p className="export-intro" id="export-intro">The manuscript is saved first. Formatting follows the house style; nothing here edits the text.</p>
 
 				<fieldset className="export-formats">
 					<legend>Manuscript file</legend>

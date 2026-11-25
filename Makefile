@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend qa-wiki qa-phase6 seed-wiki lint typecheck migrate backup install
+.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend qa-wiki qa-phase6 qa-phase7 seed-wiki lint typecheck migrate backup install
 
 install:
 	cd backend && uv sync
@@ -35,6 +35,11 @@ qa-wiki:
 # Phase 6 local-AI flows. Needs API :8000, `next start` :3000, and Ollama.
 qa-phase6:
 	cd frontend && node scripts/phase6-qa.mjs
+
+# Phase 7 editor, canon, recap, thread, export, and accessibility flows.
+# Needs API :8000 and `next start` :3000 against a production build.
+qa-phase7:
+	cd frontend && node scripts/phase7-qa.mjs
 
 # 1,000 entities for the Phase 4 performance budget: make seed-wiki EMAIL=you@example.com
 seed-wiki:

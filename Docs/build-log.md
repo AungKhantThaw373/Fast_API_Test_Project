@@ -540,3 +540,80 @@ permutations, OneDrive).
   reload resume, completion, and no page errors. `make qa-phase6` or
   `npm run qa:phase6` runs it with API :8000, `next start` :3000, and Ollama up.
 - Acceptance mapping and deliberate omissions: `Docs/phase-6-acceptance.md`.
+
+## Phase 7 — the writing room
+
+### P7-1/P7-2 — CodeMirror and canon in the text
+
+- The textarea became a CodeMirror 6 editor (`frontend/components/manuscript-editor.tsx`,
+  `e7bd940`). It keeps the IndexedDB draft, save-state machine, and conflict
+  dialog; adds markdown language support, find/replace, typewriter and focus
+  modes, word count/goal, version history, and an undo history persisted in
+  session storage. A 100,000-character chapter types at ~7 ms/key and undo
+  survives a reload.
+- Entity aliases and continuity findings are CodeMirror decorations from
+  `frontend/lib/manuscript-decorations.ts` and `frontend/lib/entity-matcher.ts`,
+  never text edits.
+  Hover cards show accepted facts and a wiki link; findings open their cited
+  source. Marks toggle independently and do not disturb the document.
+- The editor and canon layer share one extension surface, so they landed in one
+  commit; the acceptance doc says so rather than inventing a buildable split.
+
+### P7-3 — Palette actions and recents
+
+- `components/command-palette.tsx` gained primary actions (continue drafting,
+  wiki, inbox, threads, settings, all stories), manuscript passage search with
+  line links, entity search, editor theme cycling, and four localStorage recents
+  (`16fe40c`). Escape closes the palette and restores the writing surface.
+
+### P7-4 — Style and line-edit panel
+
+- `lib/style-analysis.ts` calculates readability, sentence length, repeated
+  openings, crutch/filter words, adverbs, passive voice, and tense without a
+  model. `components/style-panel.tsx` lists observations; clicking selects the
+  passage, dismissing hides one instance, and muting hides a pattern. The panel
+  never writes to the manuscript (`c064bfe`).
+
+### P7-5 — Cited recaps
+
+- Chapter synopses are editable from the desk and can be regenerated from the
+  chapter. Story-so-far rows cite chapter and line, arc summaries build from
+  chapter synopses, and citations deep-link back into the editor (`ff9a926`).
+
+### P7-6 — Thread board
+
+- The table became four drag-and-drop columns in
+  `frontend/components/wiki/threads-page.tsx` (`ff9a926`). Resolving always opens a
+  payoff-chapter dialog; filters by arc and entity survive the round trip.
+  Keyboard drag uses a custom coordinate getter: Space lifts, Left/Right moves
+  one column, Space drops.
+- Bug found by browser QA: the getter returned the column's centre as if it
+  were the card's top-left, so the wide drag overlay covered the next column and
+  a two-step move landed on `abandoned`. It now offsets by half the collision
+  rect's width. A second bug — the 390 px studio's fixed insights pane covered
+  the export button — is fixed by stacking the pane below the editor at 760 px.
+
+### P7-7 — Export and backup
+
+- `app/services/export.py` and `components/export-panel.tsx` export Markdown,
+  DOCX, EPUB, and PDF with an optional wiki appendix (`b89acf6`). DOCX uses a
+  generated reference document (Georgia 12 pt, double spacing, 0.5 in indent,
+  page-number footer); EPUB carries the same CSS; PDF prints Pandoc HTML through
+  Chrome with a serif stylesheet.
+- PDFs now use Chrome's CSS page-margin box for page numbers and
+  `--no-pdf-header-footer`, removing the temporary-file URL and date header.
+- Missing Pandoc or Chrome returns 503 with an install hint. `backup.py` exports
+  a versioned JSON document and imports it as a new story with remapped ids;
+  chunks, embeddings, and mentions are rebuilt rather than copied.
+
+### P7-8 — Accessibility, responsive layout, and verification
+
+- `frontend/lib/focus-trap.ts` traps Tab and restores focus for the export and thread
+  payoff dialogs. The thread board is fully keyboard-operable, the export panel
+  fits a 390 px viewport, the studio stacks instead of overlaying, and new
+  surfaces respect the 12 px text floor.
+- `frontend/scripts/phase7-qa.mjs` runs eight suites and 85 checks against the
+  production build; `npm run qa:phase7` and `make qa-phase7` invoke it.
+- 190 backend tests, 47 frontend tests; ruff, pyright, eslint, `tsc --noEmit`,
+  and `next build` pass. Acceptance mapping and deliberate omissions:
+  `Docs/phase-7-acceptance.md`.

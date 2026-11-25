@@ -1,13 +1,14 @@
 "use client";
 
-import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent, type KeyboardCoordinateGetter } from "@dnd-kit/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useArcs, useChapters, useThreads } from "@/components/wiki/use-wiki";
 import { api, type WikiThread } from "@/lib/api";
+import { useFocusTrap } from "@/lib/focus-trap";
 import { qk } from "@/lib/query-keys";
 
 type ThreadState = WikiThread["state"];
@@ -85,11 +86,29 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 	const [arcFilter, setArcFilter] = useState("");
 	const [entityFilter, setEntityFilter] = useState("");
 	const [resolving, setResolving] = useState<{ thread: WikiThread; chapterId: string } | null>(null);
+	const resolveRef = useFocusTrap<HTMLFormElement>(Boolean(resolving));
+	const threadsRef = useRef<WikiThread[]>([]);
+	useEffect(() => { threadsRef.current = threads.data ?? []; }, [threads.data]);
+
+	// Arrow keys jump one board column at a time instead of nudging 25 px.
+	const columnKeyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
+		if (event.code !== "ArrowLeft" && event.code !== "ArrowRight") return undefined;
+		const activeThread = threadsRef.current.find((row) => row.id === context.active?.id);
+		const overState = COLUMNS.some((column) => column.state === context.over?.id) ? context.over?.id as ThreadState : activeThread?.state;
+		const index = COLUMNS.findIndex((column) => column.state === overState);
+		const next = COLUMNS[index + (event.code === "ArrowRight" ? 1 : -1)];
+		if (!next) return undefined;
+		const rect = context.droppableRects.get(next.state);
+		if (!rect) return undefined;
+		// Keyboard coordinates set the collision rect's top-left, so centre the card over the column.
+		const width = context.collisionRect?.width ?? 0;
+		return { x: rect.left + Math.max(0, (rect.width - width) / 2), y: rect.top + 40 };
+	};
 	const [creating, setCreating] = useState(false);
 	const [draft, setDraft] = useState({ title: "", description: "", chapterId: "" });
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-		useSensor(KeyboardSensor),
+		useSensor(KeyboardSensor, { coordinateGetter: columnKeyboardCoordinates }),
 	);
 
 	const rows = useMemo(() => {
@@ -251,19 +270,23 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 			{resolving && (
 				<div className="thread-resolve-backdrop" role="presentation" onClick={() => setResolving(null)}>
 					<form
+						ref={resolveRef}
 						className="thread-resolve-dialog"
 						role="dialog"
 						aria-modal="true"
 						aria-labelledby="thread-resolve-title"
+						aria-describedby="thread-resolve-copy"
+						tabIndex={-1}
 						onClick={(event) => event.stopPropagation()}
+						onKeyDown={(event) => { if (event.key === "Escape") setResolving(null); }}
 						onSubmit={(event) => {
 							event.preventDefault();
 							if (resolving.chapterId) setState.mutate({ id: resolving.thread.id, state: "resolved", payoff: resolving.chapterId });
 						}}
 					>
 						<h2 id="thread-resolve-title">Which chapter pays this off?</h2>
-						<p>“{resolving.thread.title}” becomes resolved only with a payoff chapter.</p>
-						<select autoFocus aria-label="Chapter that pays this off" value={resolving.chapterId} onChange={(event) => setResolving({ ...resolving, chapterId: event.target.value })}>
+						<p id="thread-resolve-copy">“{resolving.thread.title}” becomes resolved only with a payoff chapter.</p>
+						<select data-autofocus aria-label="Chapter that pays this off" value={resolving.chapterId} onChange={(event) => setResolving({ ...resolving, chapterId: event.target.value })}>
 							<option value="">Choose a chapter</option>
 							{(chapters.data ?? []).map((chapter) => <option key={chapter.id} value={chapter.id}>{chapter.chapter_number}. {chapter.title}</option>)}
 						</select>

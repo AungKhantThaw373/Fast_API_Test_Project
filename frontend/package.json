@@ -12,6 +12,7 @@
     "gen:api": "openapi-typescript http://127.0.0.1:8000/openapi.json -o lib/api-types.ts",
     "qa:wiki": "node scripts/wiki-qa.mjs",
     "qa:phase6": "node scripts/phase6-qa.mjs",
+    "qa:phase7": "node scripts/phase7-qa.mjs",
     "perf:wiki": "node scripts/wiki-perf.mjs"
   },
   "dependencies": {
