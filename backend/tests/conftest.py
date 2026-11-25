@@ -22,11 +22,12 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Headers
 from sqlalchemy import text
 
 from app.app import app
 from app.db import async_session, engine
+from app.rate_limits import reset_rate_limits
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
@@ -35,7 +36,8 @@ TABLES = (
     "story_scene_embeddings, story_chunks, story_bible_entries, continuity_scans, "
     "continuity_findings, editing_folders, editing_draft_files, jobs, worker_heartbeats, "
     "entities, entity_aliases, entity_facts, entity_relationships, story_events, "
-    "story_threads, entity_mentions, canon_exceptions, chapter_meta, scene_meta, ai_usage"
+    "story_threads, entity_mentions, canon_exceptions, chapter_meta, scene_meta, ai_usage, "
+    "login_attempts, auth_sessions, password_reset_tokens, audit_events"
 )
 
 
@@ -56,13 +58,13 @@ def prepare_database():
 async def clean_tables(prepare_database):
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
+    reset_rate_limits()
     yield
 
 
 @pytest_asyncio.fixture
 async def client():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as http_client:
+    async with make_test_client() as http_client:
         yield http_client
 
 
@@ -73,6 +75,24 @@ async def session():
 
 
 PASSWORD = "correct horse battery"
+CSRF_TOKEN = "test-csrf-token-with-enough-entropy"
+
+
+class CSRFClient(AsyncClient):
+    """Echo the double-submit token exactly as the browser client does."""
+
+    async def request(self, method, url, **kwargs):  # type: ignore[no-untyped-def]
+        if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            headers = Headers(kwargs.pop("headers", None))
+            headers.setdefault("X-CSRF-Token", CSRF_TOKEN)
+            kwargs["headers"] = headers
+        return await super().request(method, url, **kwargs)
+
+
+def make_test_client() -> CSRFClient:
+    client = CSRFClient(transport=ASGITransport(app=app), base_url="http://test")
+    client.cookies.set("csrf", CSRF_TOKEN, path="/")
+    return client
 
 
 async def register(client: AsyncClient, username: str, email: str, password: str = PASSWORD):
@@ -100,8 +120,7 @@ async def make_client():
     created: list[AsyncClient] = []
 
     async def factory(username: str, email: str) -> AsyncClient:
-        transport = ASGITransport(app=app)
-        http_client = AsyncClient(transport=transport, base_url="http://test")
+        http_client = make_test_client()
         created.append(http_client)
         assert (await register(http_client, username, email)).status_code == 201
         assert (await login(http_client, email)).status_code == 200

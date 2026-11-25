@@ -1,6 +1,7 @@
 from app.models.app_models import User, UserAISettings
 from app.models.editing_models import DraftFile, EditingFolder
 from app.models.job_models import Job, WorkerHeartbeat
+from app.models.security_models import AuditEvent, AuthSession, LoginAttempt, PasswordResetToken
 from app.models.story_models import (
     Arc,
     Chapter,
@@ -57,4 +58,8 @@ __all__ = [
     "ChapterMeta",
     "SceneMeta",
     "AIUsage",
+    "LoginAttempt",
+    "AuthSession",
+    "PasswordResetToken",
+    "AuditEvent",
 ]

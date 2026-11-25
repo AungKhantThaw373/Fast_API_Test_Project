@@ -10,6 +10,7 @@ from app.models import (  # noqa: F401
     app_models,
     editing_models,
     job_models,
+    security_models,
     story_models,
     wiki_models,
 )
