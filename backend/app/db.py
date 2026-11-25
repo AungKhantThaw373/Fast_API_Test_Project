@@ -1,6 +1,9 @@
+import logging
 import os
+import time
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import event
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -36,6 +39,28 @@ engine = create_async_engine(
     connect_args={"server_settings": {"statement_timeout": str(STATEMENT_TIMEOUT_MS)}},
 )
 async_session = async_sessionmaker(engine, expire_on_commit=False)
+
+_slow_query_log = logging.getLogger("stillroom.slow_query")
+
+
+@event.listens_for(engine.sync_engine, "before_cursor_execute")
+def _start_query_timer(conn, cursor, statement, parameters, context, executemany):
+    conn.info.setdefault("query_started_at", []).append(time.perf_counter())
+
+
+@event.listens_for(engine.sync_engine, "after_cursor_execute")
+def _log_slow_query(conn, cursor, statement, parameters, context, executemany):
+    started = conn.info.get("query_started_at", []).pop() if conn.info.get("query_started_at") else None
+    if started is None:
+        return
+    duration_ms = (time.perf_counter() - started) * 1000
+    if duration_ms >= settings.SLOW_QUERY_MS:
+        # Parameters may hold personal data; log only the SQL shape and timing.
+        _slow_query_log.warning(
+            "slow_query duration_ms=%.0f statement=%s",
+            duration_ms,
+            " ".join(statement.split())[:400],
+        )
 
 
 class Base(DeclarativeBase):
