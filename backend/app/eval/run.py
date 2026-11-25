@@ -39,6 +39,7 @@ from app.eval.metrics import (
 )
 from app.eval.seed import seed_eval_story
 from app.services.ai_service import embed_queries
+from app.services.retrieval import search_chunks
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DATASET_ROOT = BACKEND_ROOT / "eval" / "datasets"
@@ -93,12 +94,19 @@ async def evaluate_retrieval(args: argparse.Namespace, questions) -> list[dict]:
     async with async_session() as session:
         for question in questions:
             started = time.perf_counter()
-            vector = embed_queries([question.question])[0]
-            embedded_ms = (time.perf_counter() - started) * 1000
             if args.mode == "legacy":
+                vector = embed_queries([question.question])[0]
+                embedded_ms = (time.perf_counter() - started) * 1000
                 results = await legacy_search(session, args.story_id, vector, args.top_k)
             else:
-                raise SystemExit("hybrid mode is added in P5-4; run with --mode legacy for the baseline.")
+                hybrid = await search_chunks(
+                    session, args.story_id, question.question, limit=args.top_k, use_cache=False
+                )
+                embedded_ms = hybrid.timings_ms.get("embed", 0.0)
+                results = [
+                    Retrieved(chapter_number=hit.chapter_number, text=hit.text)
+                    for hit in hybrid.chunks
+                ]
             elapsed_ms = (time.perf_counter() - started) * 1000
             relevance = relevance_vector(question, results)
             rank = first_relevant_rank(relevance)
