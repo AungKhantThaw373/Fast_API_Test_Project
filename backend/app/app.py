@@ -7,9 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.config import settings
 from app.db import async_session, engine
 from app.logging_config import configure_app_logging
 from app.middleware import RequestContextMiddleware
+from app.routes.account_routes import router as account_router
 from app.routes.ai_usage import router as ai_usage_router
 from app.routes.arcs import arc_router
 from app.routes.arcs import router as story_arc_router
@@ -31,6 +33,8 @@ from app.routes.trash_routes import router as trash_router
 from app.routes.user_routes import router as user_router
 from app.routes.wiki import router as wiki_router
 from app.schema_check import assert_schema_at_head
+from app.security_headers import SecurityHeadersMiddleware
+from app.security_middleware import SecurityMiddleware
 from app.services.indexing import reconcile_indexing_state, reindex_stale_embedding_models
 from app.services.trash import purge_expired_trash
 
@@ -65,10 +69,10 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=settings.frontend_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-CSRF-Token"],
 )
 
 
@@ -118,10 +122,13 @@ async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+app.add_middleware(SecurityMiddleware)
 app.add_middleware(RequestContextMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(user_router)
+app.include_router(account_router)
 app.include_router(story_router)
 app.include_router(ai_usage_router)
 app.include_router(ask_router)

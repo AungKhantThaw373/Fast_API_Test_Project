@@ -1,22 +1,20 @@
 import { chromium } from 'playwright';
+import { apiHeaders, csrfToken } from './qa-csrf.mjs';
 
 const WEB = 'http://127.0.0.1:3000';
 const API = 'http://127.0.0.1:8000';
 const stamp = Date.now();
-const PASSWORD = 'correct horse battery';
+const csrf = await csrfToken(API);
 
 async function request(path, options = {}, cookie) {
-	const response = await fetch(API + path, { ...options, headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}), ...options.headers } });
+	const response = await fetch(API + path, { ...options, headers: { ...apiHeaders(csrf, cookie), ...options.headers } });
 	const text = await response.text();
 	if (!response.ok) throw new Error(options.method + ' ' + path + ' -> ' + response.status + ' ' + text);
 	return text ? JSON.parse(text) : null;
 }
 
-const email = 'p7smoke' + stamp + '@example.com';
-await request('/register', { method: 'POST', body: JSON.stringify({ username: 'p7smoke' + stamp, email, password: PASSWORD }) });
-const token = await fetch(API + '/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ username: email, password: PASSWORD }) });
-const rawCookie = (token.headers.get('set-cookie') || '').split(';')[0];
-if (!rawCookie) throw new Error('no cookie');
+const rawCookie = process.env.QA_COOKIE;
+if (!rawCookie) throw new Error('Run this through phase7-qa.mjs so the shared QA account is signed in.');
 const story = await request('/stories', { method: 'POST', body: JSON.stringify({ title: 'Phase 7 smoke ' + stamp }) }, rawCookie);
 await request('/stories/' + story.id + '/chapters', { method: 'POST', body: JSON.stringify({ title: 'First Light', content: 'A short opening chapter.' }) }, rawCookie);
 const paragraphs = [];
@@ -41,6 +39,7 @@ await page.goto(WEB + '/stories/' + story.id);
 await page.locator('.cm-editor').waitFor({ timeout: 30000 });
 check('editor mounts', await page.locator('.cm-editor').isVisible(), (Date.now() - started) + 'ms');
 await page.locator('.chapter-nav-item', { hasText: 'The Long Night' }).click();
+await page.getByText('Paragraph 0 follows', { exact: false }).waitFor({ timeout: 30000 });
 await page.locator('.cm-content').click();
 await page.keyboard.press('Control+End');
 await page.getByText('Paragraph 949', { exact: false }).waitFor({ timeout: 30000 });

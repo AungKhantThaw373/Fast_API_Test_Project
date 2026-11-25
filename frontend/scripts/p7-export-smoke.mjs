@@ -1,26 +1,25 @@
 import { chromium } from 'playwright';
+import { apiHeaders, csrfToken } from './qa-csrf.mjs';
 import { copyFile, readFile, stat } from 'node:fs/promises';
 
 const WEB = 'http://127.0.0.1:3000';
 const API = 'http://127.0.0.1:8000';
 const stamp = Date.now();
-const PASSWORD = 'correct horse battery';
+const csrf = await csrfToken(API);
 const results = [];
 function check(name, condition, detail = '') {
 	results.push({ name, ok: Boolean(condition) });
 	console.log((condition ? 'PASS ' : 'FAIL ') + name + (detail ? ' — ' + detail : ''));
 }
 async function request(path, options = {}, cookie) {
-	const response = await fetch(API + path, { ...options, headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}), ...options.headers } });
+	const response = await fetch(API + path, { ...options, headers: { ...apiHeaders(csrf, cookie), ...options.headers } });
 	const text = await response.text();
 	if (!response.ok) throw new Error(path + ' -> ' + response.status + ' ' + text);
 	return text ? JSON.parse(text) : null;
 }
 
-const email = 'p7export' + stamp + '@example.com';
-await request('/register', { method: 'POST', body: JSON.stringify({ username: 'p7export' + stamp, email, password: PASSWORD }) });
-const token = await fetch(API + '/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ username: email, password: PASSWORD }) });
-const rawCookie = (token.headers.get('set-cookie') || '').split(';')[0];
+const rawCookie = process.env.QA_COOKIE;
+if (!rawCookie) throw new Error('Run this through phase7-qa.mjs so the shared QA account is signed in.');
 const story = await request('/stories', { method: 'POST', body: JSON.stringify({ title: 'Export ' + stamp }) }, rawCookie);
 const chapter = await request('/stories/' + story.id + '/chapters', { method: 'POST', body: JSON.stringify({ title: 'The gate', content: 'Mira opens the gate.\n\n* * *\n\nThe lantern is already lit.\n' }) }, rawCookie);
 const entity = await request('/stories/' + story.id + '/entities', { method: 'POST', body: JSON.stringify({ name: 'Mira Voss', entity_type: 'character' }) }, rawCookie);

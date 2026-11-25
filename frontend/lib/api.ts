@@ -26,6 +26,41 @@ export interface CurrentUser {
 	created_at: string;
 }
 
+export interface AuthSession {
+	id: string;
+	user_agent: string;
+	ip: string;
+	created_at: string;
+	last_seen_at: string;
+	current: boolean;
+}
+
+export interface AuditEvent {
+	id: string;
+	action: string;
+	target_type: string;
+	target_id: string;
+	detail: Record<string, unknown>;
+	ip: string;
+	created_at: string;
+}
+
+export interface Diagnostics {
+	generated_at: string;
+	database: string;
+	database_size_bytes: number;
+	pgvector: string;
+	schema_status: string;
+	worker: string;
+	ollama: string;
+	jobs: { queued: number; running: number; succeeded: number; failed: number; dead: number };
+	ai_provider: string;
+	ai_model: string;
+	ai_usage_30d: { purpose: string; calls: number; input_tokens: number; output_tokens: number; cost_estimate: number }[];
+	last_backup: { filename: string; size_bytes: number; modified_at: string } | null;
+	slow_query_ms: number;
+}
+
 export interface AIProviderPreset {
 	id: string;
 	label: string;
@@ -49,6 +84,7 @@ export interface Story {
 	monthly_ai_budget: number;
 	chapter_count?: number;
 	word_count?: number;
+	chapter_warning_at?: number;
 	created_at: string;
 	updated_at: string;
 }
@@ -538,8 +574,29 @@ async function download(path: string): Promise<{ blob: Blob; filename: string }>
 	};
 }
 
+function readCookie(name: string): string | undefined {
+	if (typeof document === "undefined") return undefined;
+	const match = document.cookie.split("; ").find((item) => item.startsWith(`${name}=`));
+	return match ? decodeURIComponent(match.slice(name.length + 1)) : undefined;
+}
+
+/** Fetch a CSRF cookie when the page has not loaded another API resource yet. */
+export async function ensureCsrf(): Promise<void> {
+	if (readCookie("csrf")) return;
+	try {
+		await fetch(`${API_BASE_URL}/health`, { credentials: "include", cache: "no-store" });
+	} catch {
+		// The form's submit error will explain an unreachable backend.
+	}
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const headers = new Headers(init?.headers);
+	const method = (init?.method ?? "GET").toUpperCase();
+	if (["POST", "PUT", "PATCH", "DELETE"].includes(method) && !headers.has("X-CSRF-Token")) {
+		const token = readCookie("csrf");
+		if (token) headers.set("X-CSRF-Token", token);
+	}
 	if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
 		headers.set("Content-Type", "application/json");
 	}
@@ -592,6 +649,28 @@ export const api = {
 			body: JSON.stringify({ username, email, password }),
 		}),
 	logout: () => request<{ message: string }>("/logout", { method: "POST" }),
+	forgotPassword: (email: string) => request<{ message: string }>("/forgot-password", {
+		method: "POST",
+		body: JSON.stringify({ email }),
+	}),
+	resetPassword: (token: string, newPassword: string) => request<{ message: string }>("/reset-password", {
+		method: "POST",
+		body: JSON.stringify({ token, new_password: newPassword }),
+	}),
+	changePassword: (currentPassword: string, newPassword: string) => request<{ message: string }>("/account/password", {
+		method: "POST",
+		body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+	}),
+	sessions: async () => (await request<{ sessions: AuthSession[] }>("/sessions")).sessions,
+	revokeSession: (sessionId: string) => request<{ message: string }>(`/sessions/${sessionId}`, { method: "DELETE" }),
+	revokeAllSessions: () => request<{ message: string }>("/sessions/revoke-all", { method: "POST" }),
+	auditEvents: async () => (await request<{ events: AuditEvent[] }>("/account/audit?limit=20")).events,
+	accountExportUrl: "/api/py/account/export",
+	deleteAccount: (password: string, confirmation: string) => request<{ message: string }>("/account", {
+		method: "DELETE",
+		body: JSON.stringify({ password, confirmation }),
+	}),
+	diagnostics: () => request<Diagnostics>("/system/diagnostics"),
 	aiProviders: async () => (await request<{ providers: AIProviderPreset[] }>("/ai-providers")).providers,
 	aiSettings: () => request<AISettings>("/ai-settings"),
 	saveAISettings: (settings: { provider: string; model: string; api_key?: string; base_url?: string }) =>
