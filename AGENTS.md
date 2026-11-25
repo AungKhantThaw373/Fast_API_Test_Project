@@ -8,7 +8,7 @@ Read this first, then `Docs/build-log.md` for the chronological record.
 |---|---|
 | Repo | `C:\Users\ACER\OneDrive\Desktop\AI` (still inside OneDrive; see gotchas) |
 | Branch | `hardening/phase-0` (all work so far lives here) |
-| Tags | `pre-hardening`, `phase-0-complete`, `phase-1-complete`, `phase-2-complete`, `phase-3-complete`, `phase-4-complete` |
+| Tags | `pre-hardening`, `phase-0-complete` … `phase-6-complete` |
 | Backend | `backend/` — FastAPI + SQLAlchemy 2 async + Alembic + pgvector |
 | Frontend | `frontend/` — Next 16, React 19, npm |
 | Database | Native PostgreSQL 18 on `127.0.0.1:5432`, databases `stillroom` and `stillroom_test`, password `death373` (`backend/.env`) |
@@ -26,8 +26,9 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (129 tests)
+make test             # backend pytest (178 tests)
 make test-frontend    # vitest (31 tests)
+make qa-phase6        # 8 Playwright local-AI checks
 make lint typecheck   # ruff + eslint, pyright + tsc
 ./scripts/backup.sh   # pg_dump, no Docker
 ```
@@ -63,27 +64,32 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   extraction, merge with dry run + audit + unmerge, the wiki/inbox/exceptions
   API, canon notes in the continuity prompt, and a compatibility `/bible` view
   that also routes the old UI's writes to entities.
-- Backend: 129 tests pass, ruff and pyright clean.
+- **Phase 5 complete** (`Docs/phase-5-acceptance.md`): sentence-aware chunks,
+  hybrid vector/lexical/name retrieval, entity-first context, an evaluation
+  harness, the embedding bake-off, and find-in-story. The end-to-end p95 target
+  at 10k chunks stays open and is documented rather than hidden.
+- **Phase 6 complete** (`Docs/phase-6-acceptance.md`): Ollama structured output
+  with no cloud key, incremental scene extraction, deterministic continuity
+  rules, per-scene evidence, durable scan jobs with progress/cancel, an AI usage
+  ledger and monthly budget, and cited ask-your-story. 178 backend tests, 31
+  frontend tests, and 8 Playwright checks in `frontend/scripts/phase6-qa.mjs`.
+- Backend: 178 tests pass, ruff and pyright clean.
 - Frontend: lint, `tsc --noEmit`, `next build`, and 31 vitest tests pass.
 - CI workflow is committed but has never run on GitHub.
 
 ## Pick up here (in this order)
 
-1. **P6-2 extraction rewrite** - Bible scan and chapter indexing still write
-  `story_bible_entries`. Change extraction to propose `entity_facts` (status
-  `proposed`, chapter + verified quote) through `services/facts.py`, resolve
-  against existing aliases with `find_candidates`, and let the inbox do the
-  deciding. Then stop writing the legacy table (keep reading it in `compat.py`
-  until the Phase 4 UI ships).
-2. **Phase 4** - the wiki UI (entities list/detail, facts timeline, relationships,
-   threads, events), using `/stories/{id}/entities`, `/entities/{id}/facts`,
-   `/appearances`, `/relationships`, `/threads`, `/events`, and `/inbox`.
-   TanStack Query + virtualised lists per the manual.
-3. **Entity-scoped exceptions** - findings carry only quotes today, so only
-  pattern exceptions can suppress them. Once findings know the entity and
-  predicate, `canon_exceptions.matches` should also honour those scopes.
-4. **Phase 5+** - see the manual. `Docs/phase-3-acceptance.md` lists what was
-   deliberately left out of Phase 3.
+1. **Phase 7** - see the manual. Read `Docs/phase-6-acceptance.md` first for the
+   deliberate omissions (timeline arithmetic, duplicate-spelling rules, and a
+   separate cloud-call confirmation dialog).
+2. **Entity-scoped exceptions** - findings carry quotes and rule/evidence ids,
+   but only pattern exceptions can suppress them. Once findings know the entity
+   and predicate, `canon_exceptions.matches` should also honour those scopes.
+3. **Legacy `story_bible_entries`** - extraction now proposes `entity_facts`, but
+   the compatibility reader remains until nothing writes the old table.
+4. **Retrieval p95** - the Phase 5 open target: end-to-end p95 at 10k chunks is
+   437 ms against a 300 ms goal, mostly query embedding plus exact scan. See
+   `Docs/retrieval.md` before changing indexes.
 
 ## Gotchas that cost time
 

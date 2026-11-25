@@ -446,3 +446,97 @@ permutations, OneDrive).
 - 129 backend tests, 31 frontend tests; ruff, pyright, eslint, tsc, and
   `next build` pass. `Docs/qa-phase-4.md` is the runbook;
   `Docs/phase-4-acceptance.md` maps each acceptance line to its evidence.
+## Phase 5 — retrieval v2
+
+- `story_chunks` (migration `90bb47e` history), sentence-aware chunking, and a
+  `tsvector` + trigram index pair; hybrid vector, lexical, and name retrieval
+  with reciprocal-rank fusion (`bc22a5c`, `b37f1a4`).
+- `build_entity_context` reads accepted facts and relationships by entity id and
+  trims to a token budget instead of embedding a whole chapter.
+- `app/eval/run.py` measures recall/MRR/nDCG and the 30-case continuity set;
+  baseline and hybrid results live in `Docs/eval/`.
+- Find-in-story UI with filters, score breakdown, and line deep links
+  (`60be11c`); embedding bake-off and the Nomic decision in
+  `Docs/embedding-decision.md` (`aa032a0`).
+- Acceptance status and the one open target (end-to-end p95 at 10k chunks) are
+  recorded in `Docs/phase-5-acceptance.md`.
+
+## Phase 6 — local-only AI
+
+### P6-1 — Ollama and local model settings
+
+- AI settings accept `provider=ollama` with no API key, a configurable base URL
+  (default `http://127.0.0.1:11434`), and a model name. Local calls never
+  require a cloud key; cloud providers remain optional (`ead4a3a`).
+- `_ollama_structured` uses `/api/chat` with a JSON schema, validates the result
+  again with `jsonschema`, retries malformed JSON once, and records usage.
+- Provider/transport failures are readable 5xx errors instead of raw tracebacks:
+  timeout → 504, unreachable Ollama/provider → 503.
+
+### P6-2 — Incremental extraction
+
+- Bible extraction is scene-level and hashes each scene; a chapter rescan only
+  sends changed scenes (`eb68c12`). A no-op rescan makes zero model calls.
+
+### P6-3 — Deterministic first, then per-scene continuity
+
+- `app/services/deterministic.py` checks accepted facts for ages, eye/hair
+  colour, titles, and POV. It is deliberately quiet: a complete sentence must
+  name a canon entity and clearly contradict an accepted value, and near misses
+  stay silent.
+- `scan_chapter` runs the rules first, retrieves evidence once, then reviews each
+  scene in its own prompt with the closest earlier evidence. A chapter with no
+  earlier evidence returns only the free rules. Findings carry
+  `source=deterministic|llm`, the rule id, scene index, and evidence id;
+  deterministic findings have no earlier quote.
+- Scans store `prompt_version=continuity-v2`, model, schema version, context
+  hash, and scene counts so two scans can be compared honestly.
+- Small local models sometimes loop inside one string until the output budget
+  truncates the JSON. Every provider string now has a schema `maxLength`, and
+  the parser accepts literal control characters (`strict=False`) before falling
+  back to a preamble-tolerant decode.
+
+### P6-4 — Durable scan jobs, progress, and cancel
+
+- `POST /stories/chapters/{chapter_id}/scan-job` queues a `continuity_scan` job;
+  the worker runs it with a progress callback and checks for cancellation
+  between scenes. `POST /jobs/{job_id}/cancel` cancels a queued job and asks a
+  running one to stop; `ScanCancelled` records `status=cancelled`.
+- `ScanJobOut`, `GET /jobs/{job_id}`, and the worker handler keep long checks out
+  of the request. The studio stores the job id in `sessionStorage`, resumes
+  polling after a reload, shows scene progress, and offers a cancel action.
+
+### P6-5 — Usage ledger and monthly budget
+
+- `ai_usage` now records provider, model, purpose, token counts, latency, and
+  estimated cost for local and cloud calls. `estimate_scan_tokens` bounds the
+  preflight estimate.
+- `Story.monthly_ai_budget` defaults to 0. A cloud call with no remaining budget
+  returns 402 with a local-only message; Ollama is always free.
+- `GET /stories/{story_id}/ai-usage` returns this month's totals by purpose; the
+  studio shows the panel and lets the writer set the budget.
+- `external_analysis_enabled` (default false) is the per-story confirmation for
+  provider-backed checks; enabling it in the Notes tab is the explicit opt-in.
+
+### P6-6 — Ask the story
+
+- `app/services/ask_story.py` retrieves indexed chunks, asks for a structured
+  answer, rejects citations whose quote is not a substring of the cited chunk,
+  and refuses when retrieval is empty. The refusal path does not embed or call
+  a model.
+- `POST /stories/{story_id}/ask` has a Pydantic response model and an ownership
+  check; `tests/test_ask_story.py` covers citations, refusals, ownership, and
+  readable provider failures.
+- The Find tab and the command palette (`Ask your story`) focus the question box;
+  answers link to the cited chapter line.
+
+### P6-7 — Verification
+
+- Backend: 178 pytest tests; ruff and pyright clean.
+- Frontend: 31 vitest tests; eslint (one existing compiler warning in
+  `entity-list.tsx`), `tsc --noEmit`, and `next build` pass.
+- `frontend/scripts/phase6-qa.mjs` runs 8 Playwright checks against the
+  production build: usage panel, cited answer, palette focus, scan job tracking,
+  reload resume, completion, and no page errors. `make qa-phase6` or
+  `npm run qa:phase6` runs it with API :8000, `next start` :3000, and Ollama up.
+- Acceptance mapping and deliberate omissions: `Docs/phase-6-acceptance.md`.
