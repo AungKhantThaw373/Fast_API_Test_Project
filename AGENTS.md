@@ -8,7 +8,7 @@ Read this first, then `Docs/build-log.md` for the chronological record.
 |---|---|
 | Repo | `C:\Users\ACER\OneDrive\Desktop\AI` (still inside OneDrive; see gotchas) |
 | Branch | `hardening/phase-0` (all work so far lives here) |
-| Tags | `pre-hardening`, `phase-0-complete` … `phase-7-complete` |
+| Tags | `pre-hardening`, `phase-0-complete` … `phase-8-complete` |
 | Backend | `backend/` — FastAPI + SQLAlchemy 2 async + Alembic + pgvector |
 | Frontend | `frontend/` — Next 16, React 19, npm |
 | Database | Native PostgreSQL 18 on `127.0.0.1:5432`, databases `stillroom` and `stillroom_test`, password `death373` (`backend/.env`) |
@@ -26,12 +26,14 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (190 tests)
+make test             # backend pytest (247 tests)
 make test-frontend    # vitest (47 tests)
 make qa-phase6        # 8 Playwright local-AI checks
 make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
+make qa-phase8        # 13 diagnostics/account-data checks
 make lint typecheck   # ruff + eslint, pyright + tsc
 ./scripts/backup.sh   # pg_dump, no Docker
+./scripts/verify-backup.sh backups/<dump>  # restore into a throwaway DB
 ```
 
 ## Current state (verified)
@@ -81,15 +83,26 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   with a wiki appendix, JSON backup/restore, and the accessibility/responsive
   pass. 190 backend tests, 47 frontend tests, and 85 Playwright checks in eight
   suites via `frontend/scripts/phase7-qa.mjs`.
-- Backend: 190 tests pass, ruff and pyright clean.
-- Frontend: lint, `tsc --noEmit`, `next build`, and 47 vitest tests pass.
-- CI workflow is committed but has never run on GitHub.
+- **Phase 8 complete** (`Docs/phase-8-acceptance.md`): token-bucket limits
+  and lockout, double-submit CSRF plus origin checks, SSRF validation with a
+  local-Ollama exception, security headers and `__Host-` cookies, upload
+  signature/quota checks with sandboxed previews, revocable sessions and
+  one-time password resets, audit/export/typed account deletion, retention
+  docs, slow-query logging, `/diagnostics`, Dependabot/gitleaks/pip-audit/npm
+  audit, a Compose stack with optional Caddy, and a verified restore drill.
+- Backend: 247 tests pass, ruff and pyright clean, pip-audit clean.
+- Frontend: lint, `tsc --noEmit`, `next build`, 47 vitest tests, and npm audit
+  clean.
+- Browser QA: 8 Phase 7 suites / 85 checks and 13 Phase 8 checks pass against
+  the production build.
+- CI workflow is committed but has never run on GitHub. Docker is not installed
+  here, so the Compose stack has not been built or run.
 
 ## Pick up here (in this order)
 
-1. **Next manual phase** - Phase 7 ends at `phase-7-complete`. Read
-   `Docs/phase-7-acceptance.md` for what was deliberately left out before
-   extending the writing surface.
+1. **Next manual phase** - Phase 8 ends at `phase-8-complete`. Read
+   `Docs/phase-8-acceptance.md` for the unexecuted Docker stack and the other
+   deliberate omissions before starting Phase 9.
 2. **Entity-scoped exceptions** - findings carry quotes and rule/evidence ids,
    but only pattern exceptions can suppress them. Once findings know the entity
    and predicate, `canon_exceptions.matches` should also honour those scopes.
@@ -130,6 +143,10 @@ make lint typecheck   # ruff + eslint, pyright + tsc
 - **Wiki QA must run against a build** (`npm run build && npx next start`).
   `node scripts/wiki-qa.mjs` assumes both servers are up and the API has the
   latest code.
+- **Browser QA now needs CSRF.** Direct API writes must echo the `csrf` cookie
+  in `X-CSRF-Token`; `frontend/scripts/qa-csrf.mjs` does this. Phase 7 shares
+  one QA account and login because registration is 3/hour and login 5/15min.
+  Restart the API to clear the in-process buckets between retries.
 - **Supabase credentials** are preserved in `backend/.env.supabase-backup`
   (git-ignored). The live project is still reachable and was the dump source;
   `backups/supabase-data.sql` holds that data.

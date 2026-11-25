@@ -617,3 +617,71 @@ permutations, OneDrive).
 - 190 backend tests, 47 frontend tests; ruff, pyright, eslint, `tsc --noEmit`,
   and `next build` pass. Acceptance mapping and deliberate omissions:
   `Docs/phase-7-acceptance.md`.
+
+## Phase 8 — security and operations
+
+Phase 8 was interrupted in one working tree and committed afterwards by task. The final tree at `phase-8-complete` is the verified artifact; the individual commits are task-shaped but not independently bisectable.
+
+### P8-1 — Rate limits, lockout, and login attempts
+
+- `app/rate_limits.py` is an in-process token bucket: login 5 failures / 15 minutes per IP and account, registration 3/hour per IP, scans and recaps 10/hour per user, uploads 20/hour, resets 5/hour.
+- Migration `b8d1c4e7f2a9` adds `login_attempts`. Five failures lock the account even across addresses; a real sign-in deletes the failures, resets the IP bucket, and leaves one successful row. Security rows older than 30 days are pruned during that sign-in.
+- `tests/test_security_limits.py` covers the sixth attempt and the clearing success (`41b8427`, scan wiring in `4c4f2b3`).
+
+### P8-2 — CSRF and origin checks
+
+- `app/security_middleware.py` rejects unsafe requests with a foreign `Origin` or `Sec-Fetch-Site: cross-site`, then requires `X-CSRF-Token` to match the readable `csrf` cookie. The auth cookie remains HttpOnly.
+- `frontend/lib/api.ts` echoes the token. The browser suites call `scripts/qa-csrf.mjs`; they now share one QA account and login because the product's own registration/login limits otherwise reject the eighth suite.
+- `tests/test_security_csrf.py` covers missing, wrong, cross-origin, and valid tokens (`7fa0f3c`).
+
+### P8-3 — SSRF protection
+
+- `app/services/url_safety.py` allows only http/https, rejects credentials/query/fragment, resolves every address, and rejects private, loopback, link-local, reserved, multicast, and unspecified hosts. Provider HTTP never follows redirects; `PROVIDER_HOST_ALLOWLIST` can narrow hosts further.
+- Local Ollama is a deliberate exception: loopback/LAN is accepted only for the `ollama` provider, while metadata/link-local addresses stay blocked. DNS rebinding remains a documented residual risk.
+- `tests/test_url_safety.py` covers the blocked ranges, redirects, the Ollama exception, and the metadata block (`f180ce4`).
+
+### P8-4 — Headers and cookies
+
+- `app/security_headers.py` sets nosniff, referrer, permissions, frame denial, HSTS on HTTPS only, and a strict production API CSP. Next sends its own headers; its CSP stays report-only until a per-request nonce exists.
+- Production auth cookies use `__Host-token` with `Secure`, `SameSite=Lax`, `Path=/`, and no `Domain`; development uses `token` because `__Host-` requires HTTPS.
+- `tests/test_security_headers.py` covers production headers, the HTTPS-only HSTS rule, and cookie flags (`77f7547`).
+
+### P8-5 — Upload safety
+
+- `editing_routes.py` checks file signatures, enforces 25 MiB per file and 500 files / 2 GiB per account, sends downloads as attachments, and serves inline previews only as sandboxed PDF or text with `default-src 'none'`.
+- The preview iframe uses `sandbox="allow-same-origin"`; user HTML is never rendered. A separate files origin is not implemented, and the deployment doc says so.
+- `tests/test_upload_safety.py` covers signatures, quotas, count limits, and download headers (`276708b`).
+
+### P8-6 — Sessions, reset, and token versions
+
+- JWTs now carry `iat`, `jti`, `iss`, `aud`, and `ver`. Password change/reset, sign-out-everywhere, and account deletion increment `token_version`; `get_current_auth` also requires a live `AuthSession`.
+- Reset tokens are hashed, single-use, and expire in 30 minutes. Local mode logs the link; SMTP sends it otherwise. Settings lists sessions with device, address, and last seen, with revoke and sign-out-everywhere.
+- `tests/test_account_sessions.py` covers revocation, reset reuse/expiry, and token invalidation (`861ce8e`).
+
+### P8-7 — Audit, quotas, export, and deletion
+
+- Migration `e5a9c3d7b2f4` adds `audit_events`. Trash and permanent deletes, merges, exports, backups, restores, provider changes, password changes, data export, and account deletion write short records without prose.
+- Data export builds a ZIP in memory (JSON, Markdown, original drafts; no provider keys). Account deletion requires the typed username and password, removes owned data, writes one anonymised record, and clears cookies. Stories expose a soft chapter warning.
+- `Docs/data-retention.md` documents the policy. `tests/test_data_control.py` covers export, audit, typed deletion, and anonymisation (`e4a615a`).
+
+### P8-8 — Diagnostics
+
+- `app/db.py` logs statements over `SLOW_QUERY_MS` with duration and a collapsed 400-character statement, never parameters.
+- `GET /system/diagnostics` returns database size/health, job counts, newest backup, model status, schema revision, and 30-day AI usage. `frontend/app/diagnostics/page.tsx` renders the owner page.
+- `tests/test_diagnostics.py` covers fields, newest backup, authentication, and the no-parameters log. Error tracking remains optional and was not added (`969b285`).
+
+### P8-9 — Supply chain and deployment
+
+- CI now runs pip-audit, npm audit, and gitleaks; Dependabot checks pip, npm, and Actions weekly.
+- `uv lock --upgrade` and the Next/vitest/@types/node upgrades cleared 53 Python and 6 npm advisories. Both auditors now report zero.
+- API/web Dockerfiles, Compose (`db`, `api`, `worker`, `web`), and an optional Caddy TLS profile are in the tree. The database port is not published and web binds to loopback by default. **Docker is not installed here, so none of it was built or run.**
+- `Docs/deployment.md` covers Compose, Caddy, Tailscale, operations, backup, and restore. `scripts/verify-backup.sh` restores into a throwaway database; the 2026-11-25 drill restored revision `e5a9c3d7b2f4` with 121 users / 121 stories / 228 chapters / 1,230 entities.
+- The SQLAlchemy 2.1 upgrade required explicit row typing in `services/arcs.py` and a nullable-id filter in `services/facts.py` (`a51a39b`, `84b42c3`).
+
+### Phase 8 verification
+
+- 247 backend tests pass; ruff and pyright are clean; pip-audit reports no vulnerabilities.
+- 47 frontend tests pass; `tsc --noEmit`, eslint, `next build`, and `npm audit --audit-level=high` are clean.
+- Phase 7 browser QA: 8/8 suites, 85 checks. New `npm run qa:phase8`: 13 checks for diagnostics, session/audit UI, the export download, HttpOnly auth cookie, readable CSRF cookie, and API headers.
+- A flaky editor check was fixed by waiting for the long chapter before sending Ctrl+End. A real regression was found during this pass: the new SSRF rule rejected the local Ollama URL used by the marks suite. Loopback/LAN is now permitted only for the Ollama provider; custom providers still reject it.
+- Acceptance mapping and deliberate omissions: `Docs/phase-8-acceptance.md`.
