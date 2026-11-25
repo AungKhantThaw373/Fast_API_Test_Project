@@ -3,6 +3,7 @@ import { StateEffect, StateField, type EditorState, type Range } from '@codemirr
 
 import type { ContinuityFinding, WikiEntity } from '@/lib/api';
 import type { EntityMatcher } from '@/lib/entity-matcher';
+import type { StyleIssue } from '@/lib/style-analysis';
 
 export interface AnnotationPayload {
 	decorations: DecorationSet;
@@ -42,6 +43,7 @@ export function buildAnnotations(
 	matcher: EntityMatcher,
 	entities: WikiEntity[],
 	findings: ContinuityFinding[],
+	styleIssues: StyleIssue[] = [],
 ): AnnotationPayload {
 	const entityById = new Map(entities.map((entity) => [entity.id, entity]));
 	const text = state.doc.toString();
@@ -60,6 +62,21 @@ export function buildAnnotations(
 					'aria-label': `${entity.name} canon card`,
 				},
 			}).range(match.start, match.end),
+		);
+	}
+	for (const issue of styleIssues.slice(0, 600)) {
+		if (issue.start < 0 || issue.end <= issue.start || issue.end > text.length) continue;
+		ranges.push(
+			Decoration.mark({
+				class: 'cm-style-mark',
+				attributes: {
+					'data-style-id': issue.id,
+					role: 'button',
+					tabindex: '0',
+					title: issue.message,
+					'aria-label': `${issue.category}: ${issue.message}`,
+				},
+			}).range(issue.start, issue.end),
 		);
 	}
 	const findingsByLine = new Map<number, ContinuityFinding[]>();

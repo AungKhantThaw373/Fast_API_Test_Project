@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
 import { Toaster, toast } from 'sonner';
 import Link from 'next/link';
 import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/components/wiki/capture-dialog';
@@ -9,6 +9,7 @@ import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
 import { CommandPalette } from '@/components/command-palette';
 import { EditorPreferencesMenu } from '@/components/editor-preferences';
+import { StylePanel } from '@/components/style-panel';
 import ManuscriptEditor, { type ManuscriptEditorHandle } from '@/components/manuscript-editor';
 import { StorySearch } from '@/components/story-search';
 import { ConflictDialog } from '@/components/conflict-dialog';
@@ -18,8 +19,9 @@ import { clearBufferIfSaved, decideDraft, deleteDraft, getDraft, putDraft, type 
 import { retryDelayMs, saveStatus, shouldRetry, type SaveState } from '@/lib/save-state';
 import { getEditorPreferencesSnapshot, getServerEditorPreferencesSnapshot, subscribeEditorPreferences, updateEditorPreferences } from '@/lib/editor-preferences';
 import { lineText } from '@/lib/selection';
+import { analyzeStyle, type StyleIssue } from '@/lib/style-analysis';
 
-type Pane = 'notes' | 'findings' | 'mentions' | 'find';
+type Pane = 'notes' | 'findings' | 'mentions' | 'find' | 'style';
 type SaveSnapshot = { title: string; content: string };
 type ConflictPrompt = {
 	localTitle: string;
@@ -130,6 +132,18 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const earlierChaptersReady = earlierChapters.length > 0 && earlierIndexedCount === earlierChapters.length;
 	const currentFindings = useMemo(() => findingsChapterId === findingsTargetChapterId ? findings : [], [findings, findingsChapterId, findingsTargetChapterId]);
 	const visibleFindings = useMemo(() => currentFindings.filter((finding) => findingFilter === 'all' || finding.review_status === findingFilter), [currentFindings, findingFilter]);
+	const deferredDraftContent = useDeferredValue(draftContent);
+	const [dismissedStyleIds, setDismissedStyleIds] = useState<Set<string>>(() => new Set());
+	const [dismissedStylePatterns, setDismissedStylePatterns] = useState<Set<string>>(() => new Set());
+	const styleReport = useMemo(
+		() => (pane === 'style' && paneOpen ? analyzeStyle(deferredDraftContent, activeId || 'chapter') : null),
+		[activeId, deferredDraftContent, pane, paneOpen],
+	);
+	const styleIssues = useMemo(
+		() => (styleReport?.issues ?? []).filter((issue) => !dismissedStyleIds.has(issue.id) && !dismissedStylePatterns.has(issue.patternId)),
+		[dismissedStyleIds, dismissedStylePatterns, styleReport],
+	);
+	const dismissedStyleCount = dismissedStyleIds.size + dismissedStylePatterns.size;
 
 	/** Merge the server chapter with any local write-ahead copy. */
 	const resolveChapterDraft = useCallback(async (fullChapter: Chapter) => {
@@ -1035,6 +1049,23 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		editorRef.current?.focusLine(lineNumber);
 	}
 
+	function jumpToStyleIssue(issue: StyleIssue) {
+		editorRef.current?.focusRange(issue.start, issue.end);
+	}
+
+	function dismissStyleIssue(issue: StyleIssue) {
+		setDismissedStyleIds((current) => new Set(current).add(issue.id));
+	}
+
+	function dismissStylePattern(issue: StyleIssue) {
+		setDismissedStylePatterns((current) => new Set(current).add(issue.patternId));
+	}
+
+	function resetStyleDismissals() {
+		setDismissedStyleIds(new Set());
+		setDismissedStylePatterns(new Set());
+	}
+
 	async function openSearchHit(chapterId: string, line: number) {
 		const target = chapters.find((item) => item.id === chapterId);
 		if (!target) return;
@@ -1157,6 +1188,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							preferences={editorPreferences}
 							entities={wikiEntities}
 							findings={currentFindings}
+							styleIssues={pane === 'style' && paneOpen ? styleIssues : undefined}
+							onStyleIssue={jumpToStyleIssue}
 							onOpenEntity={openEntity}
 							onFindingAction={handleFindingAction}
 							onOpenEvidence={(finding) => void openFindingEvidence(finding)}
@@ -1223,7 +1256,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					}}
 				/>
 				<div className="insights-heading"><div><div className="eyebrow">THE STORY, REMEMBERED</div><h2>Chapter desk</h2></div><span className="provider-status">{story.external_analysis_enabled ? 'AI checks on' : 'AI checks off'}</span></div>
-				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages"><button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Notes</button><button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button><button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button><button role="tab" aria-selected={pane === 'find'} className={pane === 'find' ? 'active' : ''} onClick={() => setPane('find')}>Find</button><button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={() => setPaneOpen(false)}>›</button></div>
+				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages"><button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Notes</button><button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button><button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button><button role="tab" aria-selected={pane === 'style'} className={pane === 'style' ? 'active' : ''} onClick={() => setPane('style')}>Style</button><button role="tab" aria-selected={pane === 'find'} className={pane === 'find' ? 'active' : ''} onClick={() => setPane('find')}>Find</button><button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={() => setPaneOpen(false)}>›</button></div>
 				<div className="pane-content">
 					{pane === 'notes' && <section className="notes-pane">
 						<div className="pane-section-title"><strong>This chapter</strong><span>{activeChapter ? `Chapter ${activeChapter.chapter_number}` : 'No chapter open'}</span></div>
@@ -1278,6 +1311,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 						</section>
 					</section>}
 					{pane === 'find' && <StorySearch storyId={storyId} chapters={chapters} arcs={arcs} focusAsk={askFocus} onOpen={(chapterId, line) => void openSearchHit(chapterId, line)} />}
+					{pane === 'style' && <StylePanel report={styleReport} issues={styleIssues} dismissedCount={dismissedStyleCount} onJump={jumpToStyleIssue} onDismiss={dismissStyleIssue} onDismissPattern={dismissStylePattern} onReset={resetStyleDismissals} />}
 					{pane === 'mentions' && <NameCandidatesPanel
 						storyId={storyId}
 						chapter={activeChapter ? { id: activeChapter.id, chapter_number: activeChapter.chapter_number, title: activeChapter.title } : null}

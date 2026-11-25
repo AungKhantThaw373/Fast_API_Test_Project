@@ -26,6 +26,7 @@ import { getEditorState, putEditorState } from '@/lib/editor-state-store';
 import type { EditorPreferences } from '@/lib/editor-preferences';
 import { buildEntityMatcher, type EntityMatcher } from '@/lib/entity-matcher';
 import { annotationField, buildAnnotations, createFindingGutter, findingRange, setAnnotations } from '@/lib/manuscript-decorations';
+import type { StyleIssue } from '@/lib/style-analysis';
 
 export interface ManuscriptEditorHandle {
 	focus: () => void;
@@ -46,7 +47,9 @@ interface ManuscriptEditorProps {
 	preferences: EditorPreferences;
 	entities?: WikiEntity[];
 	findings?: ContinuityFinding[];
+	styleIssues?: StyleIssue[];
 	onOpenEntity?: (entityId: string) => void;
+	onStyleIssue?: (issue: StyleIssue) => void;
 	onFindingAction?: (finding: ContinuityFinding, action: FindingAction) => void;
 	onOpenEvidence?: (finding: ContinuityFinding) => void;
 	ariaLabel?: string;
@@ -93,7 +96,7 @@ function markFromEvent(event: Event): HTMLElement | null {
  */
 export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEditorProps>(
 	function ManuscriptEditor({
-		chapterId, value, onChange, onSelectionChange, preferences, entities = [], findings = [], onOpenEntity, onFindingAction, onOpenEvidence, ariaLabel, autoFocus, onBlur,
+		chapterId, value, onChange, onSelectionChange, preferences, entities = [], findings = [], styleIssues = [], onOpenEntity, onStyleIssue, onFindingAction, onOpenEvidence, ariaLabel, autoFocus, onBlur,
 	}, ref) {
 		const hostRef = useRef<HTMLDivElement>(null);
 		const viewRef = useRef<EditorView | null>(null);
@@ -101,10 +104,12 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 		const onSelectionRef = useRef(onSelectionChange);
 		const onBlurRef = useRef(onBlur);
 		const onOpenEntityRef = useRef(onOpenEntity);
+		const onStyleIssueRef = useRef(onStyleIssue);
 		const onFindingActionRef = useRef(onFindingAction);
 		const onOpenEvidenceRef = useRef(onOpenEvidence);
 		const entitiesRef = useRef<WikiEntity[]>(entities);
 		const findingsRef = useRef<ContinuityFinding[]>(findings);
+		const styleIssuesRef = useRef<StyleIssue[]>(styleIssues);
 		const pendingFocusRef = useRef<{ line?: number; from?: number; to?: number } | null>(null);
 		const preferencesRef = useRef(preferences);
 		const valueRef = useRef(value);
@@ -127,10 +132,12 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 		onSelectionRef.current = onSelectionChange;
 		onBlurRef.current = onBlur;
 		onOpenEntityRef.current = onOpenEntity;
+		onStyleIssueRef.current = onStyleIssue;
 		onFindingActionRef.current = onFindingAction;
 		onOpenEvidenceRef.current = onOpenEvidence;
 		entitiesRef.current = entities;
 		findingsRef.current = findings;
+		styleIssuesRef.current = styleIssues;
 		preferencesRef.current = preferences;
 		valueRef.current = value;
 		autoFocusRef.current = autoFocus;
@@ -223,7 +230,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 				matcherRef.current = buildEntityMatcher(currentEntities);
 				matcherEntitiesRef.current = currentEntities;
 			}
-			const payload = buildAnnotations(view.state, matcherRef.current, currentEntities, findingsRef.current);
+			const payload = buildAnnotations(view.state, matcherRef.current, currentEntities, findingsRef.current, styleIssuesRef.current);
 			view.dispatch({ effects: setAnnotations.of(payload) });
 		};
 
@@ -276,6 +283,15 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 				createFindingGutter((findingId) => showFinding(findingId, null)),
 				EditorView.domEventHandlers({
 					keydown: (event) => {
+						const styleId = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-style-id]')?.dataset.styleId;
+						if (styleId && (event.key === 'Enter' || event.key === ' ')) {
+							const issue = styleIssuesRef.current.find((item) => item.id === styleId);
+							if (issue) {
+								event.preventDefault();
+								onStyleIssueRef.current?.(issue);
+								return true;
+							}
+						}
 						if (event.key === 'Escape' && popoverRef.current) {
 							setPopover(null);
 							event.preventDefault();
@@ -295,13 +311,21 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 					},
 					click: (event) => {
 						const mark = markFromEvent(event);
-						if (!mark) return false;
-						event.preventDefault();
-						const findingId = mark.dataset.findingId;
-						if (findingId) { showFinding(findingId, mark); return true; }
-						const entityId = mark.dataset.entityId;
-						if (entityId) onOpenEntityRef.current?.(entityId);
-						return true;
+						if (mark) {
+							event.preventDefault();
+							const findingId = mark.dataset.findingId;
+							if (findingId) { showFinding(findingId, mark); return true; }
+							const entityId = mark.dataset.entityId;
+							if (entityId) onOpenEntityRef.current?.(entityId);
+							return true;
+						}
+						const styleId = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-style-id]')?.dataset.styleId;
+						if (styleId) {
+							const issue = styleIssuesRef.current.find((item) => item.id === styleId);
+							if (issue) onStyleIssueRef.current?.(issue);
+							return true;
+						}
+						return false;
 					},
 					mouseover: (event) => {
 						const mark = markFromEvent(event);
@@ -419,7 +443,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 
 		useEffect(() => {
 			recomputeAnnotations();
-		}, [entities, findings]);
+		}, [entities, findings, styleIssues]);
 
 		useEffect(() => {
 			const view = viewRef.current;
