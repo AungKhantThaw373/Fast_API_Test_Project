@@ -15,6 +15,7 @@ from app.config import settings
 from app.logging_config import fields, get_logger
 from app.services.ai_settings import PROVIDERS, AIConfig, load_ai_config
 from app.services.ai_usage import record_ai_usage
+from app.services.url_safety import provider_http_client
 
 _provider_slots = asyncio.Semaphore(max(1, settings.AI_MAX_CONCURRENT_REQUESTS))
 _rate_gate = asyncio.Lock()
@@ -391,7 +392,7 @@ async def _ollama_structured(
         request_started = time.monotonic()
         try:
             async with _provider_slots:
-                async with httpx.AsyncClient(
+                async with provider_http_client(
                     timeout=httpx.Timeout(timeout_seconds, connect=15)
                 ) as client:
                     response = await client.post(endpoint, json=payload)
@@ -653,7 +654,7 @@ async def structured_ai_json(
         queued = time.monotonic() - queued_from
         request_started = time.monotonic()
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(effective_timeout, connect=15)) as client:
+            async with provider_http_client(timeout=httpx.Timeout(effective_timeout, connect=15)) as client:
                 response = await client.post(endpoint, headers=headers, json=payload, params=params)
         except httpx.TimeoutException as exc:
             logger.warning(

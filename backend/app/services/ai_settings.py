@@ -7,6 +7,7 @@ from app.config import settings
 from app.db import async_session
 from app.models.app_models import UserAISettings
 from app.services.ai_credentials import decrypt_api_key
+from app.services.url_safety import assert_public_url
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,11 @@ async def load_ai_config(user_id: UUID) -> AIConfig:
         if not preset:
             raise RuntimeError("The saved AI provider is no longer supported. Update AI settings.")
         api_key = decrypt_api_key(row.api_key_encrypted) if row.api_key_encrypted else ""
+        if row.base_url:
+            try:
+                await assert_public_url(row.base_url, allow_private=row.provider == "ollama")
+            except ValueError as exc:
+                raise RuntimeError(f"The saved AI base URL is not allowed: {exc}") from exc
         return AIConfig(
             provider=row.provider,
             model=row.model,

@@ -1,6 +1,6 @@
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -10,6 +10,8 @@ from app.schemas.user import AISettingsUpdate
 from app.security import get_current_user
 from app.services.ai_credentials import encrypt_api_key
 from app.services.ai_settings import PROVIDERS, base_url_for
+from app.services.audit import record_audit
+from app.services.url_safety import assert_public_url
 
 router = APIRouter(tags=["account"])
 
@@ -72,6 +74,7 @@ async def list_ai_providers():
 @router.put("/ai-settings")
 async def save_ai_settings(
     payload: AISettingsUpdate,
+    request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -98,6 +101,10 @@ async def save_ai_settings(
         ):
             raise HTTPException(status_code=422, detail="Enter a valid API base URL without credentials, query parameters, or a fragment.")
         base_url = base_url.rstrip("/")
+        try:
+            await assert_public_url(base_url, allow_private=payload.provider == "ollama")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
     if payload.provider == "custom" and not base_url:
         raise HTTPException(status_code=422, detail="A base URL is required for a custom provider.")
 
@@ -122,6 +129,16 @@ async def save_ai_settings(
     existing.model = model
     existing.base_url = base_url
     existing.api_key_encrypted = encrypted_key
+    record_audit(
+        session,
+        "provider_changed",
+        user_id=user.id,
+        email=user.email,
+        target_type="ai_settings",
+        target_id=str(user.id),
+        detail={"provider": payload.provider, "model": model, "base_url": base_url},
+        request=request,
+    )
     await session.commit()
     await session.refresh(existing)
     return _ai_settings_data(existing)
@@ -129,11 +146,21 @@ async def save_ai_settings(
 
 @router.delete("/ai-settings")
 async def reset_ai_settings(
+    request: Request,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     existing = await session.get(UserAISettings, user.id)
     if existing is not None:
         await session.delete(existing)
+        record_audit(
+            session,
+            "provider_reset",
+            user_id=user.id,
+            email=user.email,
+            target_type="ai_settings",
+            target_id=str(user.id),
+            request=request,
+        )
         await session.commit()
     return _ai_settings_data(None)
