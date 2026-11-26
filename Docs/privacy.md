@@ -81,7 +81,8 @@ Account deletion is an explicit, typed action. It removes the account's active
 data and sessions, but:
 
 - backups made before deletion keep a copy until they age out of rotation;
-- the audit trail may retain an email snapshot so the action remains auditable;
+- prior audit rows are deleted with the account; one anonymised
+  `account_deleted` event remains, with no user id or email;
 - provider-side copies are outside this application's control.
 
 Export your data from Settings before deleting an account. The export includes

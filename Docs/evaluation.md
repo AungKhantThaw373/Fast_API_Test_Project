@@ -17,6 +17,7 @@ summary is [scale-report.md](scale-report.md).
 | `Docs/eval/hnsw-100k.json` | HNSW ef200/400/800 + iterative scans at 100k | Runtime behavior after deletes/updates |
 | `Docs/eval/scale-api-exact.json` | API latency on the 1.1M-word fixture before HNSW | A repeatable SLA |
 | `Docs/eval/scale-api-hnsw.json` | API latency on the same fixture with HNSW | Multi-user concurrency |
+| `Docs/eval/soak-30m.json` | 30-minute mixed read/write soak with worker reindexing | A 24-hour or multi-user soak |
 
 ## Retrieval evaluation
 
@@ -100,14 +101,39 @@ chunk relations, 26 MB HNSW index). Local embedding was measured on a 10-chapter
 sample only (11.8 chunks/s); the full 6,600-chunk local run was extrapolated, not
 executed. See [scale-import.md](scale-import.md).
 
+## Release drills
+
+These scripts need the API and database named in their arguments. They are the
+repeatable form of the Phase 9 acceptance checks; see
+[phase-9-acceptance.md](phase-9-acceptance.md) for the actual results.
+
+```powershell
+# Empty disposable database already migrated and API running on :8002.
+uv run --project backend python scripts/fresh_install_check.py --base http://127.0.0.1:8002
+
+# Scale API on :8001; writes files under backups/scale-exports/ (ignored).
+uv run --project backend python scripts/check_exports.py --pdf
+
+# Restored API on :8003, read-only.
+uv run --project backend python scripts/restore_check.py --base http://127.0.0.1:8003
+
+# Scale API on :8001, worker running, 30 minutes.
+uv run --project backend python scripts/soak_scale.py --minutes 30 --output Docs/eval/soak-30m.json
+
+# Markdown link check.
+uv run --project backend python scripts/check_doc_links.py
+```
+
 ## Test and browser evidence
 
-- Backend: `uv run pytest -q` -> 260 passed at P9-5.
-- Frontend: `npm run test` -> 47 vitest tests.
-- Lint/types: ruff, pyright, eslint, `tsc --noEmit`, `next build`.
-- Browser: Phase 7 (85 checks), Phase 8 (13), Phase 9 storage (10), plus the
-  Phase 9 canon coverage drill and release QA. These are Chromium/Playwright
-  checks against a production build.
+- Backend: `uv run pytest -q` -> **260 passed in 247.17 s** at P9-7; ruff and
+  pyright clean; `pip-audit` found no known vulnerabilities.
+- Frontend: **47 vitest tests**; eslint, `tsc --noEmit`, and `next build` clean;
+  `npm audit --audit-level=high` found 0 vulnerabilities.
+- Browser: Phase 7 (85 checks), Phase 8 (13), Phase 9 storage (10), and Phase 9
+  canon coverage (7), all Chromium/Playwright against a production build.
+- Soak: 30.0 minutes, 166 rounds of four reads, 10 changed saves, 0 errors. The
+  raw per-operation latencies are in `soak-30m.json`; outliers are not trimmed.
 
 ## What would strengthen this
 
@@ -115,6 +141,6 @@ executed. See [scale-import.md](scale-import.md).
    writer grade a sample.
 2. Repeat the API measurement across several runs and machines, reporting
    variance, not one sample.
-3. Run a genuine multi-hour soak with a real worker and real model calls.
+3. Run a genuinely long (multi-hour to 24-hour) soak with real provider models.
 4. Test concurrent writers and a second API replica.
 5. Pin and run the Compose stack and CI workflow.

@@ -22,7 +22,7 @@ if ! pg_restore --list "$DUMP" >/dev/null; then
   exit 1
 fi
 
-VERIFY_DB="stillroom_verify_${$}"
+VERIFY_DB="stillroom_verify_$$"
 createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$VERIFY_DB"
 cleanup() {
   dropdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" --if-exists "$VERIFY_DB" >/dev/null 2>&1 || true

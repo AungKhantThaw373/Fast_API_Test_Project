@@ -1,0 +1,55 @@
+{
+  "started_at": "2026-11-26T05:10:45.601229+00:00",
+  "finished_at": "2026-11-26T05:40:45.616229+00:00",
+  "requested_minutes": 30.0,
+  "elapsed_seconds": 1800.0,
+  "interval_seconds": 10.0,
+  "save_every_seconds": 180.0,
+  "counts": {
+    "stories.list": 166,
+    "story.detail": 166,
+    "chapter.load": 166,
+    "search.hybrid": 166,
+    "chapter.read_for_save": 10,
+    "chapter.save": 10
+  },
+  "latency_ms": {
+    "stories.list": {
+      "p50": 18.9,
+      "p95": 29.0,
+      "max": 20933.7,
+      "n": 166
+    },
+    "story.detail": {
+      "p50": 49.9,
+      "p95": 151.4,
+      "max": 15382.0,
+      "n": 166
+    },
+    "chapter.load": {
+      "p50": 10.4,
+      "p95": 14.4,
+      "max": 23.0,
+      "n": 166
+    },
+    "search.hybrid": {
+      "p50": 196.5,
+      "p95": 700.7,
+      "max": 14797.2,
+      "n": 166
+    },
+    "chapter.read_for_save": {
+      "p50": 9.6,
+      "p95": 20.1,
+      "max": 20.1,
+      "n": 10
+    },
+    "chapter.save": {
+      "p50": 33.2,
+      "p95": 82.6,
+      "max": 82.6,
+      "n": 10
+    }
+  },
+  "errors": []
+}

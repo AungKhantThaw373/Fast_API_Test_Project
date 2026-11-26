@@ -8,7 +8,7 @@ Read this first, then `Docs/build-log.md` for the chronological record.
 |---|---|
 | Repo | `C:\Users\ACER\OneDrive\Desktop\AI` (still inside OneDrive; see gotchas) |
 | Branch | `hardening/phase-0` (all work so far lives here) |
-| Tags | `pre-hardening`, `phase-0-complete` … `phase-8-complete` |
+| Tags | `pre-hardening`, `phase-0-complete` … `phase-9-complete` |
 | Backend | `backend/` — FastAPI + SQLAlchemy 2 async + Alembic + pgvector |
 | Frontend | `frontend/` — Next 16, React 19, npm |
 | Database | Native PostgreSQL 18 on `127.0.0.1:5432`, databases `stillroom` and `stillroom_test`, password `death373` (`backend/.env`) |
@@ -26,11 +26,12 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (247 tests)
+make test             # backend pytest (260 tests)
 make test-frontend    # vitest (47 tests)
 make qa-phase6        # 8 Playwright local-AI checks
 make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
 make qa-phase8        # 13 diagnostics/account-data checks
+make qa-storage       # 10 storage/retention checks
 make lint typecheck   # ruff + eslint, pyright + tsc
 ./scripts/backup.sh   # pg_dump, no Docker
 ./scripts/verify-backup.sh backups/<dump>  # restore into a throwaway DB
@@ -90,27 +91,41 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   one-time password resets, audit/export/typed account deletion, retention
   docs, slow-query logging, `/diagnostics`, Dependabot/gitleaks/pip-audit/npm
   audit, a Compose stack with optional Caddy, and a verified restore drill.
-- Backend: 247 tests pass, ruff and pyright clean, pip-audit clean.
+- **Phase 9 complete** (`Docs/phase-9-acceptance.md`): a deterministic
+  1,029,590-word fixture, resumable import, lazy per-arc canon coverage, HNSW
+  chunk search, a storage/retention dashboard, and the architecture/data-model/
+  runbook/privacy/limitations docs. Release drills passed on a fresh database,
+  a real scale backup, all exports, and a measured 30-minute mixed soak. The
+  fixture is synthetic and the longest soak is 30 minutes, not 24 hours.
+- Backend: 260 tests pass, ruff and pyright clean, pip-audit clean.
 - Frontend: lint, `tsc --noEmit`, `next build`, 47 vitest tests, and npm audit
   clean.
-- Browser QA: 8 Phase 7 suites / 85 checks and 13 Phase 8 checks pass against
-  the production build.
+- Browser QA: 8 Phase 7 suites / 85 checks, 13 Phase 8 checks, 10 Phase 9
+  storage checks, and 7 canon-coverage checks against the production build.
 - CI workflow is committed but has never run on GitHub. Docker is not installed
   here, so the Compose stack has not been built or run.
 
 ## Pick up here (in this order)
 
-1. **Next manual phase** - Phase 8 ends at `phase-8-complete`. Read
-   `Docs/phase-8-acceptance.md` for the unexecuted Docker stack and the other
-   deliberate omissions before starting Phase 9.
-2. **Entity-scoped exceptions** - findings carry quotes and rule/evidence ids,
+1. **Run the long soak** - the Phase 9 soak was 30 minutes, not 24 hours. Repeat
+   it with real provider-backed models, multiple writers, and a multi-hour run
+   before calling the deployment production-ready. See
+   `Docs/phase-9-acceptance.md` for the exact scope.
+2. **Run Docker and CI once** - both are committed artifacts, not verified
+   deployments. Build the Compose stack on a Docker host and run the GitHub
+   Actions workflow once before trusting either.
+3. **Real-corpus quality** - the 1M-word fixture is synthetic. Measure extraction
+   and retrieval quality on a licensed real manuscript and have a writer grade a
+   sample.
+4. **Entity-scoped exceptions** - findings carry quotes and rule/evidence ids,
    but only pattern exceptions can suppress them. Once findings know the entity
    and predicate, `canon_exceptions.matches` should also honour those scopes.
-3. **Legacy `story_bible_entries`** - extraction now proposes `entity_facts`, but
+5. **Legacy `story_bible_entries`** - extraction now proposes `entity_facts`, but
    the compatibility reader remains until nothing writes the old table.
-4. **Retrieval p95** - the Phase 5 open target: end-to-end p95 at 10k chunks is
-   437 ms against a 300 ms goal, mostly query embedding plus exact scan. See
-   `Docs/retrieval.md` before changing indexes.
+6. **Retrieval p95 at 10k** - the Phase 5 target was measured before HNSW at
+   437 ms. Search at 6,600 chunks is p95 191.2 ms when idle and 700.7 ms in the
+   30-minute soak; remeasure the 10k set with HNSW before treating either number
+   as current. See `Docs/retrieval.md`.
 
 ## Gotchas that cost time
 

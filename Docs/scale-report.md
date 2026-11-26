@@ -92,8 +92,10 @@ that real queries find better passages. `Docs/eval/hnsw-10k-50k-ef400.json` and
 - **No relevance claim at 1M words.** The fixture vectors are synthetic. Real
   retrieval quality is still measured on the 12-chapter labelled set in
   `Docs/retrieval.md`.
-- **No 24-hour soak yet.** The long-running worker/import test belongs to
-  P9-7 and will be reported with its actual duration, not assumed.
+- **A 30-minute mixed soak was run, not 24 hours.** It exercised search, story
+  detail, chapter load, and repeated saves while the worker reindexed. The actual
+  duration and latencies are in [phase-9-acceptance.md](phase-9-acceptance.md);
+  do not describe it as a 24-hour soak.
 - **Not a provider benchmark.** Search uses local Ollama embeddings. A cloud
   embedding model adds network latency that this report does not measure.
 - **One machine.** 16 GB RAM, native PostgreSQL 18, no GPU. These numbers are

@@ -685,3 +685,112 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
 - Phase 7 browser QA: 8/8 suites, 85 checks. New `npm run qa:phase8`: 13 checks for diagnostics, session/audit UI, the export download, HttpOnly auth cookie, readable CSRF cookie, and API headers.
 - A flaky editor check was fixed by waiting for the long chapter before sending Ctrl+End. A real regression was found during this pass: the new SSRF rule rejected the local Ollama URL used by the marks suite. Loopback/LAN is now permitted only for the Ollama provider; custom providers still reject it.
 - Acceptance mapping and deliberate omissions: `Docs/phase-8-acceptance.md`.
+
+## Phase 9 — scale and proof
+
+### P9-1 — deterministic 1M-word fixture
+
+- `scripts/generate_fixture.py` writes a synthetic serial from seed `20261125`:
+  1,100 chapters, 1,029,590 words, 12 arcs, 750 entities, 1,350 aliases, 100
+  accepted facts, 70 threads, 100 planted contradictions, and 100 near-misses.
+  It copies no published text; generated files under `data/` stay untracked.
+- The corpus is deliberately shaped like a long serial (arcs, recurring names,
+  planted conflicts) and has deterministic synthetic vectors so latency tests do
+  not depend on a provider.
+
+### P9-2 — resumable import
+
+- `scripts/import_fixture.py --migrate` refuses the real `stillroom` database and
+  imports into `stillroom_scale_test`. Each chapter is one transaction; a state
+  file lets a killed run resume and skip committed chapters.
+- Controls include `--limit`, `--pause-file`, `--fail-at`, and
+  `--embedding-mode ollama`. Synthetic 768-d unit vectors are the default; the
+  importer records the configured model so the API does not immediately queue
+  1,100 reindex jobs.
+- Measured full import: 27.89 s, 36,919.83 words/s, 6,600 chunks, zero failed
+  chapters. Database: 58 MB before HNSW, 92 MB after. A 10-chapter local
+  embedding sample ran at 11.8 chunks/s; the full local-embedding run was
+  estimated, not measured.
+- Failure isolation, resume, and pause were exercised on a disposable database.
+
+### P9-3 — lazy canon coverage
+
+- `GET /stories/{id}/canon/coverage` returns per-arc extracted/pending counts
+  without loading chapter text. `POST /stories/{id}/canon/arcs/{arc_id}/extract`
+  queues only that arc's stale chapters and preflights the budget.
+- Opening a large story does not scan it. The arc page and wiki rail show
+  coverage; **Extract remaining** is the explicit action. Edited chapters become
+  pending automatically.
+- Scale measurement: 12 arcs, 1,100 chapters, 0 extracted at import, current arc
+  92 chapters, coverage p50 22.2 ms / p95 29.5 ms. The end-to-end local drill
+  queued one chapter and reached 1/1; browser QA passed 7/7.
+- Limits: a queued arc is a whole arc (roughly 92 chapters here), and coverage
+  proves revision coverage, not extraction correctness.
+
+### P9-4 — HNSW index
+
+- Migration `f1b7c3d9e5a2` adds `ix_story_chunks_embedding_hnsw` (`m=16`,
+  `ef_construction=64`) and the retrieval service sets `ef_search=400` with
+  relaxed iterative scan. It is a global index; story filters use iterative fill.
+- The synthetic benchmark compared exact scan with HNSW over clustered noisy
+  vectors at 10k/50k/100k. At 100k: exact p50 1,460.4 ms, HNSW ef400 p50 2.2 ms,
+  recall@30 1.0, build 112.2 s, index 390.6 MB. At ef200 recall fell to 0.80, so
+  production keeps 400.
+- The scale API search p50/p95 became 135.5/191.2 ms (from 365.3/635.2 ms exact).
+  The migration blocks writes while building; at 100k rows that is about 112 s.
+
+### P9-5 — storage dashboard and retention
+
+- Migration-free service work: `storage_report()` reports database bytes, the
+  eight largest relations, and account-scoped active/trashed/job counts;
+  `cleanup_expired_storage()` purges only the signed-in account's expired trash
+  and terminal jobs older than 30 days.
+- New typed endpoints: `GET /system/storage`, `POST /system/storage/cleanup`.
+  Cleanup never deletes active prose and does not run `VACUUM`.
+- Diagnostics gained a Storage card, counts, top tables, retention copy, and a
+  manual cleanup button. `tests/test_storage.py` covers report shape, chapter and
+  story cleanup, ownership isolation, and job pruning; storage QA passed 10/10.
+
+### P9-6 — operational documentation
+
+- Added `Docs/architecture.md`, `Docs/data-model.md`, `Docs/runbook.md`,
+  `Docs/privacy.md`, `Docs/limitations.md`, and `Docs/evaluation.md`.
+- The docs distinguish verified behavior from unexecuted Docker/CI, call the
+  corpus synthetic, describe approximate HNSW, and avoid claiming a 24-hour soak.
+
+### P9-7 — release verification
+
+- Fixed `scripts/verify-backup.sh`: its throwaway database name used invalid
+  `${$}` syntax. It now uses `$$` and completed a real restore.
+- Fresh install: an empty `stillroom_fresh_test` migrated to `f1b7c3d9e5a2` with
+  `vector`, `pg_trgm`, 34 public tables, and the HNSW index. The new
+  `scripts/fresh_install_check.py` passed 10/10 auth/create/load/save/trash
+  checks. The database was dropped.
+- Restore: a 27,664,692-byte custom dump of the scale database restored into an
+  empty throwaway database at the same revision, with 1,101 chapters, 6,610
+  chunks, and HNSW. `scripts/restore_check.py` passed 7/7 login/list/detail/
+  chapter/search checks. The database was dropped.
+- Exports at scale: JSON backup (1,101 chapters, 6.69 MB, 0.2 s), Markdown
+  (6.17 MB, 0.4 s), DOCX (0.94 MB, 7.0 s), EPUB (1.69 MB, 14.9 s), PDF (9.22 MB,
+  31.0 s), and account ZIP (1.41 MB, 0.7 s). The account ZIP held one story,
+  1,101 chapters, and the combined Markdown.
+- Soak: `scripts/soak_scale.py` ran 30 minutes of search/story/chapter reads with
+  a changed save every 180 seconds while the worker reindexed. 166 rounds of four
+  reads and 10 changed saves completed with zero errors. Read p95 was 14-151 ms;
+  search p95 was 700.7 ms under continuous load. A few 15-21 s maxima remain in
+  the raw file; they are not trimmed. This is not a 24-hour soak.
+- Added `scripts/check_exports.py`, `scripts/fresh_install_check.py`,
+  `scripts/restore_check.py`, `scripts/soak_scale.py`, and
+  `scripts/check_doc_links.py` as repeatable release checks.
+
+### Phase 9 verification
+
+- 260 backend tests pass in 247.17 s; ruff and pyright are clean; pip-audit
+  found no known vulnerabilities.
+- 47 frontend tests pass; tsc, eslint, `next build`, and npm audit pass.
+- Browser QA: Phase 7 85 checks, Phase 8 13 checks, Phase 9 storage 10 checks,
+  and canon coverage 7 checks, all against the production build and Chromium.
+- Documentation link check: 32 links, 0 missing.
+- Docker/Compose and GitHub Actions remain unexecuted here. Native Windows is
+  the only verified deployment.
+- Acceptance mapping: `Docs/phase-9-acceptance.md`.

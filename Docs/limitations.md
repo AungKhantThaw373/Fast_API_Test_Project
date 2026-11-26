@@ -80,9 +80,10 @@ this list.
 
 ## Verification gaps
 
-- **No 24-hour soak has been completed yet.** The duration actually run before
-  the Phase 9 tag is recorded in the Phase 9 acceptance report. Do not describe a
-  shorter run as a 24-hour soak.
+- **The longest soak is 30 minutes, not 24 hours.** That run mixed searches,
+  story/chapter reads, and repeated saves with worker reindexing. The measured
+  duration is in the Phase 9 acceptance report; do not describe it as a 24-hour
+  soak.
 - **No real multi-user load test.** Tests exercise ownership isolation, not many
   writers hitting the same database concurrently.
 - **No disaster-recovery exercise from a second machine.** The restore drill is
