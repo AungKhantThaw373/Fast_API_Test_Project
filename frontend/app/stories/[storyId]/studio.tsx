@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/components/wiki/capture-dialog';
 import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
+import { ChapterHistoryDialog } from '@/components/studio/chapter-history-dialog';
 import { CommandPalette } from '@/components/command-palette';
 import { EditorPreferencesMenu } from '@/components/editor-preferences';
 import { ExportPanel } from '@/components/export-panel';
@@ -18,21 +19,14 @@ import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
 import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type AIUsage, type Story, type StoryDetails, type StoryArc, type WikiEntity } from '@/lib/api';
 import { isUnauthorized } from '@/lib/auth-redirect';
-import { clearBufferIfSaved, decideDraft, deleteDraft, getDraft, putDraft, type DraftRecord } from '@/lib/draft-buffer';
-import { retryDelayMs, saveStatus, shouldRetry, type SaveState } from '@/lib/save-state';
+import { decideDraft, deleteDraft, getDraft, type DraftRecord } from '@/lib/draft-buffer';
+import { saveStatus } from '@/lib/save-state';
 import { getEditorPreferencesSnapshot, getServerEditorPreferencesSnapshot, subscribeEditorPreferences, updateEditorPreferences } from '@/lib/editor-preferences';
+import { useChapterSaves, type ConflictPrompt } from '@/components/studio/use-chapter-saves';
 import { lineText } from '@/lib/selection';
 import { analyzeStyle, type StyleIssue } from '@/lib/style-analysis';
 
 type Pane = 'notes' | 'findings' | 'mentions' | 'find' | 'style' | 'recap';
-type SaveSnapshot = { title: string; content: string };
-type ConflictPrompt = {
-	localTitle: string;
-	localContent: string;
-	serverTitle: string;
-	serverContent: string;
-	serverRevision: number;
-};
 
 const CATEGORY_LABEL: Record<BibleEntry['category'], string> = {
 	character: 'Character', location: 'Place', item: 'Important item', world_rule: 'World rule', worldbuilding: 'Worldbuilding', power_system: 'Power system', plot_thread: 'Story thread',
@@ -60,29 +54,14 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const deepLine = Number(searchParams.get('line') ?? '') || 0;
 	const jumpedRef = useRef('');
 	const editorRef = useRef<ManuscriptEditorHandle>(null);
-	const revisionRef = useRef(new Map<string, number>());
-	const savedRef = useRef(new Map<string, SaveSnapshot>());
-	const saveQueueRef = useRef(new Map<string, Promise<void>>());
 	const scanBusyRef = useRef(false);
 	const lastScannedWordsRef = useRef(new Map<string, number>());
 	const draftEditVersionRef = useRef(0);
-	// One idempotency key per unsaved edit; retries reuse it so a lost response
-	// cannot create a second revision.
-	const saveIdRef = useRef(new Map<string, string>());
-	const saveTimerRef = useRef<number | null>(null);
-	const saveAttemptRef = useRef(0);
-	const draftRef = useRef({ chapterId: '', title: '', content: '' });
-	const flushRef = useRef<() => Promise<void>>(async () => {});
-	const scheduleRetryRef = useRef<(chapterId: string, title: string, content: string) => void>(() => {});
-
-	const [saveState, setSaveState] = useState<SaveState>({ status: 'saved', revision: 1 });
-	const [conflict, setConflict] = useState<ConflictPrompt | null>(null);
 	const [recovered, setRecovered] = useState(false);
 	const [capture, setCapture] = useState<CaptureSelection | null>(null);
 	const editorPreferences = useSyncExternalStore(subscribeEditorPreferences, getEditorPreferencesSnapshot, getServerEditorPreferencesSnapshot);
 	const [selection, setSelection] = useState<{ text: string; line: number } | null>(null);
 	const [historyDiff, setHistoryDiff] = useState<RevisionDiff | null>(null);
-	const [historySelection, setHistorySelection] = useState<number[]>([]);
 
 	const [story, setStory] = useState<StoryDetails | null>(null);
 	const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -110,7 +89,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [pane, setPane] = useState<Pane>('notes');
 	const [askFocus, setAskFocus] = useState(0);
 	const [loading, setLoading] = useState(true);
-	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [checking, setChecking] = useState(false);
 	const [checkRetryCountdown, setCheckRetryCountdown] = useState(0);
 	const [scanProgress, setScanProgress] = useState<{ scenes_done?: number; scenes_total?: number; scenes_failed?: number } | null>(null);
@@ -126,6 +104,28 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [error, setError] = useState('');
 	const [notice, setNotice] = useState('');
 	const [exportOpen, setExportOpen] = useState(false);
+	const {
+		saveState,
+		setSaveState,
+		conflict,
+		setConflict,
+		hasUnsavedChanges,
+		setHasUnsavedChanges,
+		revisionRef,
+		savedRef,
+		saveIdRef,
+		draftRef,
+		persistChapter,
+		flushSaves,
+	} = useChapterSaves({
+		storyId,
+		activeId,
+		draftTitle,
+		draftContent,
+		setChapters,
+		setEntries,
+		setError,
+	});
 
 	const activeChapter = chapters.find((chapter) => chapter.id === activeId) ?? null;
 	const activeChapterId = activeChapter?.id;
@@ -253,7 +253,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		}
 		void load();
 		return () => { alive = false; };
-	}, [storyId, router, resolveChapterDraft, deepChapterId]);
+	}, [storyId, router, resolveChapterDraft, deepChapterId, revisionRef, savedRef, setConflict, setHasUnsavedChanges, setSaveState]);
 
 	// Once the linked chapter is on screen, put the caret on the cited line.
 	useEffect(() => {
@@ -264,13 +264,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		jumpedRef.current = marker;
 		editorRef.current.focusLine(deepLine);
 	}, [activeId, deepLine, draftContent]);
-
-	useEffect(() => {
-		if (!hasUnsavedChanges) return;
-		const warnBeforeExit = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
-		window.addEventListener('beforeunload', warnBeforeExit);
-		return () => window.removeEventListener('beforeunload', warnBeforeExit);
-	}, [hasUnsavedChanges]);
 
 	useEffect(() => {
 		if (checkRetryCountdown <= 0) return;
@@ -386,121 +379,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		return () => { alive = false; window.clearInterval(timer); };
 	}, [chapters, storyId, refreshBible, bibleScanPending]);
 
-	const persistChapter = useCallback((chapterId: string, title: string, content: string) => {
-		const previous = saveQueueRef.current.get(chapterId) ?? Promise.resolve();
-		const next = previous.catch(() => undefined).then(async () => {
-			const saved = savedRef.current.get(chapterId);
-			if (saved?.title === title && saved.content === content) {
-				saveIdRef.current.delete(chapterId);
-				if (chapterId === draftRef.current.chapterId && draftRef.current.title === title && draftRef.current.content === content) {
-					setSaveState({ status: 'saved', revision: revisionRef.current.get(chapterId) ?? 1 });
-				}
-				return;
-			}
-			const revision = revisionRef.current.get(chapterId);
-			if (!revision) return;
-			setSaveState({ status: 'saving', revision });
-			let saveId = saveIdRef.current.get(chapterId);
-			if (!saveId) {
-				saveId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-					? crypto.randomUUID()
-					: `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-				saveIdRef.current.set(chapterId, saveId);
-			}
-			try {
-				const updated = await api.updateChapter(chapterId, title, content, revision, saveId);
-				saveIdRef.current.delete(chapterId);
-				saveAttemptRef.current = 0;
-				revisionRef.current.set(chapterId, updated.revision);
-				const savedContent = updated.content ?? content;
-				const savedTitle = updated.title;
-				savedRef.current.set(chapterId, { title: savedTitle, content: savedContent });
-				setChapters((current) => current.map((item) => item.id === chapterId ? { ...item, ...updated, content: savedContent } : item));
-				// The buffer is only cleared when it holds exactly what the server
-				// stored. Typing during the request keeps it dirty.
-				await clearBufferIfSaved(chapterId, { title, content }).catch(() => false);
-				const live = draftRef.current;
-				if (live.chapterId === chapterId && (live.title !== title || live.content !== content)) {
-					setSaveState({ status: 'dirty' });
-					setHasUnsavedChanges(true);
-				} else {
-					setSaveState({ status: 'saved', revision: updated.revision });
-					setHasUnsavedChanges(false);
-				}
-				if (saved && saved.content !== savedContent) {
-					setEntries((current) => current.filter((entry) =>
-						!(entry.status === 'suggested' && entry.source_chapter_id === chapterId && entry.source_quote && !savedContent.includes(entry.source_quote))
-					));
-				}
-				setError('');
-			} catch (cause) {
-				if (cause instanceof ApiRequestError && cause.status === 409 && cause.conflict) {
-					// Stop retrying. The writer decides which version wins.
-					setSaveState({ status: 'conflict', serverRevision: cause.conflict.currentRevision, localContent: content });
-					setConflict({
-						localTitle: title,
-						localContent: content,
-						serverTitle: cause.conflict.currentTitle,
-						serverContent: cause.conflict.currentContent,
-						serverRevision: cause.conflict.currentRevision,
-					});
-					return;
-				}
-				const status = cause instanceof ApiRequestError ? cause.status : undefined;
-				if (shouldRetry(status)) {
-					// The text is already in IndexedDB, so nothing is lost while offline.
-					setSaveState({ status: 'offline', pending: true });
-					scheduleRetryRef.current(chapterId, title, content);
-					return;
-				}
-				setSaveState({ status: 'error', message: cause instanceof Error ? cause.message.replace(/ \(\d+\)$/, '') : 'This chapter could not be saved.' });
-				setError(cause instanceof Error ? cause.message : 'This chapter could not be saved.');
-			}
-		});
-		saveQueueRef.current.set(chapterId, next);
-		return next;
-	}, []);
-
-	// Keep the latest on-screen draft available to callbacks that outlive a render.
-	useEffect(() => {
-		draftRef.current = { chapterId: activeId, title: draftTitle, content: draftContent };
-	}, [activeId, draftTitle, draftContent]);
-
-	useEffect(() => {
-		scheduleRetryRef.current = (chapterId, title, content) => {
-			const delay = retryDelayMs(saveAttemptRef.current);
-			saveAttemptRef.current += 1;
-			if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-			saveTimerRef.current = window.setTimeout(() => {
-				saveTimerRef.current = null;
-				void persistChapter(chapterId, title, content);
-			}, delay);
-		};
-	}, [persistChapter]);
-
-	const flushSaves = useCallback(async () => {
-		if (saveTimerRef.current) { window.clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
-		const { chapterId, title, content } = draftRef.current;
-		if (!chapterId) return;
-		// Persist to the local buffer first: even if the request never completes,
-		// the text survives this navigation.
-		await putDraft({
-			chapterId,
-			storyId,
-			title,
-			content,
-			revision: revisionRef.current.get(chapterId) ?? 1,
-			updatedAt: Date.now(),
-			dirty: true,
-		}).catch(() => undefined);
-		await persistChapter(chapterId, title, content);
-		await (saveQueueRef.current.get(chapterId) ?? Promise.resolve());
-	}, [persistChapter, storyId]);
-
-	useEffect(() => {
-		flushRef.current = flushSaves;
-	}, [flushSaves]);
-
 	/** Guarded navigation: flush, then confirm if the save did not land. */
 	const go = useCallback(async (href: string) => {
 		await flushSaves();
@@ -516,54 +394,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			if (!leave) return;
 		}
 		router.push(href);
-	}, [flushSaves, confirm, router]);
-
-	// Flush on tab hide and page unload. keepalive requests are only safe for
-	// small payloads, so long chapters rely on the IndexedDB buffer instead.
-	useEffect(() => {
-		const onPageHide = () => { void flushRef.current(); };
-		const onVisibility = () => { if (document.hidden) void flushRef.current(); };
-		window.addEventListener('pagehide', onPageHide);
-		document.addEventListener('visibilitychange', onVisibility);
-		return () => {
-			window.removeEventListener('pagehide', onPageHide);
-			document.removeEventListener('visibilitychange', onVisibility);
-			// Studio unmount: a client-side route change skips beforeunload.
-			void flushRef.current();
-		};
-	}, []);
-
-	// Write-ahead log: every keystroke lands in IndexedDB within 250ms.
-	useEffect(() => {
-		if (!activeChapterId) return;
-		const chapterId = activeChapterId;
-		const revision = revisionRef.current.get(chapterId) ?? 1;
-		const timer = window.setTimeout(() => {
-			const record: DraftRecord = {
-				chapterId,
-				storyId,
-				title: draftTitle,
-				content: draftContent,
-				revision,
-				updatedAt: Date.now(),
-				dirty: true,
-			};
-			void putDraft(record).catch(() => undefined);
-		}, 250);
-		return () => window.clearTimeout(timer);
-	}, [activeChapterId, draftTitle, draftContent, storyId]);
-
-
-	useEffect(() => {
-		const saveShortcut = (event: KeyboardEvent) => {
-			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && activeChapterId) {
-				event.preventDefault();
-				void persistChapter(activeChapterId, draftTitle, draftContent);
-			}
-		};
-		window.addEventListener('keydown', saveShortcut);
-		return () => window.removeEventListener('keydown', saveShortcut);
-	}, [activeChapterId, draftTitle, draftContent, persistChapter]);
+	}, [flushSaves, confirm, router, draftRef, savedRef]);
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -579,16 +410,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		window.addEventListener('keydown', onKeyDown);
 		return () => window.removeEventListener('keydown', onKeyDown);
 	}, [go, storyId]);
-
-	useEffect(() => {
-		if (!activeChapterId) return;
-		const saved = savedRef.current.get(activeChapterId);
-		if (saved?.title === draftTitle && saved.content === draftContent) return;
-		const timer = window.setTimeout(() => {
-			void persistChapter(activeChapterId, draftTitle, draftContent);
-		}, 800);
-		return () => window.clearTimeout(timer);
-	}, [activeChapterId, draftTitle, draftContent, persistChapter]);
 
 	const selectChapter = useCallback(async (chapter: Chapter) => {
 		if (activeChapter) {
@@ -613,7 +434,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		setDraftTitle(resolved.title);
 		setDraftContent(resolved.content);
 		setError('');
-	}, [activeChapter, draftTitle, draftContent, persistChapter, storyId, resolveChapterDraft]);
+	}, [activeChapter, draftTitle, draftContent, persistChapter, storyId, resolveChapterDraft, revisionRef, savedRef, setConflict, setHasUnsavedChanges, setSaveState]);
 
 	async function addChapter() {
 		try {
@@ -666,7 +487,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	async function openChapterHistory() {
 		if (!activeChapter) return;
 		setHistoryOpen(true);
-		setHistorySelection([]);
 		setHistoryDiff(null);
 		setHistoryLoading(true);
 		try { setChapterHistory(await api.chapterRevisions(activeChapter.id)); }
@@ -1355,55 +1175,19 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				onReloadServer={() => void reloadSavedVersion()}
 				onCopyChanges={copyChangesForMerge}
 			/>
-			{historyOpen && <div className="history-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setHistoryOpen(false); }}>
-				<section className="history-dialog" role="dialog" aria-modal="true" aria-label="Chapter version history">
-					<header>
-						<div><div className="eyebrow">DRAFT SAFETY</div><h2>Version history</h2><p>Pin a checkpoint before a big rewrite. Select two versions to compare them.</p></div>
-						<button className="quiet-button" onClick={() => setHistoryOpen(false)}>Close</button>
-					</header>
-					<div className="history-actions">
-						<button className="button button-approve" disabled={!activeChapter} onClick={() => void saveCheckpoint()}>Save checkpoint</button>
-						{historySelection.length === 2 && <button className="quiet-button" onClick={() => void compareVersions(historySelection[0], historySelection[1])}>Compare selected</button>}
-					</div>
-					{historyLoading ? <div className="pane-empty">Loading saved versions…</div> : chapterHistory.length ? (
-						<div className="history-list">
-							{chapterHistory.map((revision) => (
-								<article key={revision.revision_number} className={historySelection.includes(revision.revision_number) ? 'selected' : ''}>
-									<div>
-										<strong>Version {revision.revision_number} <span className={'history-kind kind-' + revision.kind}>{revision.kind}</span></strong>
-										<span>{revision.title} · {revision.word_count.toLocaleString()} words</span>
-										<time>{new Date(revision.created_at).toLocaleString()}</time>
-									</div>
-									<div className="history-row-actions">
-										<label className="history-pick">
-											<input
-												type="checkbox"
-												checked={historySelection.includes(revision.revision_number)}
-												onChange={() => setHistorySelection((current) => current.includes(revision.revision_number) ? current.filter((value) => value !== revision.revision_number) : [...current, revision.revision_number].slice(-2))}
-												aria-label={`Select version ${revision.revision_number} for comparison`}
-											/>
-											<span>Compare</span>
-										</label>
-										<button className="button button-approve" onClick={() => void restoreChapterHistory(revision)}>Restore</button>
-									</div>
-								</article>
-							))}
-						</div>
-					) : <div className="pane-empty">Older versions appear here after the chapter is edited.</div>}
-					{historyDiff && <section className="history-diff" aria-label="Version differences">
-						<header><strong>Versions {historyDiff.older.revision_number} → {historyDiff.newer.revision_number}</strong><button className="text-button" onClick={() => setHistoryDiff(null)}>Hide</button></header>
-						{historyDiff.hunks.length ? historyDiff.hunks.map((hunk, index) => (
-							<div className="diff-hunk" key={index}>
-								<div className="diff-hunk-head">@@ -{hunk.old_start},{hunk.old_lines} +{hunk.new_start},{hunk.new_lines} @@</div>
-								{hunk.lines.map((line, lineIndex) => {
-									const kind = line.startsWith('+') ? 'added' : line.startsWith('-') ? 'removed' : 'same';
-									return <div key={lineIndex} className={'diff-line diff-' + kind}><span className="diff-gutter">{line.slice(0, 1)}</span><span className="diff-text">{line.slice(1) || ' '}</span></div>;
-								})}
-							</div>
-						)) : <p className="pane-empty">No line changes between those versions.</p>}
-					</section>}
-				</section>
-			</div>}
+			{historyOpen && (
+				<ChapterHistoryDialog
+					canCheckpoint={Boolean(activeChapter)}
+					history={chapterHistory}
+					loading={historyLoading}
+					diff={historyDiff}
+					onClose={() => setHistoryOpen(false)}
+					onSaveCheckpoint={() => void saveCheckpoint()}
+					onCompare={(first, second) => void compareVersions(first, second)}
+					onRestore={(revision) => void restoreChapterHistory(revision)}
+					onHideDiff={() => setHistoryDiff(null)}
+				/>
+			)}
 			{exportOpen && story && <ExportPanel storyId={storyId} title={story.title} onClose={() => setExportOpen(false)} onPrepare={prepareExport} />}
 		</main>
 	);
