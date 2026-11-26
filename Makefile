@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend qa-wiki qa-phase6 qa-phase7 qa-phase8 seed-wiki lint typecheck migrate backup install
+.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend qa-wiki qa-phase6 qa-phase7 qa-phase8 qa-storage seed-wiki lint typecheck migrate backup install
 
 install:
 	cd backend && uv sync
@@ -44,6 +44,10 @@ qa-phase7:
 # Phase 8 diagnostics and account-data surfaces. Needs API :8000 and `next start` :3000.
 qa-phase8:
 	cd frontend && node scripts/phase8-qa.mjs
+
+# Phase 9 storage/retention card. Needs API :8000 and `next start` :3000.
+qa-storage:
+	cd frontend && node scripts/storage-qa.mjs
 
 # 1,000 entities for the Phase 4 performance budget: make seed-wiki EMAIL=you@example.com
 seed-wiki:

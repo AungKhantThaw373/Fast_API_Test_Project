@@ -14,6 +14,7 @@
     "qa:phase6": "node scripts/phase6-qa.mjs",
     "qa:phase7": "node scripts/phase7-qa.mjs",
     "qa:phase8": "node scripts/phase8-qa.mjs",
+    "qa:storage": "node scripts/storage-qa.mjs",
     "perf:wiki": "node scripts/wiki-perf.mjs"
   },
   "dependencies": {

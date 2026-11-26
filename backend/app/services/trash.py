@@ -6,6 +6,7 @@ through a partial index, so a trashed chapter does not block renumbering.
 """
 
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,25 +52,28 @@ async def next_free_number(
     return number
 
 
-async def purge_expired_trash(session: AsyncSession, now: datetime | None = None) -> dict:
+async def purge_expired_trash(
+    session: AsyncSession,
+    now: datetime | None = None,
+    *,
+    owner_id: UUID | None = None,
+) -> dict[str, int]:
     """Permanently delete stories and chapters trashed before the cutoff."""
     limit = cutoff(now)
-    expired_stories = list(
-        await session.scalars(
-            select(Story).where(Story.deleted_at.is_not(None), Story.deleted_at < limit)
-        )
-    )
+    story_filter = [Story.deleted_at.is_not(None), Story.deleted_at < limit]
+    if owner_id is not None:
+        story_filter.append(Story.owner_id == owner_id)
+    expired_stories = list(await session.scalars(select(Story).where(*story_filter)))
     for story in expired_stories:
         await session.delete(story)
 
-    expired_chapter_ids = list(
-        await session.scalars(
-            select(Chapter.id).where(
-                Chapter.deleted_at.is_not(None),
-                Chapter.deleted_at < limit,
-            )
+    chapter_filter = [Chapter.deleted_at.is_not(None), Chapter.deleted_at < limit]
+    chapter_statement = select(Chapter.id).where(*chapter_filter)
+    if owner_id is not None:
+        chapter_statement = chapter_statement.join(Story, Chapter.story_id == Story.id).where(
+            Story.owner_id == owner_id
         )
-    )
+    expired_chapter_ids = list(await session.scalars(chapter_statement))
     if expired_chapter_ids:
         await session.execute(delete(Chapter).where(Chapter.id.in_(expired_chapter_ids)))
     await session.flush()

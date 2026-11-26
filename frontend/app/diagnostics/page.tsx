@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { api, type Diagnostics } from '@/lib/api';
+import { api, type Diagnostics, type StorageReport } from '@/lib/api';
 
 function formatBytes(value: number) {
 	if (value < 1024) return `${value} B`;
@@ -26,6 +26,9 @@ function statusTone(value: string) {
 export default function DiagnosticsPage() {
 	const router = useRouter();
 	const [report, setReport] = useState<Diagnostics | null>(null);
+	const [storage, setStorage] = useState<StorageReport | null>(null);
+	const [storageNote, setStorageNote] = useState('');
+	const [cleaning, setCleaning] = useState(false);
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(true);
 
@@ -33,7 +36,9 @@ export default function DiagnosticsPage() {
 		setLoading(true);
 		setError('');
 		try {
-			setReport(await api.diagnostics());
+			const [nextReport, nextStorage] = await Promise.all([api.diagnostics(), api.storage()]);
+			setReport(nextReport);
+			setStorage(nextStorage);
 		} catch (cause) {
 			if (cause instanceof Error && cause.message.includes('(401)')) { router.replace('/login'); return; }
 			setError(cause instanceof Error ? cause.message.replace(/ \(\d+\)$/, '') : 'Diagnostics could not be loaded.');
@@ -42,9 +47,27 @@ export default function DiagnosticsPage() {
 		}
 	}
 
+	async function cleanup() {
+		setCleaning(true);
+		setStorageNote('');
+		try {
+			const result = await api.cleanupStorage();
+			const total = result.stories_deleted + result.chapters_deleted + result.jobs_deleted;
+			setStorageNote(total === 0 ? 'Nothing was past its retention window.' : `Removed ${result.stories_deleted} stories, ${result.chapters_deleted} chapters, and ${result.jobs_deleted} finished jobs.`);
+			await load();
+		} catch (cause) {
+			if (cause instanceof Error && cause.message.includes('(401)')) { router.replace('/login'); return; }
+			setStorageNote(cause instanceof Error ? cause.message.replace(/ \(\d+\)$/, '') : 'Cleanup failed.');
+		} finally {
+			setCleaning(false);
+		}
+	}
+
 	// Initial load; the request is asynchronous.
 	// eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
 	useEffect(() => { void load(); }, []);
+
+	const expired = storage ? storage.expired.stories + storage.expired.chapters + storage.expired.jobs : 0;
 
 	return <main className="library-page">
 		<header className="library-header">
@@ -52,7 +75,7 @@ export default function DiagnosticsPage() {
 				<Link className="wordmark" href="/dashboard"><span className="wordmark-icon">s</span>stillroom</Link>
 				<nav className="product-nav" aria-label="Workspace"><Link href="/dashboard">Writing</Link><Link href="/editing">Editing</Link><Link href="/settings">Settings</Link><Link href="/diagnostics" aria-current="page">Diagnostics</Link></nav>
 			</div>
-			<div className="header-account"><Link className="quiet-button" href="/settings">Back to settings</Link></div>
+			<div className="header-account"><Link className="quiet-button" href="/settings" aria-label="Back to settings">Back</Link></div>
 		</header>
 		<section className="general-settings-page diagnostics-page">
 			<div className="eyebrow">SYSTEM HEALTH</div>
@@ -88,6 +111,20 @@ export default function DiagnosticsPage() {
 					<div className="eyebrow">AI USAGE · LAST 30 DAYS</div><h2>Calls and tokens</h2>
 					{report.ai_usage_30d.length === 0 ? <p>No model calls in the last 30 days.</p> : <table className="usage-table"><thead><tr><th>Purpose</th><th>Calls</th><th>Input</th><th>Output</th><th>Est. cost</th></tr></thead><tbody>{report.ai_usage_30d.map((row) => <tr key={row.purpose}><td>{row.purpose.replaceAll('_', ' ')}</td><td>{row.calls.toLocaleString()}</td><td>{row.input_tokens.toLocaleString()}</td><td>{row.output_tokens.toLocaleString()}</td><td>${row.cost_estimate.toFixed(4)}</td></tr>)}</tbody></table>}
 				</section>
+				{storage && <section className="profile-settings-card diagnostics-storage" aria-live="polite">
+					<div className="storage-heading"><div><div className="eyebrow">STORAGE AND RETENTION</div><h2>{formatBytes(storage.database_size_bytes)} in PostgreSQL</h2><p className="diagnostic-note">Table sizes are for the whole database. Counts are for your account.</p></div><button className="quiet-button" onClick={() => void cleanup()} disabled={cleaning || expired === 0}>{cleaning ? 'Cleaning…' : expired === 0 ? 'Nothing expired' : 'Clean up expired'}</button></div>
+					<div className="storage-counts">
+						<div><span>Stories</span><strong>{storage.counts.stories.toLocaleString()}</strong></div>
+						<div><span>Chapters</span><strong>{storage.counts.chapters.toLocaleString()}</strong></div>
+						<div><span>Chunks</span><strong>{storage.counts.chunks.toLocaleString()}</strong></div>
+						<div><span>Revisions</span><strong>{storage.counts.revisions.toLocaleString()}</strong></div>
+					</div>
+					<div className="storage-columns">
+						<div><h3>Largest tables</h3><table className="usage-table"><thead><tr><th>Table</th><th>Size</th></tr></thead><tbody>{storage.tables.map((table) => <tr key={table.name}><td><code>{table.name}</code></td><td>{formatBytes(table.size_bytes)}</td></tr>)}</tbody></table></div>
+						<div><h3>Retention</h3><dl><div><dt>Trash</dt><dd>{storage.trash_retention_days} days</dd></div><div><dt>Finished jobs</dt><dd>{storage.finished_jobs_retention_days} days</dd></div><div><dt>Trashed stories</dt><dd>{storage.counts.trashed_stories.toLocaleString()}</dd></div><div><dt>Trashed chapters</dt><dd>{storage.counts.trashed_chapters.toLocaleString()}</dd></div></dl><p className="diagnostic-note">{expired === 0 ? 'Nothing is past a retention window.' : `${expired} item${expired === 1 ? '' : 's'} are past a retention window.`} Cleanup deletes only those rows. PostgreSQL reuses the space over time; this button does not run a blocking VACUUM.</p></div>
+					</div>
+					{storageNote && <p role="status" className="diagnostic-note">{storageNote}</p>}
+				</section>}
 			</>}
 		</section>
 	</main>;

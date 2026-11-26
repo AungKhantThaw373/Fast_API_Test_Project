@@ -24,12 +24,34 @@ This page says what stays, for how long, and what leaves when you ask.
 | Draft files (PDF, DOCX, ODT, DOC, RTF, text) | Until you delete the file or account; counted against the 500-file / 2 GiB account quota |
 | JSON story backups | Only the file you download; Stillroom keeps no second copy |
 | AI usage ledger | Kept with the account so monthly budgets stay correct; deleted with the account |
+| Finished background jobs (succeeded, cancelled, dead) | 30 days after their last update; removed on demand by **Clean up expired** (not yet a scheduled job) |
 
 ## Deletion
 
 - **Trash** removes a story or chapter from the library at once. It remains recoverable for 30 days, then a durable job deletes it permanently. Permanently deleting from the trash skips the wait.
 - **Delete account** in **Settings** verifies your password and requires your username to be typed exactly. It deletes the account row and every story, chapter, wiki record, draft file, session, setting, AI ledger row, and audit event owned by that account. It writes one anonymised `account_deleted` audit record with no email, user id, or username, then clears the sign-in cookies. The action cannot be undone.
 - A deletion is immediate in the live database. Point-in-time database backups made before the deletion may still contain the data until the backup rotation expires; that is true of any backup system. Keep the backup directory on a machine you control and protect it like the database itself.
+
+## Storage dashboard and cleanup
+
+**Diagnostics → Storage and retention** shows the live PostgreSQL database size,
+the eight largest table/relation totals, and the current account's story,
+chapter, chunk, revision and job counts. It also counts rows that are already
+past a retention window:
+
+- stories and chapters in the trash for more than 30 days;
+- finished jobs last updated more than 30 days ago.
+
+**Clean up expired** deletes only those rows for the signed-in account. It is a
+row delete, not a database rebuild: the files do not shrink immediately.
+PostgreSQL marks the space reusable and autovacuum reclaims it over time. The
+button deliberately does not run a blocking `VACUUM`; an operator who needs to
+return disk space on a quiet database can run `VACUUM (ANALYZE)` from `psql`.
+
+Table sizes are database-wide because PostgreSQL reports them that way. Counts
+and cleanup are account-scoped. The scale fixture is one account: after the
+1,029,590-word import and the HNSW index it occupies 92 MB, including 69 MB of
+chunk relations and a 26 MB HNSW index. See `Docs/scale-report.md`.
 
 ## Backups
 

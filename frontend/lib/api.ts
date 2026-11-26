@@ -61,6 +61,36 @@ export interface Diagnostics {
 	slow_query_ms: number;
 }
 
+export interface StorageReport {
+	generated_at: string;
+	database_size_bytes: number;
+	tables: { name: string; size_bytes: number }[];
+	counts: {
+		stories: number;
+		chapters: number;
+		chunks: number;
+		revisions: number;
+		jobs: number;
+		trashed_stories: number;
+		trashed_chapters: number;
+	};
+	expired: {
+		trash_cutoff: string;
+		jobs_cutoff: string;
+		stories: number;
+		chapters: number;
+		jobs: number;
+	};
+	trash_retention_days: number;
+	finished_jobs_retention_days: number;
+}
+
+export interface StorageCleanupResult {
+	stories_deleted: number;
+	chapters_deleted: number;
+	jobs_deleted: number;
+}
+
 export interface AIProviderPreset {
 	id: string;
 	label: string;
@@ -700,6 +730,8 @@ export const api = {
 		body: JSON.stringify({ password, confirmation }),
 	}),
 	diagnostics: () => request<Diagnostics>("/system/diagnostics"),
+	storage: () => request<StorageReport>("/system/storage"),
+	cleanupStorage: () => request<StorageCleanupResult>("/system/storage/cleanup", { method: "POST" }),
 	aiProviders: async () => (await request<{ providers: AIProviderPreset[] }>("/ai-providers")).providers,
 	aiSettings: () => request<AISettings>("/ai-settings"),
 	saveAISettings: (settings: { provider: string; model: string; api_key?: string; base_url?: string }) =>

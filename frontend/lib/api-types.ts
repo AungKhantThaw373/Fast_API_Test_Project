@@ -696,6 +696,40 @@ export interface paths {
         patch: operations["update_plot_thread_stories_bible__entry_id__thread_patch"];
         trace?: never;
     };
+    "/stories/{story_id}/canon/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Canon Coverage */
+        get: operations["get_canon_coverage_stories__story_id__canon_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories/{story_id}/canon/arcs/{arc_id}/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Extract Arc Canon */
+        post: operations["extract_arc_canon_stories__story_id__canon_arcs__arc_id__extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stories/chapters/{chapter_id}/scan": {
         parameters: {
             query?: never;
@@ -895,6 +929,40 @@ export interface paths {
         get: operations["system_status_system_status_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** System Storage */
+        get: operations["system_storage_system_storage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/storage/cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** System Storage Cleanup */
+        post: operations["system_storage_cleanup_system_storage_cleanup_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1765,6 +1833,30 @@ export interface components {
             /** Chapter Ids */
             chapter_ids: string[];
         };
+        /** ArcCoverageOut */
+        ArcCoverageOut: {
+            /**
+             * Arc Id
+             * Format: uuid
+             */
+            arc_id: string;
+            /** Arc Name */
+            arc_name: string;
+            /** Position */
+            position: number;
+            /** Chapter Count */
+            chapter_count: number;
+            /** First Chapter Number */
+            first_chapter_number: number | null;
+            /** Last Chapter Number */
+            last_chapter_number: number | null;
+            /** Extracted Count */
+            extracted_count: number;
+            /** Pending Count */
+            pending_count: number;
+            /** Complete */
+            complete: boolean;
+        };
         /** ArcCreate */
         ArcCreate: {
             /** Name */
@@ -1774,6 +1866,20 @@ export interface components {
              * @default
              */
             summary: string;
+        };
+        /** ArcExtractOut */
+        ArcExtractOut: {
+            /**
+             * Arc Id
+             * Format: uuid
+             */
+            arc_id: string;
+            /** Scheduled Count */
+            scheduled_count: number;
+            /** Skipped Count */
+            skipped_count: number;
+            /** Chapter Count */
+            chapter_count: number;
         };
         /** ArcOut */
         ArcOut: {
@@ -2425,6 +2531,26 @@ export interface components {
             folder_id?: string | null;
             /** Title */
             title?: string | null;
+        };
+        /** CanonCoverageOut */
+        CanonCoverageOut: {
+            /**
+             * Story Id
+             * Format: uuid
+             */
+            story_id: string;
+            /** Current Arc Id */
+            current_arc_id: string | null;
+            /** Chapters */
+            chapters: number;
+            /** Extracted */
+            extracted: number;
+            /** Pending */
+            pending: number;
+            /** Unassigned Chapters */
+            unassigned_chapters: number;
+            /** Arcs */
+            arcs: components["schemas"]["ArcCoverageOut"][];
         };
         /** ChapterCreate */
         ChapterCreate: {
@@ -3741,6 +3867,76 @@ export interface components {
              * @default false
              */
             current: boolean;
+        };
+        /** StorageCleanupOut */
+        StorageCleanupOut: {
+            /** Stories Deleted */
+            stories_deleted: number;
+            /** Chapters Deleted */
+            chapters_deleted: number;
+            /** Jobs Deleted */
+            jobs_deleted: number;
+        };
+        /** StorageCounts */
+        StorageCounts: {
+            /** Stories */
+            stories: number;
+            /** Chapters */
+            chapters: number;
+            /** Chunks */
+            chunks: number;
+            /** Revisions */
+            revisions: number;
+            /** Jobs */
+            jobs: number;
+            /** Trashed Stories */
+            trashed_stories: number;
+            /** Trashed Chapters */
+            trashed_chapters: number;
+        };
+        /** StorageExpired */
+        StorageExpired: {
+            /**
+             * Trash Cutoff
+             * Format: date-time
+             */
+            trash_cutoff: string;
+            /**
+             * Jobs Cutoff
+             * Format: date-time
+             */
+            jobs_cutoff: string;
+            /** Stories */
+            stories: number;
+            /** Chapters */
+            chapters: number;
+            /** Jobs */
+            jobs: number;
+        };
+        /** StorageReportOut */
+        StorageReportOut: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Database Size Bytes */
+            database_size_bytes: number;
+            /** Tables */
+            tables: components["schemas"]["StorageTable"][];
+            counts: components["schemas"]["StorageCounts"];
+            expired: components["schemas"]["StorageExpired"];
+            /** Trash Retention Days */
+            trash_retention_days: number;
+            /** Finished Jobs Retention Days */
+            finished_jobs_retention_days: number;
+        };
+        /** StorageTable */
+        StorageTable: {
+            /** Name */
+            name: string;
+            /** Size Bytes */
+            size_bytes: number;
         };
         /** StoryBackup */
         StoryBackup: {
@@ -5914,6 +6110,77 @@ export interface operations {
             };
         };
     };
+    get_canon_coverage_stories__story_id__canon_coverage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                story_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanonCoverageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extract_arc_canon_stories__story_id__canon_arcs__arc_id__extract_post: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                story_id: string;
+                arc_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArcExtractOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_latest_scan_stories_chapters__chapter_id__scan_get: {
         parameters: {
             query?: {
@@ -6350,6 +6617,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    system_storage_system_storage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    system_storage_cleanup_system_storage_cleanup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageCleanupOut"];
                 };
             };
             /** @description Validation Error */

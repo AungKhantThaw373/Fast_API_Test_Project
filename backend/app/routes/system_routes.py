@@ -16,10 +16,13 @@ from app.schemas.system import (
     BackupStatus,
     DiagnosticsOut,
     JobStatusCounts,
+    StorageCleanupOut,
+    StorageReportOut,
 )
 from app.security import get_current_user
 from app.services import health as health_service
 from app.services import jobs as jobs_service
+from app.services import storage as storage_service
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -74,6 +77,27 @@ async def system_status(
     if database_detail:
         status["database_detail"] = database_detail
     return status
+
+
+@router.get("/storage", response_model=StorageReportOut)
+async def system_storage(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> StorageReportOut:
+    return await storage_service.storage_report(session, user)
+
+
+@router.post("/storage/cleanup", response_model=StorageCleanupOut)
+async def system_storage_cleanup(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> StorageCleanupOut:
+    deleted = await storage_service.cleanup_expired_storage(session, user.id)
+    return StorageCleanupOut(
+        stories_deleted=deleted["stories"],
+        chapters_deleted=deleted["chapters"],
+        jobs_deleted=deleted["jobs"],
+    )
 
 
 @router.get("/diagnostics", response_model=DiagnosticsOut)

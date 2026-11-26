@@ -483,13 +483,26 @@ a { color: inherit; text-decoration: none; }
 .diagnostic-note { margin: 14px 0 0 !important; padding-top: 12px; border-top: 1px solid #efede6; font-size: 12px; }
 .diagnostic-note code { font-size: 11px; }
 .diagnostic-filename { overflow-wrap: anywhere; text-align: right; }
-.diagnostics-usage { margin-top: 18px; }
+.diagnostics-usage, .diagnostics-storage { margin-top: 18px; }
+.storage-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.storage-heading h2 { margin: 2px 0 4px; }
+.storage-heading .diagnostic-note { margin: 0; }
+.storage-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 18px 0; }
+.storage-counts div { padding: 10px 12px; border: 1px solid #e7e4da; border-radius: 8px; background: #fbfaf6; }
+.storage-counts span { display: block; color: #898b82; font-size: 11px; }
+.storage-counts strong { display: block; margin-top: 3px; color: #333a31; font-size: 20px; font-weight: 500; }
+.storage-columns { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 28px; }
+.storage-columns h3 { margin: 0 0 8px; color: #898b82; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+.storage-columns dl { gap: 8px; }
+.storage-columns dl div { padding-bottom: 8px; }
+.storage-columns .usage-table code { font-size: 11px; }
+.storage-columns .diagnostic-note { margin-top: 10px; }
 .usage-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .usage-table th { padding: 8px 6px; border-bottom: 1px solid #dedcd2; color: #898b82; font-weight: 500; text-align: right; }
 .usage-table th:first-child, .usage-table td:first-child { padding-left: 0; text-align: left; }
 .usage-table td { padding: 9px 6px; border-bottom: 1px solid #efede6; color: #4d5349; text-align: right; }
 .usage-table tr:last-child td { border-bottom: 0; }
-@media (max-width: 720px) { .diagnostics-grid { grid-template-columns: 1fr; } .diagnostics-heading { flex-direction: column; } }
+@media (max-width: 720px) { .diagnostics-grid { grid-template-columns: 1fr; } .diagnostics-heading, .storage-heading { flex-direction: column; } .storage-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .storage-columns { grid-template-columns: 1fr; } }
 .danger-card { border-color: #e5c9c2; background: #fffaf8; }
 .danger-card .eyebrow { color: #9c5547; }
 .danger-button { border: 1px solid #9c5547; background: #9c5547; color: #fff; }
