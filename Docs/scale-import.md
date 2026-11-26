@@ -74,7 +74,7 @@ Full synthetic import (1,100 chapters, 6,600 chunks):
 | Wall time | 27.9 s |
 | Throughput | 36,920 words/s |
 | `story_chunks` growth | 42.2 MB |
-| Database size after import | 58 MB |
+| Database size after import | 58 MB before the P9-4 HNSW index; 92 MB with it |
 | Failed chapters | 0 |
 
 Local `nomic-embed-text` sample (10 chapters, 60 chunks): 5.07 s, or 11.8

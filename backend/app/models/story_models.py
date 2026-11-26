@@ -196,6 +196,13 @@ class StoryChunk(Base):
         Index("ix_story_chunks_story_chapter", "story_id", "chapter_number"),
         Index("ix_story_chunks_entities", "entities", postgresql_using="gin"),
         Index("ix_story_chunks_fts", "text_search", postgresql_using="gin"),
+        Index(
+            "ix_story_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_with={"m": 16, "ef_construction": 64},
+        ),
     )
 
     id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

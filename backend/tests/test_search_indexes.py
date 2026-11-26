@@ -63,6 +63,7 @@ async def test_chunk_text_search_is_generated_and_matches_proper_nouns(user_clie
     )
     assert {
         "ix_story_chunks_fts",
+        "ix_story_chunks_embedding_hnsw",
         "ix_entities_name_trgm",
         "ix_entity_aliases_alias_trgm",
     } <= indexes

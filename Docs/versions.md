@@ -9,7 +9,7 @@ Recorded 2026-11-24 on the development machine.
 | Node | 24.14.1 |
 | npm | 11.11.0 |
 | PostgreSQL | 18.7 (native Windows install, no Docker) |
-| pgvector | 0.8.7 |
+| pgvector | 0.8.7 (HNSW iterative scanning requires 0.8 or newer) |
 | pg_trgm | 1.6 |
 | Ollama | 0.30.8 |
 | Embedding model | `nomic-embed-text` (768 dimensions) |

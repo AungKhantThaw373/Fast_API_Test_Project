@@ -1,0 +1,76 @@
+﻿{
+  "base": "http://127.0.0.1:8001",
+  "story_id": "a17bfa84-b436-4c63-9c4f-cac0e4e33290",
+  "chapters": 1100,
+  "query": "The Grey Guild",
+  "search_stages_ms": {
+    "embed": {
+      "p50_ms": 119.9,
+      "p95_ms": 149.3,
+      "max_ms": 3148.9,
+      "runs": 31
+    },
+    "vector": {
+      "p50_ms": 179.0,
+      "p95_ms": 312.6,
+      "max_ms": 757.1,
+      "runs": 31
+    },
+    "lexical": {
+      "p50_ms": 3.2,
+      "p95_ms": 5.1,
+      "max_ms": 76.8,
+      "runs": 31
+    },
+    "name": {
+      "p50_ms": 2.8,
+      "p95_ms": 15.3,
+      "max_ms": 61.5,
+      "runs": 31
+    },
+    "total": {
+      "p50_ms": 342.6,
+      "p95_ms": 610.9,
+      "max_ms": 4270.4,
+      "runs": 31
+    }
+  },
+  "save_probe_id": "768ef64d-fae2-4838-a168-e20a2ddb98b6",
+  "results": [
+    {
+      "endpoint": "stories.list",
+      "p50_ms": 7.7,
+      "p95_ms": 14.6,
+      "max_ms": 146.0,
+      "runs": 30
+    },
+    {
+      "endpoint": "story.detail",
+      "p50_ms": 60.9,
+      "p95_ms": 172.8,
+      "max_ms": 211.0,
+      "runs": 30
+    },
+    {
+      "endpoint": "chapter.load",
+      "p50_ms": 6.8,
+      "p95_ms": 14.6,
+      "max_ms": 14.7,
+      "runs": 30
+    },
+    {
+      "endpoint": "search.hybrid",
+      "p50_ms": 365.3,
+      "p95_ms": 635.2,
+      "max_ms": 1348.2,
+      "runs": 30
+    },
+    {
+      "endpoint": "chapter.save_changed",
+      "p50_ms": 15.5,
+      "p95_ms": 40.0,
+      "max_ms": 40.0,
+      "runs": 10
+    }
+  ]
+}

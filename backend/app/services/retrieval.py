@@ -17,6 +17,7 @@ from uuid import UUID
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 from starlette.concurrency import run_in_threadpool
 
 from app.models.story_models import Chapter, StoryChunk
@@ -256,6 +257,13 @@ async def vector_search(
     filters: SearchFilters,
     limit: int = VECTOR_LIMIT,
 ) -> list[tuple[StoryChunk, float]]:
+    # HNSW is approximate and a story filter can discard most of its first
+    # candidates. ef_search=400 kept 0.993 top-30 recall in the 100k benchmark
+    # and is the setting where the planner keeps choosing the HNSW index on the
+    # 6.6k-chunk scale story. Relaxed iterative scanning fills a selective limit.
+    await session.execute(text("SET LOCAL hnsw.ef_search = 400"))
+    await session.execute(text("SET LOCAL hnsw.iterative_scan = 'relaxed_order'"))
+    await session.execute(text("SET LOCAL hnsw.max_scan_tuples = 200000"))
     distance = StoryChunk.embedding.cosine_distance(vector)
     # Keep the sort tuple narrow. Selecting the ORM entity here makes Postgres
     # detoast every embedding and scene text in the table before the top-N
@@ -270,7 +278,11 @@ async def vector_search(
     if not rows:
         return []
     scores = {row[0]: float(row[1]) for row in rows}
-    chunks = await session.scalars(select(StoryChunk).where(StoryChunk.id.in_(scores)))
+    chunks = await session.scalars(
+        select(StoryChunk)
+        .options(defer(StoryChunk.embedding))
+        .where(StoryChunk.id.in_(scores))
+    )
     hits = [(chunk, scores[chunk.id]) for chunk in chunks]
     return sorted(hits, key=lambda row: (-row[1], str(row[0].id)))
 
@@ -287,7 +299,9 @@ async def lexical_search(
     tsquery = func.websearch_to_tsquery("simple", query)
     rank = func.ts_rank_cd(StoryChunk.text_search, tsquery)
     statement = apply_filters(
-        select(StoryChunk, rank.label("score")).where(
+        select(StoryChunk, rank.label("score"))
+        .options(defer(StoryChunk.embedding))
+        .where(
             StoryChunk.story_id == story_id,
             StoryChunk.text_search.op("@@")(tsquery),
         ),
@@ -307,7 +321,9 @@ async def name_chunk_search(
     if not entity_ids:
         return []
     statement = apply_filters(
-        select(StoryChunk).where(
+        select(StoryChunk)
+        .options(defer(StoryChunk.embedding))
+        .where(
             StoryChunk.story_id == story_id,
             StoryChunk.entities.op("&&")(entity_ids),
         ),

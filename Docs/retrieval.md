@@ -12,7 +12,7 @@ foundation for the find-in-story panel and for continuity evidence.
    tsvector, entity ids, content hash, and a 768-d embedding. GIN indexes cover
    full-text and entity arrays; trigram indexes cover entity names and aliases.
 3. **Three candidate lists, one per request:**
-   - exact vector scan, top 30;
+   - HNSW vector scan, top 30 (`ef_search=400`, relaxed iterative scan);
    - `websearch_to_tsquery`, top 30;
    - entity name/alias lookup plus entity-array overlap, top 10.
 4. **Weighted reciprocal rank fusion.** `RRF_K = 60`, weights
@@ -72,10 +72,10 @@ between queries (an interactive pace, not a saturated loop):
 
 The table is 66 MB. The retrieval SQL stage stays under 300 ms at p95; the
 end-to-end request does not, because query embedding adds ~110 ms on this CPU.
-The acceptance target is therefore only partially met (see
-`Docs/phase-5-acceptance.md`). 50k was not run because a full embedding pass
-would take roughly ten minutes and the 10k result already misses the
-end-to-end budget.
+The acceptance target was therefore only partially met at 10k with the exact
+scan (see `Docs/phase-5-acceptance.md`). Phase 9 replaced the exact scan with
+HNSW and measured the 1M-word/6,600-chunk story at search p50 135.5 ms / p95
+191.2 ms; see `Docs/scale-report.md`.
 
 Reproduce:
 
@@ -88,13 +88,23 @@ uv run python -m app.eval.bench_retrieval --measure-only --keep \
 
 ### HNSW decision
 
-A global HNSW index was built and measured, then removed. With a story filter
-on a shared table it either returned too few rows or scanned nearly the whole
-graph; on the benchmark corpora it did not beat the exact scan consistently.
-An exact top-N scan over 10k rows is acceptable at the SQL layer, and a
-story-scoped partial index is not expressible for arbitrary story ids in one
-migration. Revisit if a single story exceeds ~50k chunks or a GPU moves the
-embedding cost off the critical path.
+Phase 5 removed HNSW after a 10k benchmark. Phase 9 reran the comparison at
+10k, 50k and 100k chunks with clustered noisy vectors and a known exact top-30:
+
+| Chunks | Exact p50 / p95 | HNSW ef400 p50 / p95 | Recall@30 |
+|---:|---:|---:|---:|
+| 10,000 | 26.3 / 56.7 ms | 3.0 / 4.2 ms | 1.0 |
+| 50,000 | 385.4 / 668.6 ms | 3.4 / 5.4 ms | 1.0 |
+| 100,000 | 1,460.4 / 1,598.1 ms | 2.2 / 4.8 ms | 1.0 |
+
+`ef_search=200` lost 20% of the exact top-30 at 100k; 400 and 800 both held
+recall at 1.0 in this benchmark. The production setting is 400 with
+`hnsw.iterative_scan=relaxed_order`, so a selective story/arc filter keeps
+filling the list. The global index is
+`ix_story_chunks_embedding_hnsw` (migration `f1b7c3d9e5a2`). It roughly doubles
+chunk storage at 100k and blocks writes while it builds. This requires pgvector
+0.8 or newer for iterative scanning; `Docs/versions.md` records the tested
+version. Full numbers and limitations are in `Docs/scale-report.md`.
 
 ## Tuning decisions
 
