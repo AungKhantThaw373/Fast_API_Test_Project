@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AddEntityDialog } from "@/components/wiki/add-entity-dialog";
+import { StoryMobileNav } from "@/components/story-mobile-nav";
 import { CommandPalette } from "@/components/command-palette";
 import { SavedViews } from "@/components/wiki/saved-views";
 import { useArcs, useCanonCoverage, useChapters, useEntities, useStory } from "@/components/wiki/use-wiki";
@@ -126,16 +127,16 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 
 				<nav className="wiki-rail-links" aria-label="Wiki sections">
 					<Link className="wiki-nav-link" href={`/stories/${storyId}/wiki`} aria-current={pathname.endsWith("/wiki") ? "page" : undefined}>
-						All entries
+						Wiki
 					</Link>
 					<Link className="wiki-nav-link" href={`/stories/${storyId}/wiki/review`} aria-current={pathname.endsWith("/review") ? "page" : undefined}>
-						Review inbox
+						Review
 					</Link>
 					<Link className="wiki-nav-link" href={`/stories/${storyId}/wiki/threads`} aria-current={pathname.endsWith("/threads") ? "page" : undefined}>
 						Threads
 					</Link>
 					<Link className="wiki-nav-link" href={`/stories/${storyId}`}>
-						Writing studio
+						Write
 					</Link>
 				</nav>
 
@@ -215,6 +216,7 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 					}}
 				/>
 			)}
+			<StoryMobileNav storyId={storyId} />
 		</main>
 	);
 }

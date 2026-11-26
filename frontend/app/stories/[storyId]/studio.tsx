@@ -8,6 +8,7 @@ import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/compon
 import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
 import { ChapterHistoryDialog } from '@/components/studio/chapter-history-dialog';
+import { StoryMobileNav } from '@/components/story-mobile-nav';
 import { CommandPalette } from '@/components/command-palette';
 import { EditorPreferencesMenu } from '@/components/editor-preferences';
 import { ExportPanel } from '@/components/export-panel';
@@ -950,6 +951,12 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			<aside className="chapter-rail">
 				<div className="rail-brand-row"><button className="wordmark" onClick={() => void go("/dashboard")}><span className="wordmark-icon">s</span>stillroom</button><button className="back-link" onClick={() => void go("/dashboard")} aria-label="Back to stories">←</button></div>
 				<div className="book-label">YOUR STORY</div><div className="rail-story-title" title={story.title}>{story.title}</div>
+				<nav className="story-rail-nav" aria-label="Story sections">
+					<Link href={`/stories/${storyId}`} aria-current="page">Write</Link>
+					<Link href={`/stories/${storyId}/wiki`}>Wiki</Link>
+					<Link href={`/stories/${storyId}/wiki/review`}>Review</Link>
+					<Link href={`/stories/${storyId}/wiki/threads`}>Threads</Link>
+				</nav>
 				<div className="chapter-list-heading"><span>CHAPTERS</span><span>{chapters.length}</span></div>
 				<ChapterRail
 					chapters={chapters}
@@ -980,7 +987,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 								{(saveState.status === 'error' || saveState.status === 'conflict') && <button className="text-button" onClick={() => void flushSaves()}>Retry</button>}
 							</span>
 						);
-					})()}<button className="quiet-button focus-toggle" onClick={() => setFocusMode((value) => !value)}>{focusMode ? 'Show notes' : 'Quiet view'}</button></div>
+					})()}<button className="quiet-button focus-toggle" onClick={() => setFocusMode((value) => !value)}>{focusMode ? 'Show desk' : 'Focus'}</button></div>
 				</header>
 				{error && <div className="studio-notice error-notice" role="alert">{error}</div>}
 				{notice && <div className="studio-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice('')}>×</button></div>}
@@ -1042,7 +1049,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					{ label: 'Add selected passage to wiki', hint: selection ? 'From selection' : 'Select text first', run: () => openCapture('entity') },
 					{ label: 'Add fact from selection', hint: selection ? 'From selection' : 'Select text first', run: () => openCapture('fact') },
 					{ label: 'Add thread from selection', hint: selection ? 'From selection' : 'Select text first', run: () => openCapture('thread') },
-					{ label: `Focus mode: ${editorPreferences.focusMode ? 'on' : 'off'}`, hint: 'Toggle', run: () => updateEditorPreferences({ ...editorPreferences, focusMode: !editorPreferences.focusMode }) },
+					{ label: `Line focus: ${editorPreferences.focusMode ? 'on' : 'off'}`, hint: 'Toggle', run: () => updateEditorPreferences({ ...editorPreferences, focusMode: !editorPreferences.focusMode }) },
 					{ label: `Typewriter mode: ${editorPreferences.typewriter ? 'on' : 'off'}`, hint: 'Toggle', run: () => updateEditorPreferences({ ...editorPreferences, typewriter: !editorPreferences.typewriter }) },
 					{ label: `Editor theme: ${editorPreferences.theme}`, hint: 'Cycle paper, sepia, night', run: () => updateEditorPreferences({ ...editorPreferences, theme: editorPreferences.theme === 'paper' ? 'sepia' : editorPreferences.theme === 'sepia' ? 'night' : 'paper' }) },
 				]}
@@ -1189,6 +1196,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				/>
 			)}
 			{exportOpen && story && <ExportPanel storyId={storyId} title={story.title} onClose={() => setExportOpen(false)} onPrepare={prepareExport} />}
+			<StoryMobileNav storyId={storyId} />
 		</main>
 	);
 }

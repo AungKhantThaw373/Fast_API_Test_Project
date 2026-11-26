@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Toaster, toast } from 'sonner';
+import { AppShell } from '@/components/app-shell';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
 import { StoryNameDialog } from '@/components/story-name-dialog';
 import { api, type CurrentUser, type Story, type TrashListing } from '@/lib/api';
@@ -57,10 +58,6 @@ function DashboardInner() {
 			setError(cause instanceof Error ? cause.message : 'The story could not be created.');
 			setBusy(false);
 		}
-	}
-
-	async function logout() {
-		try { await api.logout(); } finally { router.replace('/login'); }
 	}
 
 	async function deleteStory(story: Story) {
@@ -174,18 +171,7 @@ function DashboardInner() {
 	);
 
 	return (
-		<main className="library-page">
-			<header className="library-header">
-				<div className="app-header-left">
-					<Link className="wordmark" href="/dashboard"><span className="wordmark-icon">s</span>stillroom</Link>
-					<nav className="product-nav" aria-label="Workspace">
-						<Link href="/dashboard" aria-current="page">Writing</Link>
-						<Link href="/editing">Editing</Link>
-						<Link href="/settings">Settings</Link>
-					</nav>
-				</div>
-				<div className="header-account"><Link className="profile-link" href="/settings">{user?.username}</Link><button className="quiet-button" onClick={() => void logout()}>Sign out</button></div>
-			</header>
+		<AppShell active="library" user={user?.username}>
 			<section className="library-content">
 				<div className="welcome-block"><div className="eyebrow">YOUR WRITING DESK</div><h1>Make room for a story.</h1><p>A quiet place for the pages, and a careful eye on the details.</p></div>
 				{error && <div className="notice" role="alert">{error}</div>}
@@ -240,6 +226,6 @@ function DashboardInner() {
 				onSubmit={submitStoryName}
 				onCancel={() => setRename(null)}
 			/>
-		</main>
+		</AppShell>
 	);
 }

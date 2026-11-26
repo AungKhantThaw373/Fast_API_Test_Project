@@ -64,7 +64,7 @@ export function EditorPreferencesMenu({
 					</label>
 					<label className="editor-prefs-check">
 						<input type="checkbox" checked={preferences.focusMode} onChange={(event) => set('focusMode', event.target.checked)} />
-						<span>Focus mode <small>Dim everything but this line</small></span>
+						<span>Line focus <small>Dim everything but this line</small></span>
 					</label>
 					<label className="editor-prefs-row">
 						<span>Daily word goal</span>

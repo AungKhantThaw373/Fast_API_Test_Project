@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api, type AuditEvent, type AuthSession, type CurrentUser } from '@/lib/api';
 import { isUnauthorized } from '@/lib/auth-redirect';
 import { AIProviderSettingsForm } from '@/components/ai-provider-settings';
+import { AppShell } from '@/components/app-shell';
 
 function deviceName(userAgent: string) {
 	if (!userAgent) return 'Unknown device';
@@ -68,10 +69,6 @@ export default function GeneralSettingsPage() {
 		return () => { active = false; };
 	}, [router]);
 
-	async function logout() {
-		try { await api.logout(); } finally { router.replace('/login'); }
-	}
-
 	async function changePassword(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setAccountError('');
@@ -132,16 +129,8 @@ export default function GeneralSettingsPage() {
 
 	if (loading) return <main className="quiet-loading"><span className="loading-mark" /><p>Opening settings…</p></main>;
 
-	return <main className="library-page">
-		<header className="library-header">
-			<div className="app-header-left">
-				<Link className="wordmark" href="/dashboard"><span className="wordmark-icon">s</span>stillroom</Link>
-				<nav className="product-nav" aria-label="Workspace"><Link href="/dashboard">Writing</Link><Link href="/editing">Editing</Link><Link href="/settings" aria-current="page">Settings</Link><Link href="/diagnostics">Diagnostics</Link></nav>
-			</div>
-			<div className="header-account"><span>{user?.username}</span><button className="quiet-button" onClick={() => void logout()}>Sign out</button></div>
-		</header>
+	return <AppShell active="settings" user={user?.username}>
 		<section className="general-settings-page">
-			<div className="eyebrow">ACCOUNT PREFERENCES</div>
 			<h1>Settings</h1>
 			<p className="general-settings-intro">Your account, sessions, and website preferences.</p>
 			<div className="general-settings-layout">
@@ -206,5 +195,5 @@ export default function GeneralSettingsPage() {
 				</div>
 			</div>
 		</section>
-	</main>;
+	</AppShell>;
 }

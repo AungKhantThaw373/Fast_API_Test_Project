@@ -138,7 +138,7 @@ export function CommandPalette({ storyId, chapters = [], onChapter, onSearchHit,
 		{ id: "new:fact", label: "New fact", hint: "From an entry page", run: () => router.push(`/stories/${storyId}/wiki`) },
 		{ id: "new:thread", label: "New thread", hint: "Track a promise", run: () => router.push(`/stories/${storyId}/wiki/threads`) },
 		...extra.map((action, index): PaletteAction => ({ id: `extra:${index}`, ...action })),
-		...(onQuietView ? [{ id: "view:quiet", label: "Toggle quiet view", hint: "Hide the desk", run: onQuietView }] : []),
+		...(onQuietView ? [{ id: "view:quiet", label: "Toggle focus view", hint: "Hide the desk", run: onQuietView }] : []),
 	], [extra, onQuietView, router, storyId]);
 
 	const recentActions = useMemo(

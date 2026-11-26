@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, type Diagnostics, type StorageReport } from '@/lib/api';
+import { AppShell } from '@/components/app-shell';
 import { isUnauthorized } from '@/lib/auth-redirect';
 
 function formatBytes(value: number) {
@@ -63,23 +63,19 @@ export default function DiagnosticsPage() {
 	}
 
 	// Initial load; the request is asynchronous.
-	// eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => { void load(); }, []);
 
 	const expired = storage ? storage.expired.stories + storage.expired.chapters + storage.expired.jobs : 0;
 
-	return <main className="library-page">
-		<header className="library-header">
-			<div className="app-header-left">
-				<Link className="wordmark" href="/dashboard"><span className="wordmark-icon">s</span>stillroom</Link>
-				<nav className="product-nav" aria-label="Workspace"><Link href="/dashboard">Writing</Link><Link href="/editing">Editing</Link><Link href="/settings">Settings</Link><Link href="/diagnostics" aria-current="page">Diagnostics</Link></nav>
-			</div>
-			<div className="header-account"><Link className="quiet-button" href="/settings" aria-label="Back to settings">Back</Link></div>
-		</header>
+	return <AppShell active="diagnostics">
 		<section className="general-settings-page diagnostics-page">
-			<div className="eyebrow">SYSTEM HEALTH</div>
-			<div className="diagnostics-heading"><div><h1>Diagnostics</h1><p className="general-settings-intro">What the database, queue, model, and backups look like right now. This page is read-only.</p></div><button className="quiet-button" onClick={() => void load()} disabled={loading}>{loading ? 'Checking…' : 'Refresh'}</button></div>
+			<header className="diagnostics-heading">
+				<div><div className="eyebrow">SYSTEM HEALTH</div><h1>Diagnostics</h1><p>Database, queue, model, backup, and storage signals in one place.</p></div>
+				<button className="quiet-button" onClick={() => void load()} disabled={loading}>{loading ? 'Checking…' : 'Refresh'}</button>
+			</header>
 			{error && <div className="notice" role="alert">{error}</div>}
+			{!report && loading && <div className="pane-empty">Checking the system…</div>}
 			{report && <>
 				<p className="diagnostics-stamp">Checked {when(report.generated_at)} · slow SQL warning at {report.slow_query_ms} ms</p>
 				<div className="diagnostics-grid">
@@ -126,5 +122,5 @@ export default function DiagnosticsPage() {
 				</section>}
 			</>}
 		</section>
-	</main>;
+	</AppShell>;
 }

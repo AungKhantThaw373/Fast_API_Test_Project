@@ -44,7 +44,7 @@ await page.locator('.cm-content').click();
 await page.keyboard.press('Control+k');
 await page.locator('.command-dialog').waitFor({ timeout: 10000 });
 const optionText = await page.getByRole('option').allInnerTexts();
-check('palette exposes primary actions', ['Run continuity check', 'Add fact from selection', 'Focus mode', 'Typewriter mode', 'Editor theme'].every((label) => optionText.some((text) => text.includes(label))), optionText.slice(0, 6).join(' | '));
+check('palette exposes primary actions', ['Run continuity check', 'Add fact from selection', 'Line focus', 'Typewriter mode', 'Editor theme'].every((label) => optionText.some((text) => text.includes(label))), optionText.slice(0, 6).join(' | '));
 const footer = await page.locator('.command-footer').innerText();
 check('palette shows keyboard hints', /esc/i.test(footer) && /Ctrl\/Cmd \+ K/i.test(footer), footer.replace(/\n/g, ' | '));
 await page.keyboard.press('Escape');

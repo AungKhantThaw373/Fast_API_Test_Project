@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { api, type CurrentUser, type DraftFile, type DraftFolder } from '@/lib/api';
+import { AppShell } from '@/components/app-shell';
 import { isUnauthorized } from '@/lib/auth-redirect';
 
 function formatSize(bytes: number) {
@@ -159,25 +159,10 @@ export default function EditingLibraryPage() {
 		} catch (cause) { setError(cause instanceof Error ? cause.message : 'That draft could not be removed.'); }
 	}
 
-	async function logout() {
-		try { await api.logout(); } finally { router.replace('/login'); }
-	}
-
 	if (loading) return <main className="quiet-loading"><span className="loading-mark" /><p>Opening your draft library…</p></main>;
 
 	return (
-		<main className="library-page">
-			<header className="library-header">
-				<div className="app-header-left">
-					<Link className="wordmark" href="/dashboard"><span className="wordmark-icon">s</span>stillroom</Link>
-					<nav className="product-nav" aria-label="Workspace">
-						<Link href="/dashboard">Writing</Link>
-						<Link href="/editing" aria-current="page">Editing</Link>
-						<Link href="/settings">Settings</Link>
-					</nav>
-				</div>
-				<div className="header-account"><span>{user?.username}</span><button className="quiet-button" onClick={() => void logout()}>Sign out</button></div>
-			</header>
+		<AppShell active="files" user={user?.username}>
 			<section className="library-content editing-library">
 				<div className="welcome-block"><div className="eyebrow">EDITING FILES</div><h1>Your drafts, in one place.</h1><p>Upload and organize the files you are working on. This is a file library, not an in-app writing editor. Files here are stored as-is and are not added to Writing’s continuity memory.</p></div>
 				{error && <div className="notice" role="alert">{error}</div>}
@@ -220,6 +205,6 @@ export default function EditingLibraryPage() {
 				<footer className="library-footer">Your files stay yours. Stillroom does not edit or rewrite these uploads.</footer>
 			</section>
 			{preview && <div className="preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreview(null); }}><section className="draft-preview" role="dialog" aria-modal="true" aria-label={`Preview ${preview.title}`}><header><div><strong>{preview.title}</strong><span>{preview.original_filename}</span></div><button className="quiet-button" onClick={() => setPreview(null)}>Close</button></header><iframe title={`Read-only preview of ${preview.title}`} src={api.draftFileContentUrl(preview.id, true)} referrerPolicy="no-referrer" sandbox="allow-same-origin" /></section></div>}
-		</main>
+		</AppShell>
 	);
 }
