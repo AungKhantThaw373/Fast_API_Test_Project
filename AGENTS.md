@@ -27,10 +27,10 @@ make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
 make test             # backend pytest (260 tests)
-make test-frontend    # vitest (47 tests)
+make test-frontend    # vitest (52 tests)
 make qa-phase6        # 8 Playwright local-AI checks
 make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
-make qa-phase8        # 13 diagnostics/account-data checks
+make qa-phase8        # 15 diagnostics/account-data checks
 make qa-storage       # 10 storage/retention checks
 make lint typecheck   # ruff + eslint, pyright + tsc
 ./scripts/backup.sh   # pg_dump, no Docker
@@ -98,9 +98,10 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   a real scale backup, all exports, and a measured 30-minute mixed soak. The
   fixture is synthetic and the longest soak is 30 minutes, not 24 hours.
 - Backend: 260 tests pass, ruff and pyright clean, pip-audit clean.
-- Frontend: lint, `tsc --noEmit`, `next build`, 47 vitest tests, and npm audit
-  clean.
-- Browser QA: 8 Phase 7 suites / 85 checks, 13 Phase 8 checks, 10 Phase 9
+- Frontend: lint, `tsc --noEmit`, `next build`, 52 vitest tests, and npm audit
+  clean. Expired sessions redirect once to `/login?next=<page>` and return there
+  after sign-in (5 unit tests, 2 browser checks).
+- Browser QA: 8 Phase 7 suites / 85 checks, 15 Phase 8 checks, 10 Phase 9
   storage checks, and 7 canon-coverage checks against the production build.
 - CI workflow is committed but has never run on GitHub. Docker is not installed
   here, so the Compose stack has not been built or run.

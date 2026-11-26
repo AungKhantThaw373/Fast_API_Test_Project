@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ensureCsrf } from '@/lib/api';
+import { safeNextPath } from '@/lib/auth-redirect';
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -32,7 +33,8 @@ export default function LoginPage() {
 			await ensureCsrf();
 			if (mode === 'signup') await api.register(username, email, password);
 			await api.login(email, password);
-			router.replace('/dashboard');
+			const next = new URLSearchParams(window.location.search).get('next');
+			router.replace(safeNextPath(next));
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message.replace(/ \(\d+\)$/, '') : 'Please try again.');
 		} finally {

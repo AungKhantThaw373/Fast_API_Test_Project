@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, type AuditEvent, type AuthSession, type CurrentUser } from '@/lib/api';
+import { isUnauthorized } from '@/lib/auth-redirect';
 
 function deviceName(userAgent: string) {
 	if (!userAgent) return 'Unknown device';
@@ -59,7 +60,7 @@ export default function GeneralSettingsPage() {
 		let active = true;
 		api.me().then((account) => { if (active) setUser(account); }).catch((cause: unknown) => {
 			if (!active) return;
-			if (cause instanceof Error && cause.message.includes('(401)')) router.replace('/login');
+			if (isUnauthorized(cause)) return;
 		}).finally(() => { if (active) setLoading(false); });
 		api.sessions().then((rows) => { if (active) setSessions(rows); }).catch(() => undefined);
 		api.auditEvents().then((rows) => { if (active) setAudit(rows); }).catch(() => undefined);

@@ -794,3 +794,22 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
 - Docker/Compose and GitHub Actions remain unexecuted here. Native Windows is
   the only verified deployment.
 - Acceptance mapping: `Docs/phase-9-acceptance.md`.
+
+### Expired-session redirect (post-release fix)
+
+- The API client returned a 401 but did not navigate; several pages tried to
+  detect it with `error.message.includes('(401)')`, which never matched because
+  `ApiRequestError.message` contains only the API detail.
+- `frontend/lib/auth-redirect.ts` now owns the redirect: the API client calls it
+  for 401 responses from protected requests and downloads, the React Query cache
+  calls it for query/mutation errors, and the login page honors a validated
+  same-origin `next` path after signing in. `/token`, `/register`, and the
+  password-reset endpoints are excluded so a bad login still shows its form
+  error.
+- The redirect is one-shot, skips auth pages, and preserves the current path and
+  query string (`/login?next=...`). Open-redirect inputs fall back to
+  `/dashboard`.
+- Added 5 vitest cases for endpoint classification, 401 detection, safe `next`
+  validation, and one-shot behavior. Phase 8 browser QA gained two checks for
+  revoking the current session, redirecting to `/login?next=%2Fsettings`, and
+  returning to settings after sign-in: **15/15**.

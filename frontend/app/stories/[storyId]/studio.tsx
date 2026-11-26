@@ -17,6 +17,7 @@ import { StorySearch } from '@/components/story-search';
 import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
 import { ApiRequestError, api, type BibleEntry, type Chapter, type ChapterRevisionSummary, type ContinuityFinding, type RevisionDiff, type AIUsage, type Story, type StoryDetails, type StoryArc, type WikiEntity } from '@/lib/api';
+import { isUnauthorized } from '@/lib/auth-redirect';
 import { clearBufferIfSaved, decideDraft, deleteDraft, getDraft, putDraft, type DraftRecord } from '@/lib/draft-buffer';
 import { retryDelayMs, saveStatus, shouldRetry, type SaveState } from '@/lib/save-state';
 import { getEditorPreferencesSnapshot, getServerEditorPreferencesSnapshot, subscribeEditorPreferences, updateEditorPreferences } from '@/lib/editor-preferences';
@@ -244,8 +245,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				}
 			} catch (cause) {
 				if (!alive) return;
-				if (cause instanceof Error && cause.message.includes('(401)')) router.replace('/login');
-				else setError(cause instanceof Error ? cause.message : 'This story could not be opened.');
+				if (isUnauthorized(cause)) return;
+				setError(cause instanceof Error ? cause.message : 'This story could not be opened.');
 			} finally {
 				if (alive) setLoading(false);
 			}

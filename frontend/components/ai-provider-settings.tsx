@@ -1,8 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, type AIProviderPreset, type AISettings } from '@/lib/api';
+import { isUnauthorized } from '@/lib/auth-redirect';
 
 const MODEL_HINTS: Record<string, string> = {
 	ollama: 'Local model (for example, qwen3:4b-instruct)',
@@ -51,7 +51,6 @@ const MODEL_OPTIONS: Record<string, { value: string; label: string }[]> = {
 };
 
 export function AIProviderSettingsForm({ showHeading = true }: { showHeading?: boolean }) {
-	const router = useRouter();
 	const [providers, setProviders] = useState<AIProviderPreset[]>([]);
 	const [current, setCurrent] = useState<AISettings | null>(null);
 	const [provider, setProvider] = useState('openrouter');
@@ -77,11 +76,11 @@ export function AIProviderSettingsForm({ showHeading = true }: { showHeading?: b
 			setBaseUrl(saved.base_url ?? available.find((item) => item.id === selected)?.base_url ?? '');
 		}).catch((cause: unknown) => {
 			if (!active) return;
-			if (cause instanceof Error && cause.message.includes('(401)')) router.replace('/login');
-			else setError(cause instanceof Error ? cause.message : 'AI settings could not be loaded.');
+			if (isUnauthorized(cause)) return;
+			setError(cause instanceof Error ? cause.message : 'AI settings could not be loaded.');
 		}).finally(() => { if (active) setLoading(false); });
 		return () => { active = false; };
-	}, [router]);
+	}, []);
 
 	function chooseProvider(next: string) {
 		setProvider(next);

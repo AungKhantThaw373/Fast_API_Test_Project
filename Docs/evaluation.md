@@ -128,10 +128,11 @@ uv run --project backend python scripts/check_doc_links.py
 
 - Backend: `uv run pytest -q` -> **260 passed in 247.17 s** at P9-7; ruff and
   pyright clean; `pip-audit` found no known vulnerabilities.
-- Frontend: **47 vitest tests**; eslint, `tsc --noEmit`, and `next build` clean;
+- Frontend: **52 vitest tests**; eslint, `tsc --noEmit`, and `next build` clean;
   `npm audit --audit-level=high` found 0 vulnerabilities.
-- Browser: Phase 7 (85 checks), Phase 8 (13), Phase 9 storage (10), and Phase 9
+- Browser: Phase 7 (85 checks), Phase 8 (15), Phase 9 storage (10), and Phase 9
   canon coverage (7), all Chromium/Playwright against a production build.
+  The two additional Phase 8 checks cover expired-session redirect and return.
 - Soak: 30.0 minutes, 166 rounds of four reads, 10 changed saves, 0 errors. The
   raw per-operation latencies are in `soak-30m.json`; outliers are not trimmed.
 

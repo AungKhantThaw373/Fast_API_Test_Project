@@ -7,6 +7,7 @@ import { Toaster, toast } from 'sonner';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
 import { StoryNameDialog } from '@/components/story-name-dialog';
 import { api, type CurrentUser, type Story, type TrashListing } from '@/lib/api';
+import { isUnauthorized } from '@/lib/auth-redirect';
 
 export default function DashboardPage() {
 	return (
@@ -39,8 +40,8 @@ function DashboardInner() {
 			if (active) { setUser(account); setStories(items); }
 		}).catch((cause: unknown) => {
 			if (!active) return;
-			if (cause instanceof Error && cause.message.includes('(401)')) router.replace('/login');
-			else setError(cause instanceof Error ? cause.message : 'Your stories could not be loaded.');
+			if (isUnauthorized(cause)) return;
+			setError(cause instanceof Error ? cause.message : 'Your stories could not be loaded.');
 		}).finally(() => { if (active) setLoading(false); });
 		return () => { active = false; };
 	}, [router]);

@@ -1,3 +1,5 @@
+import { isAuthEndpoint, redirectToLogin } from "./auth-redirect";
+
 const API_BASE_URL = "/api/py";
 
 export interface ConflictDetails {
@@ -621,6 +623,7 @@ async function download(path: string): Promise<{ blob: Blob; filename: string }>
 		throw new ApiRequestError("Could not reach the server. Check that the backend is running, then try again.", 0);
 	}
 	if (!response.ok) {
+		if (response.status === 401) redirectToLogin();
 		const body = await response.json().catch(() => null);
 		throw new ApiRequestError(typeof body?.detail === "string" ? body.detail : "That file could not be prepared.", response.status);
 	}
@@ -671,6 +674,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 		throw new ApiRequestError("Could not reach the server. Check that the backend is running, then try again.", 0);
 	}
 	if (!response.ok) {
+		if (response.status === 401 && !isAuthEndpoint(path)) redirectToLogin();
 		const body = await response.json().catch(() => null);
 		const retryAfterValue = response.headers.get("Retry-After");
 		const retryAfterSeconds = retryAfterValue && /^\d+(\.\d+)?$/.test(retryAfterValue) ? Math.ceil(Number(retryAfterValue)) : undefined;

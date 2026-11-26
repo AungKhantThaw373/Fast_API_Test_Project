@@ -176,10 +176,10 @@ not attempted.
 | Backend pytest | **260 passed** in 247.17 s |
 | Backend ruff / pyright | clean / 0 errors |
 | Backend dependency audit | `pip-audit`: no known vulnerabilities |
-| Frontend vitest | **47 passed** (8 files) |
+| Frontend vitest | **47 passed** at release; **52** after the session-expiry fix |
 | Frontend tsc / eslint / build | clean / clean / production build succeeded |
 | Frontend dependency audit | `npm audit --audit-level=high`: 0 vulnerabilities |
-| Phase 8 browser QA | **13/13** |
+| Phase 8 browser QA | **13/13 at release; 15/15 after the session-expiry fix** |
 | Phase 9 storage browser QA | **10/10** |
 | Phase 9 canon browser QA | **7/7** |
 | Documentation links | 32 checked, 0 missing |

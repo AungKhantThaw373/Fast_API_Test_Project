@@ -62,6 +62,24 @@ await page.getByRole('link', { name: /Export all my data/ }).click();
 const download = await downloadPromise;
 check('account export downloads a zip', download.suggestedFilename().endsWith('.zip'), download.suggestedFilename());
 
+// A revoked session must send the writer to login and remember where they were.
+const browserAuth = cookies.find((cookie) => cookie.name === 'token');
+if (!browserAuth) throw new Error('browser auth cookie missing');
+const browserCookie = `token=${browserAuth.value}`;
+const browserSessions = await request('/sessions', {}, browserCookie);
+const currentSession = browserSessions.sessions.find((session) => session.current);
+if (!currentSession) throw new Error('current session missing');
+await request('/sessions/' + currentSession.id, { method: 'DELETE' }, browserCookie);
+await page.reload();
+await page.waitForURL(/\/login\?next=/, { timeout: 30000 });
+const loginUrl = new URL(page.url());
+check('expired session redirects to login', loginUrl.pathname === '/login' && loginUrl.searchParams.get('next') === '/settings', page.url());
+await page.getByLabel('Email').fill(email);
+await page.getByLabel('Password').fill(PASSWORD);
+await page.getByRole('button', { name: 'Sign in' }).click();
+await page.waitForURL('**/settings', { timeout: 30000 });
+check('login returns to the interrupted page', new URL(page.url()).pathname === '/settings', page.url());
+
 const headers = await fetch(API + '/health');
 check('API sends nosniff', headers.headers.get('x-content-type-options') === 'nosniff');
 check('API sends frame denial', headers.headers.get('x-frame-options') === 'DENY');

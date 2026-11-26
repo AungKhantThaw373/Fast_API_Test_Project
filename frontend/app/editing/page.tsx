@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { api, type CurrentUser, type DraftFile, type DraftFolder } from '@/lib/api';
+import { isUnauthorized } from '@/lib/auth-redirect';
 
 function formatSize(bytes: number) {
 	if (bytes < 1024) return `${bytes} B`;
@@ -46,8 +47,8 @@ export default function EditingLibraryPage() {
 			setFiles(fileList);
 		}).catch((cause: unknown) => {
 			if (!active) return;
-			if (cause instanceof Error && cause.message.includes('(401)')) router.replace('/login');
-			else setError(cause instanceof Error ? cause.message : 'Your draft library could not be opened.');
+			if (isUnauthorized(cause)) return;
+			setError(cause instanceof Error ? cause.message : 'Your draft library could not be opened.');
 		}).finally(() => { if (active) setLoading(false); });
 		return () => { active = false; };
 	}, [router]);

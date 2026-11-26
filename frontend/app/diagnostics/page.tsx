@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api, type Diagnostics, type StorageReport } from '@/lib/api';
+import { isUnauthorized } from '@/lib/auth-redirect';
 
 function formatBytes(value: number) {
 	if (value < 1024) return `${value} B`;
@@ -24,7 +24,6 @@ function statusTone(value: string) {
 }
 
 export default function DiagnosticsPage() {
-	const router = useRouter();
 	const [report, setReport] = useState<Diagnostics | null>(null);
 	const [storage, setStorage] = useState<StorageReport | null>(null);
 	const [storageNote, setStorageNote] = useState('');
@@ -40,7 +39,7 @@ export default function DiagnosticsPage() {
 			setReport(nextReport);
 			setStorage(nextStorage);
 		} catch (cause) {
-			if (cause instanceof Error && cause.message.includes('(401)')) { router.replace('/login'); return; }
+			if (isUnauthorized(cause)) return;
 			setError(cause instanceof Error ? cause.message.replace(/ \(\d+\)$/, '') : 'Diagnostics could not be loaded.');
 		} finally {
 			setLoading(false);
@@ -56,7 +55,7 @@ export default function DiagnosticsPage() {
 			setStorageNote(total === 0 ? 'Nothing was past its retention window.' : `Removed ${result.stories_deleted} stories, ${result.chapters_deleted} chapters, and ${result.jobs_deleted} finished jobs.`);
 			await load();
 		} catch (cause) {
-			if (cause instanceof Error && cause.message.includes('(401)')) { router.replace('/login'); return; }
+			if (isUnauthorized(cause)) return;
 			setStorageNote(cause instanceof Error ? cause.message.replace(/ \(\d+\)$/, '') : 'Cleanup failed.');
 		} finally {
 			setCleaning(false);

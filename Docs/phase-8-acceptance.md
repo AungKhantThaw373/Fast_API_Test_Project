@@ -101,3 +101,16 @@ The Phase 7 browser suite now shares one QA account and login across its eight s
 - GlitchTip/Sentry-style error tracking was not added.
 - Audit retention follows the account, and deletion removes prior events while leaving one anonymised record. The manual does not require a longer-lived tamper-evident log.
 - One task normally gets one commit. Phase 8 was implemented in an interrupted working tree before the commits were split by task; the commits are task-shaped, but they are not independently bisectable. The verified artifact is the final tree at `phase-8-complete`.
+
+## Post-release fix: expired-session redirect
+
+- A 401 from a protected API call now sends the writer to
+  `/login?next=<current-page>`, once, including calls made outside React Query
+  and file downloads. `/token`, `/register`, and the password-reset endpoints are
+  excluded so invalid credentials remain form errors.
+- The login page validates `next` as a same-origin path and returns there after
+  signing in; auth pages and protocol-relative/external URLs fall back to
+  `/dashboard`.
+- The Phase 8 browser suite now revokes the current session and checks both the
+  redirect and the return to `/settings`: **15/15**. Five vitest cases cover the
+  helper.
