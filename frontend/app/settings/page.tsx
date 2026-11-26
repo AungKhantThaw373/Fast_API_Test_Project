@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, type AuditEvent, type AuthSession, type CurrentUser } from '@/lib/api';
 import { isUnauthorized } from '@/lib/auth-redirect';
+import { AIProviderSettingsForm } from '@/components/ai-provider-settings';
 
 function deviceName(userAgent: string) {
 	if (!userAgent) return 'Unknown device';
@@ -144,9 +145,10 @@ export default function GeneralSettingsPage() {
 			<h1>Settings</h1>
 			<p className="general-settings-intro">Your account, sessions, and website preferences.</p>
 			<div className="general-settings-layout">
-				<nav className="general-settings-nav" aria-label="Settings sections"><span className="selected">Profile</span><a href="#password">Password</a><a href="#sessions">Sessions</a><a href="#your-data">Data</a><a href="#activity">Activity</a><a href="#privacy">Privacy</a></nav>
+				<nav className="general-settings-nav" aria-label="Settings sections"><span className="selected">Profile</span><a href="#ai">AI</a><a href="#password">Password</a><a href="#sessions">Sessions</a><a href="#your-data">Data</a><a href="#activity">Activity</a><a href="#privacy">Privacy</a></nav>
 				<div className="general-settings-main">
 					<section className="profile-settings-card"><div className="eyebrow">PROFILE</div><h2>Account details</h2><dl><div><dt>Username</dt><dd>{user?.username ?? '—'}</dd></div><div><dt>Email</dt><dd>{user?.email ?? '—'}</dd></div></dl></section>
+					<section className="profile-settings-card" id="ai"><AIProviderSettingsForm /></section>
 					<section className="profile-settings-card" id="password">
 						<div className="eyebrow">PASSWORD</div><h2>Change your password</h2>
 						<p>Changing it signs out every device, including this one. You will sign in again with the new password.</p>
@@ -200,7 +202,7 @@ export default function GeneralSettingsPage() {
 							<button className="button danger-button" disabled={deleting}>{deleting ? 'Deleting…' : 'Delete my account and data'}</button>
 						</form>
 					</section>
-					<section className="general-privacy" id="privacy"><div className="eyebrow">PRIVACY</div><h2>Your story data</h2><p>AI provider settings and each story’s analysis controls live together in the AI Settings tab on the right side of the Writing desk. When enabled, chapter text and relevant earlier excerpts are sent to that provider. Local indexing stays on Ollama.</p><Link className="settings-writing-link" href="/dashboard">Go to Writing</Link></section>
+					<section className="general-privacy" id="privacy"><div className="eyebrow">PRIVACY</div><h2>Your story data</h2><p>Your AI provider is configured in AI above. Each story’s analysis controls stay with that story. When analysis is enabled, chapter text and relevant earlier excerpts are sent to that provider. Local indexing stays on Ollama.</p><Link className="settings-writing-link" href="/dashboard">Go to Writing</Link></section>
 				</div>
 			</div>
 		</section>
