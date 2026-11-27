@@ -40,9 +40,11 @@ on the native PostgreSQL instance, one durable worker, and Ollama with
   `ai_usage` records provider, model, purpose, tokens, duration, and estimated
   cost for Ollama and cloud calls. `GET /stories/{story_id}/ai-usage` returns
   the month grouped by purpose.
-- [x] **The budget blocks cloud calls, not local ones.**
-  `Story.monthly_ai_budget` defaults to 0. A cloud call with no budget returns
-  402; Ollama remains free. `tests/test_ai_usage.py` covers both paths.
+- [x] **Every call is visible without a hard budget gate.**
+  The original monthly budget guard was removed after Phase 9; usage stays
+  visible through the ledger and `GET /stories/{story_id}/ai-usage`, while
+  Ollama remains free. `tests/test_ai_usage.py` covers the summary and rejects
+  the retired budget fields.
 - [x] **Continuity scans are versioned.**
   Scans store prompt version `continuity-v2`, model, schema version, context
   hash, and scene totals/done/failed so two scans are comparable.

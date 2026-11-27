@@ -20,6 +20,4 @@ class AIUsageOut(BaseModel):
     input_tokens: int
     output_tokens: int
     spent_usd: float
-    budget_usd: float
-    remaining_usd: float
     by_purpose: list[AIUsagePurposeOut]

@@ -65,9 +65,6 @@ async def test_coverage_tracks_current_revision_and_current_arc(user_client, ses
 
 async def test_extract_only_queues_the_selected_arc(user_client):
     story_id = await _story(user_client)
-    # A queued cloud scan is preflighted against the story budget; give this
-    # story enough room so the test is about selection, not billing.
-    await user_client.patch(f"/stories/{story_id}", json={"monthly_ai_budget": 5})
     chapters = [await _chapter(user_client, story_id, number) for number in range(1, 3)]
     arc = await _arc(user_client, story_id, "Only this one")
     await user_client.put(

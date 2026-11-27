@@ -23,8 +23,8 @@ await request("/register", { method: "POST", body: JSON.stringify({ username: "c
 const token = await fetch(API + "/token", { method: "POST", headers: { ...apiHeaders(csrf), "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ username: email, password: PASSWORD }) });
 const cookie = (token.headers.get("set-cookie") || "").split(";")[0];
 if (!cookie) throw new Error("no auth cookie");
-// Keep the drill on local Ollama; a cloud key with a zero story budget is
-// correctly refused by the queue preflight.
+// Keep the drill on local Ollama so a cloud key in .env is not used as the
+// fallback provider.
 await request("/ai-settings", { method: "PUT", body: JSON.stringify({ provider: "ollama", model: "qwen3:4b-instruct", base_url: "http://127.0.0.1:11434" }) }, cookie);
 const story = await request("/stories", { method: "POST", body: JSON.stringify({ title: "Canon coverage QA " + stamp }) }, cookie);
 const chapters = [];

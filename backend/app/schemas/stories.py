@@ -17,7 +17,6 @@ class StoryUpdate(BaseModel):
     collection_name: str | None = Field(default=None, max_length=100)
     scan_interval_words: int | None = Field(default=None, ge=0, le=1_000_000)
     external_analysis_enabled: bool | None = None
-    monthly_ai_budget: float | None = Field(default=None, ge=0, le=1_000_000)
 
 
 class StoryOut(BaseModel):
@@ -28,7 +27,6 @@ class StoryOut(BaseModel):
     collection_name: str
     scan_interval_words: int
     external_analysis_enabled: bool
-    monthly_ai_budget: float
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None

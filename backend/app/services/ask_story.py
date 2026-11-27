@@ -16,7 +16,6 @@ from starlette.concurrency import run_in_threadpool
 
 from app.models.story_models import Story, StoryChunk
 from app.services.ai_service import AIProviderHTTPError, embed_queries, structured_ai_json
-from app.services.ai_usage import check_budget
 
 MAX_EVIDENCE = 8
 MIN_QUOTE = 15
@@ -64,13 +63,6 @@ async def ask_story(
     question = question.strip()
     if len(question) < 3:
         return _refusal()
-    await check_budget(
-        session,
-        story,
-        user_id,
-        chars=len(question) + 4000,
-        purpose="Ask Story",
-    )
     # A story with no indexed pages cannot answer: returning before the
     # embedding call keeps the refusal free and works with Ollama stopped.
     indexed = await session.scalar(

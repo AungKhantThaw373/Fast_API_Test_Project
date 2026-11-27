@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.story_models import Arc, Chapter, Story
 from app.services import indexing
 from app.services.ai_settings import has_ai_config
-from app.services.ai_usage import check_budget
 
 
 @dataclass(frozen=True)
@@ -141,21 +140,6 @@ async def queue_arc_extraction(
             detail="Configure an AI provider before extracting canon for an arc.",
         )
     if selected:
-        total_chars = int(
-            await session.scalar(
-                select(func.coalesce(func.sum(func.length(Chapter.content)), 0)).where(
-                    Chapter.id.in_([row[0] for row in selected])
-                )
-            )
-            or 0
-        )
-        await check_budget(
-            session,
-            story,
-            user_id,
-            chars=total_chars,
-            purpose="Arc canon extraction",
-        )
         values: dict[str, object] = {"bible_scan_error": None}
         if force:
             values["bible_scan_revision"] = None

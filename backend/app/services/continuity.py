@@ -16,7 +16,6 @@ from app.logging_config import fields, get_logger
 from app.models.story_models import Chapter, ContinuityFinding, ContinuityScan, SceneEmbedding, Story
 from app.services.ai_service import FINDINGS_SCHEMA, AIProviderHTTPError, embed_queries, structured_ai_json
 from app.services.ai_settings import load_ai_config
-from app.services.ai_usage import check_budget
 from app.services.canon_exceptions import filter_exceptions
 from app.services.chunking import detect_scenes
 from app.services.deterministic import check_pov, check_scene, load_context
@@ -258,10 +257,6 @@ async def check_chapter(
             _log_reuse(chapter, stored)
             return stored, stored.finding_count, True
         previous = await _latest_scan_row(session, chapter.id)
-
-        await check_budget(
-            session, story, user_id, chars=len(chapter.content), purpose="Continuity scan"
-        )
         try:
             draft_findings = await scan_chapter(
                 session, story.id, chapter, user_id, on_progress=on_progress

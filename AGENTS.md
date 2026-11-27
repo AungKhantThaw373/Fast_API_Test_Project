@@ -26,7 +26,7 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (252 tests)
+make test             # backend pytest (250 tests)
 make test-frontend    # vitest (60 tests)
 make qa-phase6        # 8 Playwright local-AI checks
 make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
@@ -75,8 +75,9 @@ make lint typecheck   # ruff + eslint, pyright + tsc
 - **Phase 6 complete** (`Docs/phase-6-acceptance.md`): Ollama structured output
   with no cloud key, incremental scene extraction, deterministic continuity
   rules, per-scene evidence, durable scan jobs with progress/cancel, an AI usage
-  ledger and monthly budget, and cited ask-your-story. 178 backend tests, 31
-  frontend tests, and 8 Playwright checks in `frontend/scripts/phase6-qa.mjs`.
+  ledger (the monthly budget guard was later removed), and cited ask-your-story.
+  178 backend tests, 31 frontend tests, and 8 Playwright checks in
+  `frontend/scripts/phase6-qa.mjs`.
 - **Phase 7 complete** (`Docs/phase-7-acceptance.md`): CodeMirror 6 with inline
   canon marks and findings, command-palette actions and recents, a read-only
   style/line-edit panel, cited chapter and arc recaps, the four-column thread
@@ -96,10 +97,19 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   runbook/privacy/limitations docs. Release drills passed on a fresh database,
   a real scale backup, all exports, and a measured 30-minute mixed soak. The
   fixture is synthetic and the longest soak is 30 minutes, not 24 hours.
-- Backend: 252 tests pass, ruff and pyright clean, pip-audit clean.
+- Backend: 250 tests pass, ruff and pyright clean, pip-audit clean.
 - The separate draft-file library page and its upload/manage API are retired.
   Existing uploads stay in PostgreSQL and are still included in account export;
   no `/editing` page or endpoints are served.
+- The library and writing desk were tightened: dashboard cards have no cover
+  numbering and keep Wiki/Rename/Collection/Delete visible; chapters reorder by
+  drag (or `Alt+Up/Down`) with no arrow buttons; arcs rename inline; loose
+  chapters are grouped under **Unnamed**; **Full wiki** opens the whole story
+  wiki from the desk.
+- AI spend is recorded, not budget-gated. The monthly budget input, `402` guard,
+  `budget_usd`/`remaining_usd` response fields, and `Story.monthly_ai_budget`
+  API field are gone. The legacy DB column and backup schema remain only so old
+  backups still restore; usage calls, spend, tokens, and the purpose ledger stay.
 - Frontend: lint, `tsc --noEmit`, `next build`, 60 vitest tests, and npm audit
   clean. Expired sessions redirect once to `/login?next=<page>` and return there
   after sign-in (5 unit tests, 2 browser checks).

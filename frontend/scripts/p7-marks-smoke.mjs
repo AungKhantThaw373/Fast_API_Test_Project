@@ -17,7 +17,7 @@ const rawCookie = process.env.QA_COOKIE;
 if (!rawCookie) throw new Error('Run this through phase7-qa.mjs so the shared QA account is signed in.');
 await request('/ai-settings', { method: 'PUT', body: JSON.stringify({ provider: 'ollama', model: 'qwen3:4b-instruct', base_url: 'http://127.0.0.1:11434' }) }, rawCookie);
 const story = await request('/stories', { method: 'POST', body: JSON.stringify({ title: 'Phase 7 marks ' + stamp }) }, rawCookie);
-await request('/stories/' + story.id, { method: 'PATCH', body: JSON.stringify({ external_analysis_enabled: true, monthly_ai_budget: 5, scan_interval_words: 2000 }) }, rawCookie);
+await request('/stories/' + story.id, { method: 'PATCH', body: JSON.stringify({ external_analysis_enabled: true, scan_interval_words: 2000 }) }, rawCookie);
 const first = await request('/stories/' + story.id + '/chapters', { method: 'POST', body: JSON.stringify({ title: 'The Gate', content: "Mira Voss crossed the yard at dawn. Mira's eyes were blue. She carried a brass lantern. Hollis waited by the well." }) }, rawCookie);
 const second = await request('/stories/' + story.id + '/chapters', { method: 'POST', body: JSON.stringify({ title: 'Night Watch', content: "Mira's eyes were green. The brass lantern was cold. Hollis said the gate had been open all night." }) }, rawCookie);
 await request('/stories/' + story.id + '/entities', { method: 'POST', body: JSON.stringify({ name: 'Mira Voss', entity_type: 'character', summary: 'A lantern-bearer who keeps watch at the gate.', aliases: [{ alias: 'Mira', alias_type: 'name' }] }) }, rawCookie);

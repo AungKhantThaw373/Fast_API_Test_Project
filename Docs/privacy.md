@@ -34,8 +34,8 @@ receive:
 - the model name and generation settings.
 
 The exact provider is visible in AI settings and the usage ledger. Choosing
-`local` keeps prose on this machine. Cloud calls are budgeted per user; a
-local-only story is rejected before an accidental cloud charge.
+`local` keeps prose on this machine. Cloud calls are recorded, not budget-gated;
+a local-only story or one with external analysis disabled sends no prompt.
 
 Provider-side retention and training are governed by that provider's terms,
 not by Stillroom. Do not send text you are not allowed to send to that provider.

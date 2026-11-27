@@ -113,7 +113,6 @@ export interface Story {
 	collection_name: string;
 	scan_interval_words: number;
 	external_analysis_enabled: boolean;
-	monthly_ai_budget: number;
 	chapter_count?: number;
 	word_count?: number;
 	chapter_warning_at?: number;
@@ -156,8 +155,6 @@ export interface AIUsage {
 	input_tokens: number;
 	output_tokens: number;
 	spent_usd: number;
-	budget_usd: number;
-	remaining_usd: number;
 	by_purpose: AIUsagePurpose[];
 }
 
@@ -743,7 +740,7 @@ export const api = {
 		return story.chapters;
 	},
 	storyIndexStatus: (storyId: string) => request<{ chapters: Array<Pick<Chapter, "id" | "revision" | "word_count" | "index_status" | "index_error" | "bible_scan_revision" | "bible_scan_error">>; worker_alive: boolean }>(`/stories/${storyId}/index-status`),
-	updateStory: (storyId: string, changes: Partial<Pick<Story, "title" | "collection_name" | "scan_interval_words" | "external_analysis_enabled" | "monthly_ai_budget">>) =>
+	updateStory: (storyId: string, changes: Partial<Pick<Story, "title" | "collection_name" | "scan_interval_words" | "external_analysis_enabled">>) =>
 		request<Story>(`/stories/${storyId}`, { method: "PATCH", body: JSON.stringify(changes) }),
 	aiUsage: (storyId: string) => request<AIUsage>(`/stories/${storyId}/ai-usage`),
 	askStory: (storyId: string, question: string) => request<AskStoryResponse>(`/stories/${storyId}/ask`, { method: "POST", body: JSON.stringify({ question }) }),

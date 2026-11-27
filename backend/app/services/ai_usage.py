@@ -1,8 +1,8 @@
-"""AI usage ledger and monthly budget checks.
+"""AI usage ledger.
 
 Every successful model call writes one row. Local Ollama calls cost zero, so a
-fresh story with a zero budget remains fully usable offline; cloud calls are
-refused before they start unless the writer set a positive budget.
+fresh story remains fully usable offline; the ledger records calls, tokens, and
+estimated spend for the usage view without gating generation.
 """
 
 from __future__ import annotations
@@ -19,16 +19,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session
 from app.logging_config import get_logger
-from app.models.story_models import Story
 from app.models.wiki_models import AIUsage
-from app.services.ai_settings import load_ai_config
 
 logger = get_logger("ai_usage")
 
 LOCAL_PROVIDERS = {"ollama"}
 
 # Coarse public list prices, USD per million tokens. Unknown cloud models use a
-# conservative fallback so a budget cannot be silently exceeded by a new model.
+# conservative fallback so their usage is not reported as free.
 PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4o": (2.50, 10.00),
@@ -116,20 +114,6 @@ async def record_ai_usage(
         )
 
 
-async def month_spend(
-    session: AsyncSession, story_id: UUID, *, month: str | None = None
-) -> Decimal:
-    start, end = month_bounds(month)
-    total = await session.scalar(
-        select(func.coalesce(func.sum(AIUsage.cost_estimate), 0)).where(
-            AIUsage.story_id == story_id,
-            AIUsage.created_at >= start,
-            AIUsage.created_at <= end,
-        )
-    )
-    return Decimal(str(total or 0))
-
-
 async def usage_summary(
     session: AsyncSession, story_id: UUID, *, month: str | None = None
 ) -> dict[str, Any]:
@@ -178,37 +162,4 @@ async def usage_summary(
             }
             for row in rows
         ],
-    }
-
-
-async def check_budget(
-    session: AsyncSession,
-    story: Story,
-    user_id: UUID,
-    *,
-    chars: int,
-    purpose: str,
-) -> dict[str, Any]:
-    """Refuse a cloud call before spending when it would exceed the month budget."""
-    config = await load_ai_config(user_id)
-    input_tokens, output_tokens = estimate_scan_tokens(chars)
-    estimated = estimate_cost(config.provider, config.model, input_tokens, output_tokens)
-    budget = Decimal(str(story.monthly_ai_budget or 0))
-    spent = await month_spend(session, story.id)
-    if estimated > 0 and (budget <= 0 or spent + estimated > budget):
-        limit = f"{budget:.2f} USD" if budget > 0 else "no cloud budget (local-only)"
-        raise HTTPException(
-            status_code=402,
-            detail=(
-                f"{purpose} would cost about {float(estimated):.4f} USD, but this story has {limit}. "
-                "Raise the monthly AI budget in story settings, or keep using local Ollama."
-            ),
-        )
-    return {
-        "provider": config.provider,
-        "model": config.model,
-        "estimated_cost_usd": float(estimated),
-        "spent_usd": float(spent),
-        "budget_usd": float(budget),
-        "remaining_usd": float(budget - spent) if budget > 0 else 0.0,
     }

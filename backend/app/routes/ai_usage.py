@@ -1,4 +1,4 @@
-"""Read-only AI usage and budget views for one story."""
+"""Read-only AI usage view for one story."""
 
 from uuid import UUID
 
@@ -27,9 +27,5 @@ async def get_ai_usage(
     purposes = summary.pop("by_purpose")
     return AIUsageOut(
         **summary,
-        budget_usd=float(story.monthly_ai_budget or 0),
-        remaining_usd=max(0.0, float(story.monthly_ai_budget or 0) - summary["spent_usd"])
-        if (story.monthly_ai_budget or 0) > 0
-        else 0.0,
         by_purpose=[AIUsagePurposeOut(**row) for row in purposes],
     )

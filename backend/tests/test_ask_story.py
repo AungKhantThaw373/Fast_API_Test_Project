@@ -18,7 +18,7 @@ def _vector() -> list[float]:
 async def _fixture(user_client, session):
     me = (await user_client.get("/me")).json()
     owner_id = UUID(me["id"])
-    story = Story(owner_id=owner_id, title="Ask", external_analysis_enabled=True, monthly_ai_budget=100)
+    story = Story(owner_id=owner_id, title="Ask", external_analysis_enabled=True)
     session.add(story)
     await session.flush()
     chapter = Chapter(
@@ -103,7 +103,7 @@ async def test_fabricated_citation_becomes_a_refusal(user_client, session, monke
 async def test_no_indexed_evidence_does_not_call_the_model(user_client, session, monkeypatch):
     me = (await user_client.get("/me")).json()
     owner_id = UUID(me["id"])
-    story = Story(owner_id=owner_id, title="Empty", monthly_ai_budget=100)
+    story = Story(owner_id=owner_id, title="Empty")
     session.add(story)
     await session.commit()
     monkeypatch.setattr(ask_story, "embed_queries", lambda _texts: [_vector()])
@@ -136,7 +136,7 @@ async def test_embedding_failure_is_a_readable_503(user_client, session, monkeyp
 async def test_ask_api_requires_ownership(user_client, session):
     me = (await user_client.get("/me")).json()
     owner_id = UUID(me["id"])
-    story = Story(owner_id=owner_id, title="Mine", monthly_ai_budget=100)
+    story = Story(owner_id=owner_id, title="Mine")
     session.add(story)
     await session.commit()
     response = await user_client.post(f"/stories/{story.id}/ask", json={"question": "Who?"})

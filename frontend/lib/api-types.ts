@@ -1655,10 +1655,6 @@ export interface components {
             output_tokens: number;
             /** Spent Usd */
             spent_usd: number;
-            /** Budget Usd */
-            budget_usd: number;
-            /** Remaining Usd */
-            remaining_usd: number;
             /** By Purpose */
             by_purpose: components["schemas"]["AIUsagePurposeOut"][];
         };
@@ -3885,8 +3881,6 @@ export interface components {
             scan_interval_words: number;
             /** External Analysis Enabled */
             external_analysis_enabled: boolean;
-            /** Monthly Ai Budget */
-            monthly_ai_budget: number;
             /**
              * Created At
              * Format: date-time
@@ -3938,8 +3932,6 @@ export interface components {
             scan_interval_words: number;
             /** External Analysis Enabled */
             external_analysis_enabled: boolean;
-            /** Monthly Ai Budget */
-            monthly_ai_budget: number;
             /**
              * Created At
              * Format: date-time
@@ -3992,8 +3984,6 @@ export interface components {
             scan_interval_words: number;
             /** External Analysis Enabled */
             external_analysis_enabled: boolean;
-            /** Monthly Ai Budget */
-            monthly_ai_budget: number;
             /**
              * Created At
              * Format: date-time
@@ -4026,8 +4016,6 @@ export interface components {
             scan_interval_words?: number | null;
             /** External Analysis Enabled */
             external_analysis_enabled?: boolean | null;
-            /** Monthly Ai Budget */
-            monthly_ai_budget?: number | null;
         };
         /** ThreadCreate */
         ThreadCreate: {

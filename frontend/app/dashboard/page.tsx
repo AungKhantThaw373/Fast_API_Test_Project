@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
 import { StoryNameDialog } from '@/components/story-name-dialog';
@@ -13,7 +13,6 @@ import { isUnauthorized } from '@/lib/auth-redirect';
 export default function DashboardPage() {
 	return (
 		<ConfirmProvider>
-			<Toaster position="bottom-right" richColors closeButton />
 			<DashboardInner />
 		</ConfirmProvider>
 	);
@@ -172,15 +171,15 @@ function DashboardInner() {
 	const totalWords = stories.reduce((sum, story) => sum + (story.word_count ?? 0), 0);
 	const totalChapters = stories.reduce((sum, story) => sum + (story.chapter_count ?? 0), 0);
 	const recent = [...stories].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
-	const coverFor = (story: Story) => {
+	const coverStyleFor = (story: Story) => {
 		let hash = 0;
 		for (const character of story.title) hash = (hash * 31 + character.charCodeAt(0)) % 360;
-		const palettes = [
+		const gradients = [
 			['#1e293b', '#64748b'], ['#7c2d12', '#c2704a'], ['#1e3a5f', '#3b82f6'],
 			['#78350f', '#b45309'], ['#3b0764', '#7e22ce'], ['#4c1d2f', '#a34d6b'],
 		];
-		const pair = palettes[hash % palettes.length];
-		return { background: `linear-gradient(145deg, ${pair[0]}, ${pair[1]})` };
+		const gradient = gradients[hash % gradients.length];
+		return { background: `linear-gradient(145deg, ${gradient[0]}, ${gradient[1]})` };
 	};
 
 	return (
@@ -204,7 +203,7 @@ function DashboardInner() {
 						</div>
 						{recent ? (
 							<Link className="continue-card" href={`/stories/${recent.id}`}>
-								<div className="continue-cover" style={coverFor(recent)}><span>{recent.title.slice(0, 1)}</span></div>
+								<div className="continue-cover" style={coverStyleFor(recent)}><span>{recent.title.slice(0, 1)}</span></div>
 								<div><span className="continue-kicker">CONTINUE WRITING</span><strong>{recent.title}</strong><small>{recent.chapter_count ?? 0} chapters · last touched {new Date(recent.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></div>
 								<span className="continue-arrow" aria-hidden="true">→</span>
 							</Link>
@@ -216,10 +215,10 @@ function DashboardInner() {
 				{error && <div className="notice" role="alert">{error}</div>}
 				<div className="library-heading"><div><div className="eyebrow">THE SHELF</div><h2>Your stories</h2></div><span>{visibleStories.length} of {stories.length}</span></div>
 				{stories.length > 0 && <div className="story-library-tools"><label className="shelf-search"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search the shelf" aria-label="Search stories" /></label><select value={collectionFilter} onChange={(event) => setCollectionFilter(event.target.value)} aria-label="Filter by collection"><option value="all">All collections</option>{collections.map((collection) => <option key={collection} value={collection}>{collection}</option>)}</select><span className="shelf-hint">Drag nothing. Just write.</span></div>}
-				{visibleStories.length ? <div className="story-grid">{visibleStories.map((story, index) => <article className="story-card" key={story.id}>
+				{visibleStories.length ? <div className="story-grid">{visibleStories.map((story) => <article className="story-card" key={story.id}>
 					<Link className="story-card-link" href={`/stories/${story.id}`}>
-						<div className="story-cover" style={coverFor(story)}>
-							<span className="story-cover-kicker">STILLROOM · {String(index + 1).padStart(2, '0')}</span>
+						<div className="story-cover" style={coverStyleFor(story)}>
+							<span className="story-cover-kicker">STILLROOM</span>
 							<span className="story-cover-glyph" aria-hidden="true">{story.title.slice(0, 2)}</span>
 							<span className="story-cover-rule" aria-hidden="true" />
 							<span className="story-cover-collection">{story.collection_name || 'Unfiled'}</span>
@@ -232,7 +231,12 @@ function DashboardInner() {
 							<div className="story-card-foot"><span>Last tended</span><time>{new Date(story.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</time><span className="story-open">Open</span></div>
 						</div>
 					</Link>
-					<div className="story-card-actions"><Link className="story-delete-button" href={`/stories/${story.id}/wiki`}>Wiki</Link><button className="story-delete-button" onClick={() => setRename({ story, field: 'title' })}>Rename</button><button className="story-delete-button" onClick={() => setRename({ story, field: 'collection_name' })}>Collection</button><button className="story-delete-button" onClick={() => void deleteStory(story)} disabled={deletingStoryId === story.id}>{deletingStoryId === story.id ? 'Deleting…' : 'Delete'}</button></div>
+					<div className="story-card-actions" role="group" aria-label={`Actions for ${story.title}`}>
+						<Link className="story-card-action" href={`/stories/${story.id}/wiki`}>Wiki</Link>
+						<button className="story-card-action" onClick={() => setRename({ story, field: 'title' })}>Rename</button>
+						<button className="story-card-action" onClick={() => setRename({ story, field: 'collection_name' })}>Collection</button>
+						<button className="story-card-action is-danger" onClick={() => void deleteStory(story)} disabled={deletingStoryId === story.id}>{deletingStoryId === story.id ? 'Deleting…' : 'Delete'}</button>
+					</div>
 				</article>)}</div> : <div className="library-empty"><span className="empty-glyph">✳</span><h3>{stories.length ? 'Nothing on this part of the shelf.' : 'Your first page is waiting.'}</h3><p>{stories.length ? 'Try another search or collection.' : 'Create a story above to open your writing desk.'}</p>{!stories.length && <div className="empty-steps"><span><b>1</b> Name it</span><span><b>2</b> Write a chapter</span><span><b>3</b> Let the wiki remember</span></div>}</div>}
 				<section className="trash-panel" aria-label="Trash">
 					<header>

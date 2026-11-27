@@ -23,7 +23,7 @@ This page says what stays, for how long, and what leaves when you ask.
 | Chapter revisions | All revisions younger than 48 hours; one per hour up to 7 days; one per day up to 90 days; checkpoints and restore points are kept until the chapter is deleted |
 | Draft files (PDF, DOCX, ODT, DOC, RTF, text) | Until you delete the file or account; counted against the 500-file / 2 GiB account quota |
 | JSON story backups | Only the file you download; Stillroom keeps no second copy |
-| AI usage ledger | Kept with the account so monthly budgets stay correct; deleted with the account |
+| AI usage ledger | Kept with the account as usage history; deleted with the account |
 | Finished background jobs (succeeded, cancelled, dead) | 30 days after their last update; removed on demand by **Clean up expired** (not yet a scheduled job) |
 
 ## Deletion

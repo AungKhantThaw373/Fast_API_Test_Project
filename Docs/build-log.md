@@ -515,6 +515,8 @@ permutations, OneDrive).
   returns 402 with a local-only message; Ollama is always free.
 - `GET /stories/{story_id}/ai-usage` returns this month's totals by purpose; the
   studio shows the panel and lets the writer set the budget.
+- Superseded after Phase 9: the budget input and 402 guard were removed. The
+  usage ledger, month totals, and per-purpose breakdown remain.
 - `external_analysis_enabled` (default false) is the per-story confirmation for
   provider-backed checks; enabling it in the Notes tab is the explicit opt-in.
 
@@ -974,3 +976,35 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
 - Verification: backend **252 tests pass**, frontend Vitest **60/60**, `tsc`,
   lint, `next build`, `ruff`, and `pyright` clean; production-build check
   confirms `/editing` is a 404 and the workspace has no Files entry.
+
+### Clearer library, draggable chapters, and usage-only AI
+
+- Dashboard cards no longer number the cover or the workspace rail. Cover art is
+  still deterministic per story, but the visual index is gone.
+- Wiki, Rename, Collection, and Delete stay visible on every story card instead
+  of appearing only on hover. Delete was especially easy to miss on touch and
+  keyboard use. The actions are a labelled group, and the delete confirmation is
+  the Radix alert dialog.
+- Chapters reorder by dragging. Drop a chapter on another to place it before or
+  after and adopt that chapter's arc; drop it on an arc folder or **Unnamed** to
+  file it. The old up/down buttons are gone. `Alt+Up/Down` still reorders from
+  the keyboard, and the drop position is shown with a line rather than a guess.
+- Arc folders rename inline. Loose chapters use **Unnamed** as their group label
+  instead of the synthesized **Unsorted**; a story with no arcs still shows one
+  unlabelled list. Chapter numbers stay in the rail for orientation.
+- **Full wiki** in the desk top bar opens `/stories/{id}/wiki`. The right-pane
+  Wiki tab remains the quick peek; the full page is now one click away on
+  desktop, and the mobile file menu has the same link.
+- Removed the monthly AI budget. The budget input, `402` guard,
+  `budget_usd`/`remaining_usd` fields, and the `Story.monthly_ai_budget` API
+  field are gone. The usage ledger still shows calls, spend, and tokens with a
+  per-purpose breakdown. The database column and backup schema remain only so
+  older backups restore without a migration.
+- Readability pass: higher-contrast rail and muted text, 12 px type floors,
+  dark-mode notices and toasts, a visible card action row, and a dark-mode
+  full-wiki check. The full wiki is no longer styled only for light mode.
+- Verification: backend **250 tests pass**, frontend Vitest **60/60**, `tsc`,
+  lint, `next build`, `ruff`, and `pyright` clean. A production-build
+  Playwright pass covered visible card actions, absent cover numbers, arc rename,
+  drag reorder and cross-group filing, `Alt+Up/Down` reorder, the full-wiki
+  title, dark and light screenshots, mobile overflow, and delete-to-trash.

@@ -33,7 +33,7 @@ users
 
 | Table | What it holds | Important behavior |
 |---|---|---|
-| `stories` | Title, collection name, scan interval, monthly AI budget, owner, optional trash timestamp | Story list is one indexed query; `deleted_at` means trash, not gone |
+| `stories` | Title, collection name, scan interval, owner, optional trash timestamp | Story list is one indexed query; `deleted_at` means trash, not gone. The legacy `monthly_ai_budget` column is kept for backup compatibility only; it is not exposed or used to gate calls. |
 | `arcs` | Named/numbered groupings of chapters | Chapter order and arc coverage drive the wiki rail |
 | `story_chapters` | Prose, display/chapter number, revision counter, indexing state | Active `(story_id, chapter_number)` is a partial unique index; reorders use temporary numbers |
 | `story_chapter_revisions` | Immutable saved prose snapshots | Retention is tiered; diffs and restore use these rows |
@@ -73,7 +73,7 @@ and scene is not enough to be actionable, so the model records both.
 | `jobs` | Durable worker queue: type, payload, status, attempts, heartbeat, progress |
 | `worker_heartbeats` | Liveness for the single worker |
 | `ai_usage` | Per-call provider, model, purpose, tokens, cost estimate |
-| `user_ai_settings` | Per-user provider/model/budget choices |
+| `user_ai_settings` | Per-user provider and model choices |
 | `editing_folders` / `editing_draft_files` | Retained draft-file uploads; the editing-library page and API were retired, but existing files remain available in account export |
 
 `jobs` is the only queue. Statuses in use are `queued`, `running`, `succeeded`,

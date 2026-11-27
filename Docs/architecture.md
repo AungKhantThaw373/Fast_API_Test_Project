@@ -67,8 +67,8 @@ drains. The UI reports indexing state rather than pretending it is complete.
 
 Story Bible extraction and continuity scans follow the same pattern: the API
 creates a durable job, the worker calls the model, and progress is stored on the
-job row. Cloud calls are budgeted per user; a local-only story cannot silently
-spend cloud money.
+job row. Cloud calls are recorded in the usage ledger; a local-only story sends
+nothing to a provider.
 
 ## Retrieval
 

@@ -22,7 +22,7 @@ const rawCookie = (token.headers.get("set-cookie") || "").split(";")[0];
 if (!rawCookie) throw new Error("no cookie");
 await request("/ai-settings", { method: "PUT", body: JSON.stringify({ provider: "ollama", model: "qwen3:4b-instruct", api_key: null, base_url: "http://127.0.0.1:11434" }) }, rawCookie);
 const story = await request("/stories", { method: "POST", body: JSON.stringify({ title: "Phase 6 QA " + stamp }) }, rawCookie);
-await request("/stories/" + story.id, { method: "PATCH", body: JSON.stringify({ external_analysis_enabled: true, monthly_ai_budget: 5, scan_interval_words: 2000 }) }, rawCookie);
+await request("/stories/" + story.id, { method: "PATCH", body: JSON.stringify({ external_analysis_enabled: true, scan_interval_words: 2000 }) }, rawCookie);
 const first = await request("/stories/" + story.id + "/chapters", { method: "POST", body: JSON.stringify({ title: "The Gate", content: "Mira Voss crossed the yard at dawn. Her eyes were blue. She carried a brass lantern." }) }, rawCookie);
 const second = await request("/stories/" + story.id + "/chapters", { method: "POST", body: JSON.stringify({ title: "Night Watch", content: "Hollis waited at the gate after dusk. The brass lantern was still lit. Mira said she would return before moonrise." }) }, rawCookie);
 for (const chapter of [first, second]) {

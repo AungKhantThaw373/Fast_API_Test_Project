@@ -24,7 +24,7 @@ const rawCookie = process.env.QA_COOKIE;
 if (!rawCookie) throw new Error('Run this through phase7-qa.mjs so the shared QA account is signed in.');
 const story = await request('/stories', { method: 'POST', body: JSON.stringify({ title: 'Accessibility ' + stamp }) }, rawCookie);
 const first = await request('/stories/' + story.id + '/chapters', { method: 'POST', body: JSON.stringify({ title: 'The gate', content: 'Mira opens the gate.\nThe lantern is already lit.\n' }) }, rawCookie);
-const second = await request('/stories/' + story.id + '/chapters', { method: 'POST', body: JSON.stringify({ title: 'The ledger', content: 'Mira reads the ledger.\nThe captain watches her.\n' }) }, rawCookie);
+await request('/stories/' + story.id + '/chapters', { method: 'POST', body: JSON.stringify({ title: 'The ledger', content: 'Mira reads the ledger.\nThe captain watches her.\n' }) }, rawCookie);
 const thread = await request('/stories/' + story.id + '/threads', { method: 'POST', body: JSON.stringify({ title: 'Who lit the lantern?', description: 'Someone was here before Mira.', setup_chapter_id: first.id, linked_entity_ids: [] }) }, rawCookie);
 
 const browser = await chromium.launch();

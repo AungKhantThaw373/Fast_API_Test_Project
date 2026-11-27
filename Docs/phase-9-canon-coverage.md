@@ -12,9 +12,8 @@ the expensive, optional part, so it now runs by arc instead of by manuscript.
   automatically becomes pending again.
 - `POST /stories/{story_id}/canon/arcs/{arc_id}/extract` queues only chapters
   in that arc that still need extraction. `?force=true` re-queues the arc.
-  It preflights the estimated whole-arc cost against the story budget, so a
-  cloud key with a zero budget is refused with `402` instead of leaving dead
-  jobs later.
+  The route queues the job immediately; estimated cost is shown in the usage
+  ledger after the calls complete.
 - The arc page shows `extracted / chapters`, a progress bar, pending count, and
   an **Extract remaining** button. The wiki rail shows the current arc as
   `Arc N of M` with its extracted chapter count.
@@ -66,8 +65,8 @@ and that coverage remains lazy until the worker finishes.
 - There is no automatic background scan of the current arc on story open. It is
   one click by design, so a writer never unknowingly spends tokens.
 - Local extraction needs an Ollama provider selected in AI settings. The
-  presence of an OpenRouter key in `.env` makes cloud the fallback; a zero
-  story budget then correctly blocks the queue.
+  presence of an OpenRouter key in `.env` makes cloud the fallback; choose
+  local and disable external analysis for the story to keep prompts offline.
 - Coverage counts active chapters, including empty placeholders. Queuing skips
   empty chapters, so an arc made only of placeholders can show a pending count
   the button cannot act on until text is added.

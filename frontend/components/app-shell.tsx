@@ -7,11 +7,11 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 type AppSection = 'library' | 'wiki' | 'settings' | 'diagnostics';
 
-const NAV: { id: AppSection; href: string; label: string; number: string }[] = [
-	{ id: 'library', href: '/dashboard', label: 'Library', number: '01' },
-	{ id: 'wiki', href: '/wiki', label: 'Wiki', number: '02' },
-	{ id: 'settings', href: '/settings', label: 'Settings', number: '03' },
-	{ id: 'diagnostics', href: '/diagnostics', label: 'Diagnostics', number: '04' },
+const NAV: { id: AppSection; href: string; label: string }[] = [
+	{ id: 'library', href: '/dashboard', label: 'Library' },
+	{ id: 'wiki', href: '/wiki', label: 'Wiki' },
+	{ id: 'settings', href: '/settings', label: 'Settings' },
+	{ id: 'diagnostics', href: '/diagnostics', label: 'Diagnostics' },
 ];
 
 export function AppShell({ active, user, children }: { active: AppSection; user?: string | null; children: React.ReactNode }) {
@@ -33,8 +33,7 @@ export function AppShell({ active, user, children }: { active: AppSection; user?
 				<nav className="app-rail-nav">
 					{NAV.map((item) => (
 						<Link key={item.id} href={item.href} aria-current={active === item.id ? 'page' : undefined}>
-							<span className="app-rail-number">{item.number}</span>
-							<span>{item.label}</span>
+							{item.label}
 						</Link>
 					))}
 				</nav>

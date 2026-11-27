@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/components/wiki/capture-dialog';
 import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
@@ -39,7 +39,6 @@ function wordCount(text: string) {
 export default function StoryStudio({ storyId }: { storyId: string }) {
 	return (
 		<ConfirmProvider>
-			<Toaster position="bottom-right" richColors closeButton />
 			<StoryStudioInner storyId={storyId} />
 		</ConfirmProvider>
 	);
@@ -420,7 +419,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	}, [chapters, storyId, refreshBible, bibleScanPending]);
 
 	/** Guarded navigation: flush, then confirm if the save did not land. */
-	const go = useCallback(async (href: string) => {
+	const navigate = useCallback(async (href: string) => {
 		await flushSaves();
 		const chapterId = draftRef.current.chapterId;
 		const saved = chapterId ? savedRef.current.get(chapterId) : undefined;
@@ -449,7 +448,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		};
 		window.addEventListener('keydown', onKeyDown);
 		return () => window.removeEventListener('keydown', onKeyDown);
-	}, [go, storyId]);
+	}, [navigate, storyId]);
 
 	const selectChapter = useCallback(async (chapter: Chapter) => {
 		if (activeChapter) {
@@ -493,18 +492,37 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Chapter could not be created.'); }
 	}
 
-	async function reorderChapter(chapterId: string, direction: -1 | 1) {
-		const currentIndex = chapters.findIndex((item) => item.id === chapterId);
-		const destinationIndex = currentIndex + direction;
-		if (currentIndex < 0 || destinationIndex < 0 || destinationIndex >= chapters.length) return;
+	async function reorderChapterByDrop(chapterId: string, targetId: string, position: 'before' | 'after', targetArcId: string | null) {
+		if (chapterId === targetId) return;
+		const fromIndex = chapters.findIndex((item) => item.id === chapterId);
+		if (fromIndex < 0) return;
+		const moving = chapters[fromIndex];
 		const reordered = [...chapters];
-		[reordered[currentIndex], reordered[destinationIndex]] = [reordered[destinationIndex], reordered[currentIndex]];
+		reordered.splice(fromIndex, 1);
+		const targetIndex = reordered.findIndex((item) => item.id === targetId);
+		if (targetIndex < 0) return;
+		reordered.splice(position === 'after' ? targetIndex + 1 : targetIndex, 0, moving);
+		const orderChanged = reordered.some((item, index) => item.id !== chapters[index]?.id);
+		const arcChanged = (moving.arc_id ?? null) !== targetArcId;
+		if (!orderChanged && !arcChanged) return;
 		try {
-			const result = await api.reorderChapters(storyId, reordered.map((item) => item.id));
-			setChapters(result.chapters);
-			setFindings([]);
-			setNotice('Chapter order updated. Run a new continuity check to refresh earlier chapter comparisons.');
-		} catch (cause) { setError(cause instanceof Error ? cause.message : 'Chapter order could not be changed.'); }
+			if (arcChanged) await api.assignArc(storyId, targetArcId, [chapterId]);
+			if (orderChanged) {
+				const result = await api.reorderChapters(storyId, reordered.map((item) => item.id));
+				setChapters(result.chapters.map((chapter) => chapter.id === chapterId ? { ...chapter, arc_id: targetArcId } : chapter));
+			} else {
+				setChapters((current) => current.map((chapter) => chapter.id === chapterId ? { ...chapter, arc_id: targetArcId } : chapter));
+			}
+			if (orderChanged || arcChanged) setFindings([]);
+			if (arcChanged) setArcs(await api.arcs(storyId));
+			setNotice(orderChanged ? 'Chapter order updated. Run a new continuity check to refresh earlier chapter comparisons.' : 'Chapter filed.');
+		} catch (cause) {
+			if (arcChanged) {
+				setChapters(await api.chapters(storyId));
+				setArcs(await api.arcs(storyId));
+			}
+			setError(cause instanceof Error ? cause.message : 'That chapter could not be moved.');
+		}
 	}
 
 	async function moveActiveChapter(destinationStoryId: string) {
@@ -706,7 +724,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		}
 	}
 
-	async function changeStorySetting(changes: { external_analysis_enabled?: boolean; scan_interval_words?: number; monthly_ai_budget?: number }): Promise<boolean> {
+	async function changeStorySetting(changes: { external_analysis_enabled?: boolean; scan_interval_words?: number }): Promise<boolean> {
 		if (!story) return false;
 		try { setStory({ ...story, ...await api.updateStory(storyId, changes) }); setError(''); return true; }
 		catch (cause) { setError(cause instanceof Error ? cause.message : 'Story settings could not be saved.'); return false; }
@@ -864,6 +882,19 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		}
 	}
 
+	async function renameArc(arcId: string, name: string) {
+		const previous = arcs;
+		setArcs((current) => current.map((arc) => arc.id === arcId ? { ...arc, name } : arc));
+		try {
+			await api.updateArc(arcId, { name });
+			setArcs(await api.arcs(storyId));
+			toast.success(`Arc renamed to “${name}”.`);
+		} catch (cause) {
+			setArcs(previous);
+			toast.error(cause instanceof Error ? cause.message : 'That arc could not be renamed.');
+		}
+	}
+
 	async function openBibleSource(entry: BibleEntry) {
 		if (!entry.source_chapter_id) return;
 		const source = chapters.find((item) => item.id === entry.source_chapter_id);
@@ -993,7 +1024,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	return (
 		<main className={'studio-shell' + (focusMode ? ' focus-mode' : '')}>
 			<aside className="chapter-rail">
-				<div className="rail-brand-row"><button className="wordmark" onClick={() => void go("/dashboard")}><span className="wordmark-icon">s</span>stillroom</button><button className="back-link" onClick={() => void go("/dashboard")} aria-label="Back to stories">←</button></div>
+				<div className="rail-brand-row"><button className="wordmark" onClick={() => void navigate("/dashboard")}><span className="wordmark-icon">s</span>stillroom</button><button className="back-link" onClick={() => void navigate("/dashboard")} aria-label="Back to stories">←</button></div>
 				<div className="book-label">YOUR STORY</div><div className="rail-story-title" title={story.title}>{story.title}</div>
 				<div className="chapter-list-heading"><span>CHAPTERS</span><span>{chapters.length}</span></div>
 				<ChapterRail
@@ -1001,18 +1032,19 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					arcs={arcs}
 					activeId={activeId}
 					onSelect={(chapter) => void selectChapter(chapter)}
-					onMove={(chapterId, delta) => void reorderChapter(chapterId, delta)}
+					onReorder={(chapterId, targetId, position, targetArcId) => void reorderChapterByDrop(chapterId, targetId, position, targetArcId)}
 					onDelete={(chapter) => void deleteChapter(chapter)}
 					onAssign={(chapterId, arcId) => void assignArc(chapterId, arcId)}
 					onCreateArc={createArc}
+					onRenameArc={renameArc}
 				/>
 				<button className="new-chapter-button" onClick={() => void addChapter()}>＋ <span>New chapter</span></button>
-				<div className="rail-footer"><button className="rail-settings-link" onClick={() => void go(`/settings?section=ai&story=${encodeURIComponent(storyId)}`)}>⚙ AI &amp; API settings</button><ThemeToggle compact /></div>
+				<div className="rail-footer"><button className="rail-settings-link" onClick={() => void navigate(`/settings?section=ai&story=${encodeURIComponent(storyId)}`)}>⚙ AI &amp; API settings</button><ThemeToggle compact /></div>
 			</aside>
 
 			<section className="writing-column">
 				<header className="studio-topbar">
-					<div className="studio-breadcrumb"><button className="text-button" onClick={() => void go("/dashboard")}>Stories</button><span>/</span><span>{story.title}</span></div>
+					<div className="studio-breadcrumb"><button className="text-button" onClick={() => void navigate("/dashboard")}>Stories</button><span>/</span><span>{story.title}</span></div>
 					<div className="mobile-chapter-row">{chapters.length > 0 && <label className="mobile-chapter-picker"><span className="sr-only">Chapter</span><select value={activeId ?? ''} onChange={(event) => { const next = chapters.find((chapter) => chapter.id === event.target.value); if (next) void selectChapter(next); }}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.id}>{String(chapter.chapter_number).padStart(2, '0')} · {chapter.title}</option>)}</select></label>}<button className="mobile-new-chapter" onClick={() => void addChapter()} aria-label="New chapter">＋</button></div>
 					<div className="studio-actions">{(() => {
 						const status = saveStatus(saveState);
@@ -1024,6 +1056,9 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							</span>
 						);
 					})()}
+						<button className="studio-wiki-link" onClick={() => void navigate(`/stories/${storyId}/wiki`)} aria-label="Open the full story wiki">
+							<span aria-hidden="true">◇</span><span className="studio-wiki-label">Full wiki</span>
+						</button>
 						<button className={'desk-toggle' + (paneOpen ? ' is-open' : '')} onClick={toggleDesk} aria-expanded={paneOpen} aria-controls="chapter-desk">
 							<span aria-hidden="true">▤</span><span className="desk-toggle-label">Desk</span>
 						</button>
@@ -1032,7 +1067,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							<summary aria-label="Story menu" title="Story menu">⋯</summary>
 							<div>
 								<button className="menu-item" onClick={() => { setFocusMode((value) => !value); closeStoryMenu(); }}>{focusMode ? '◱ Exit focus mode' : '◱ Focus mode'}</button>
-								<button className="menu-item menu-settings" onClick={() => { closeStoryMenu(); void go(`/settings?section=ai&story=${encodeURIComponent(storyId)}`); }}>⚙ AI &amp; API settings</button>
+								<button className="menu-item" onClick={() => { closeStoryMenu(); void navigate(`/stories/${storyId}/wiki`); }}>◇ Open full story wiki</button>
+								<button className="menu-item menu-settings" onClick={() => { closeStoryMenu(); void navigate(`/settings?section=ai&story=${encodeURIComponent(storyId)}`); }}>⚙ AI &amp; API settings</button>
 								{activeChapter && otherStories.length > 0 && (
 									<label className="menu-field">Move chapter to
 										<select defaultValue="" onChange={(event) => { if (event.target.value) void moveActiveChapter(event.target.value); event.target.value = ''; closeStoryMenu(); }}>
@@ -1196,11 +1232,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							<section className="ai-usage-panel">
 								<div className="pane-section-title"><strong>AI usage this month</strong><span>{aiUsage ? `${aiUsage.calls} ${aiUsage.calls === 1 ? 'call' : 'calls'}` : 'No calls yet'}</span></div>
 								<dl className="notes-stats"><div><dt>Spent</dt><dd>{aiUsage ? `$${aiUsage.spent_usd.toFixed(2)}` : '$0.00'}</dd></div><div><dt>Tokens</dt><dd>{aiUsage ? (aiUsage.input_tokens + aiUsage.output_tokens).toLocaleString() : '0'}</dd></div></dl>
-								<label className="ai-field">
-									<span>Monthly cloud budget (USD)</span>
-									<input key={story.monthly_ai_budget} type="number" min={0} step={5} defaultValue={story.monthly_ai_budget} onBlur={(event) => { const value = Math.max(0, Number(event.target.value) || 0); if (value !== story.monthly_ai_budget) void changeStorySetting({ monthly_ai_budget: value }); }} />
-									<small>Zero keeps this story local-only. Cloud scans are refused before they spend above the budget.</small>
-								</label>
 							</section>
 						</details>
 						<details className="desk-controls">
