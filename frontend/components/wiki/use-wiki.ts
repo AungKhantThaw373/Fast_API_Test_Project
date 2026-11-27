@@ -13,6 +13,14 @@ export function useStory(storyId: string) {
 	});
 }
 
+export function useWikiFormat(storyId: string) {
+	return useQuery({
+		queryKey: qk.wikiFormat(storyId),
+		queryFn: () => api.wikiFormat(storyId),
+		enabled: Boolean(storyId),
+	});
+}
+
 export function useChapters(storyId: string) {
 	return useQuery({
 		queryKey: qk.chapters(storyId),

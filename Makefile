@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend qa-wiki qa-phase6 qa-phase7 qa-phase8 qa-storage seed-wiki lint typecheck migrate backup install
+.PHONY: dev-backend dev-frontend worker worker-once perf test test-frontend qa-wiki qa-wiki-format qa-phase6 qa-phase7 qa-phase8 qa-storage seed-wiki lint typecheck migrate backup install
 
 install:
 	cd backend && uv sync
@@ -31,6 +31,10 @@ test-frontend:
 # End-to-end wiki flows. Needs the API on :8000 and `next start` on :3000.
 qa-wiki:
 	cd frontend && node scripts/wiki-qa.mjs
+
+# Story-shaped wiki format, sections, custom fields, and provenance.
+qa-wiki-format:
+	cd frontend && node scripts/wiki-format-qa.mjs
 
 # Phase 6 local-AI flows. Needs API :8000, `next start` :3000, and Ollama.
 qa-phase6:

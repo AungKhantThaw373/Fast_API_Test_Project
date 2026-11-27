@@ -56,10 +56,12 @@ export function FactSection({
 	onDelete,
 	busyId,
 	entityNames,
+	hidePredicates = [],
 }: {
 	storyId: string;
 	entityId: string;
 	entityNames?: Map<string, string>;
+	hidePredicates?: string[];
 	onAdd: () => void;
 	onEdit: (fact: EntityFact) => void;
 	onAccept: (fact: EntityFact) => void;
@@ -68,8 +70,13 @@ export function FactSection({
 	busyId: string;
 }) {
 	const facts = useEntityFacts(entityId);
-	const groups = useMemo(() => groupFacts(facts.data ?? []), [facts.data]);
-	const proposed = (facts.data ?? []).filter((fact) => fact.status === "proposed").length;
+	const hidden = useMemo(() => new Set(hidePredicates), [hidePredicates]);
+	const visibleFacts = useMemo(
+		() => (facts.data ?? []).filter((fact) => !hidden.has(fact.predicate)),
+		[facts.data, hidden],
+	);
+	const groups = useMemo(() => groupFacts(visibleFacts), [visibleFacts]);
+	const proposed = visibleFacts.filter((fact) => fact.status === "proposed").length;
 
 	return (
 		<section className="wiki-detail-section" aria-labelledby="facts-heading">

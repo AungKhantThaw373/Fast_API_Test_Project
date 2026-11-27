@@ -18,9 +18,11 @@ from app.schemas.stories import (
     StorySummaryOut,
     StoryUpdate,
 )
+from app.schemas.wiki_format import WikiFormat, WikiFormatOut
 from app.security import get_current_user
 from app.services import jobs as jobs_service
 from app.services import stories as stories_service
+from app.services import wiki_format as wiki_format_service
 from app.services.audit import record_audit
 from app.services.trash import trash_story
 
@@ -112,6 +114,43 @@ async def get_story(
         ],
         chapters_truncated=len(chapters) > CHAPTER_LIST_CAP,
     )
+
+
+@router.get("/{story_id}/wiki-format", response_model=WikiFormatOut)
+async def get_wiki_format(
+    story_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> WikiFormatOut:
+    story = await stories_service.owned_story(session, story_id, user.id)
+    return WikiFormatOut.model_validate(wiki_format_service.resolve_wiki_format(story.wiki_format))
+
+
+@router.put("/{story_id}/wiki-format", response_model=WikiFormatOut)
+async def update_wiki_format(
+    story_id: UUID,
+    payload: WikiFormat,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> WikiFormatOut:
+    story = await stories_service.owned_story(session, story_id, user.id)
+    story.wiki_format = payload.model_dump()
+    await session.commit()
+    await session.refresh(story)
+    return WikiFormatOut.model_validate(wiki_format_service.resolve_wiki_format(story.wiki_format))
+
+
+@router.delete("/{story_id}/wiki-format", response_model=WikiFormatOut)
+async def reset_wiki_format(
+    story_id: UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> WikiFormatOut:
+    story = await stories_service.owned_story(session, story_id, user.id)
+    story.wiki_format = None
+    await session.commit()
+    await session.refresh(story)
+    return WikiFormatOut.model_validate(wiki_format_service.default_wiki_format())
 
 
 @router.get("/{story_id}/index-status", response_model=ChapterIndexStatusOut)

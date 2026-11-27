@@ -4,6 +4,7 @@ import {
 	EMPTY_FILTERS,
 	activeFilterLabels,
 	entityTypeLabel,
+	fieldsForType,
 	filtersForApi,
 	hasActiveFilters,
 	lastSeenLabel,
@@ -13,6 +14,7 @@ import {
 	parseFilters,
 	summariseAliases,
 	toSearchParams,
+	typeOptionsFor,
 } from '@/components/wiki/wiki-filters';
 
 describe('wiki filter URL state', () => {
@@ -58,6 +60,26 @@ describe('wiki filter URL state', () => {
 		expect(normalizeEntityType('9 lives')).toBe('type_9_lives');
 		expect(normalizeEntityType('')).toBe('other');
 		expect(entityTypeLabel('cursed_technique')).toBe('Cursed technique');
+	});
+
+	it('uses the story format for type labels, options, and fields', () => {
+		const format = {
+			version: 1 as const,
+			types: [
+				{
+					key: 'cursed_technique',
+					label: 'Cursed technique',
+					description: '',
+					sections: { summary: true, facts: true, relationships: false, aliases: false, appearances: true, threads: false },
+					fields: [{ key: 'element', label: 'Element', hint: '' }],
+				},
+			],
+		};
+		expect(entityTypeLabel('cursed_technique', format)).toBe('Cursed technique');
+		expect(activeFilterLabels({ ...EMPTY_FILTERS, type: 'cursed_technique' }, format)).toEqual(['Cursed technique']);
+		expect(typeOptionsFor(format)).toEqual(['cursed_technique']);
+		expect(fieldsForType(format, 'cursed_technique')).toHaveLength(1);
+		expect(typeOptionsFor(null)).toContain('character');
 	});
 });
 

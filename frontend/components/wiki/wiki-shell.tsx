@@ -4,11 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { AppShell } from "@/components/app-shell";
 import { AddEntityDialog } from "@/components/wiki/add-entity-dialog";
 import { StoryMobileNav } from "@/components/story-mobile-nav";
 import { CommandPalette } from "@/components/command-palette";
 import { SavedViews } from "@/components/wiki/saved-views";
-import { useArcs, useCanonCoverage, useChapters, useEntities, useStory } from "@/components/wiki/use-wiki";
+import { WikiFormatDialog } from "@/components/wiki/wiki-format-dialog";
+import { WikiFormatProvider } from "@/components/wiki/wiki-format-context";
+import { useArcs, useCanonCoverage, useChapters, useEntities, useStory, useWikiFormat } from "@/components/wiki/use-wiki";
+import { api, type WikiFormat } from "@/lib/api";
 import {
 	ENTITY_TYPES,
 	EMPTY_FILTERS,
@@ -28,6 +32,9 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 	const filters = useMemo(() => parseFilters(new URLSearchParams(searchParams.toString())), [searchParams]);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const [addOpen, setAddOpen] = useState(false);
+	const [formatOpen, setFormatOpen] = useState(false);
+	const [filtersOpen, setFiltersOpen] = useState(false);
+	const [user, setUser] = useState<string | null>(null);
 	const [newDismissed, setNewDismissed] = useState(false);
 	// ?new=1 is the deep link the command palette uses; closing clears it.
 	const newParam = searchParams.get("new");
@@ -50,26 +57,38 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 	);
 
 	const story = useStory(storyId);
+	const wikiFormat = useWikiFormat(storyId);
 	const arcs = useArcs(storyId);
 	const chapters = useChapters(storyId);
 	const coverage = useCanonCoverage(storyId);
 	const entities = useEntities(storyId, filtersForApi(filters));
 	const rows = useMemo(() => entities.data ?? [], [entities.data]);
+	const configuredTypes = useMemo(
+		() => wikiFormat.data?.types.map((item) => item.key) ?? ENTITY_TYPES,
+		[wikiFormat.data],
+	);
 	const typeOptions = useMemo(() => {
-		const seen = new Set<string>(ENTITY_TYPES);
+		const seen = new Set<string>(configuredTypes);
 		for (const row of rows) seen.add(row.entity_type);
 		if (filters.type) seen.add(filters.type);
 		return [...seen].sort((a, b) => {
-			const builtInA = ENTITY_TYPES.indexOf(a);
-			const builtInB = ENTITY_TYPES.indexOf(b);
-			if (builtInA !== -1 && builtInB !== -1) return builtInA - builtInB;
-			if (builtInA !== -1) return -1;
-			if (builtInB !== -1) return 1;
-			return entityTypeLabel(a).localeCompare(entityTypeLabel(b));
+			const configuredA = configuredTypes.indexOf(a);
+			const configuredB = configuredTypes.indexOf(b);
+			if (configuredA !== -1 && configuredB !== -1) return configuredA - configuredB;
+			if (configuredA !== -1) return -1;
+			if (configuredB !== -1) return 1;
+			return entityTypeLabel(a, wikiFormat.data).localeCompare(entityTypeLabel(b, wikiFormat.data));
 		});
-	}, [filters.type, rows]);
+	}, [configuredTypes, filters.type, rows, wikiFormat.data]);
+	const railFilterCount = Number(Boolean(filters.type)) + Number(Boolean(filters.status)) + Number(Boolean(filters.arc));
 	const currentArc = coverage.data?.arcs.find((arc) => arc.arc_id === coverage.data?.current_arc_id);
 	const currentArcIndex = currentArc ? (coverage.data?.arcs.indexOf(currentArc) ?? -1) + 1 : 0;
+
+	useEffect(() => {
+		let active = true;
+		api.me().then((me) => { if (active) setUser(me.username); }).catch(() => undefined);
+		return () => { active = false; };
+	}, []);
 
 	// `/` focuses search from anywhere on the page.
 	useEffect(() => {
@@ -95,20 +114,27 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 	};
 
 	return (
-		<main className="wiki-shell">
-			<aside className="wiki-rail" aria-label="Wiki filters">
-				<div className="rail-brand-row">
-					<button className="wordmark" onClick={() => void router.push("/dashboard")}>
-						<span className="wordmark-icon">s</span>stillroom
-					</button>
-					<Link className="back-link" href={`/stories/${storyId}`} aria-label="Back to the studio">
-						←
+		<AppShell active="wiki" user={user} showBottomNav={false}>
+			<div className="wiki-shell">
+				<aside className="wiki-rail" aria-label="Wiki filters" data-filters-open={filtersOpen ? "true" : "false"}>
+					<Link className="wiki-back-link" href={`/stories/${storyId}`}>
+						← Writing desk
 					</Link>
-				</div>
-				<div className="book-label">YOUR STORY</div>
-				<div className="rail-story-title" title={story.data?.title ?? ""}>
-					{story.data?.title ?? "Loading story…"}
-				</div>
+					<div className="book-label">STORY WIKI</div>
+					<div className="wiki-rail-title-row">
+						<div className="rail-story-title" title={story.data?.title ?? ""}>
+							{story.data?.title ?? "Loading story…"}
+						</div>
+						<button
+							type="button"
+							className="wiki-format-button"
+							onClick={() => setFormatOpen(true)}
+							disabled={!wikiFormat.data}
+							title="Choose entry types, sections, and fields"
+						>
+							Format
+						</button>
+					</div>
 
 				{coverage.data && coverage.data.chapters > 0 ? (
 					currentArc ? (
@@ -165,13 +191,22 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 							autoComplete="off"
 						/>
 					</label>
+					<button
+						type="button"
+						className="wiki-filter-toggle"
+						aria-expanded={filtersOpen}
+						onClick={() => setFiltersOpen((value) => !value)}
+					>
+						{filtersOpen ? "Hide filters" : "Filters"}
+						{railFilterCount ? ` · ${railFilterCount}` : ""}
+					</button>
 					<label className="wiki-select">
 						<span>Type</span>
 						<select value={filters.type} onChange={(event) => apply({ ...filters, type: event.target.value })}>
 							<option value="">Every type</option>
 							{typeOptions.map((type) => (
 								<option key={type} value={type}>
-									{entityTypeLabel(type)}
+									{entityTypeLabel(type, wikiFormat.data)}
 								</option>
 							))}
 						</select>
@@ -206,7 +241,7 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 					)}
 				</div>
 
-				<SavedViews filters={filters} onApply={apply} />
+				<SavedViews filters={filters} onApply={apply} types={wikiFormat.data?.types} />
 				<button className="button button-primary button-wide wiki-new-button" onClick={() => setAddOpen(true)}>
 					＋ New entry
 				</button>
@@ -215,13 +250,17 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 				</p>
 			</aside>
 
-			<section className="wiki-main">{children}</section>
+			<WikiFormatProvider format={wikiFormat.data ?? null}>
+				<section className="wiki-main">{children}</section>
+			</WikiFormatProvider>
 
 			<CommandPalette storyId={storyId} chapters={chapters.data ?? []} />
 
 			{dialogOpen && (
 				<AddEntityDialog
 					storyId={storyId}
+					format={wikiFormat.data}
+					initial={{ entityType: configuredTypes[0] ?? "character" }}
 					onClose={closeDialog}
 					onCreated={(entity) => {
 						closeDialog();
@@ -229,8 +268,12 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 					}}
 				/>
 			)}
+			{formatOpen && wikiFormat.data && (
+				<WikiFormatDialog storyId={storyId} format={wikiFormat.data} onClose={() => setFormatOpen(false)} />
+			)}
+			</div>
 			<StoryMobileNav storyId={storyId} />
-		</main>
+		</AppShell>
 	);
 }
 
@@ -242,6 +285,6 @@ export function WikiShell({ storyId, children }: { storyId: string; children: Re
 	);
 }
 
-export function activeFilterSummary(filters: WikiFilters): string {
-	return activeFilterLabels(filters).join(" · ");
+export function activeFilterSummary(filters: WikiFilters, format?: WikiFormat | null): string {
+	return activeFilterLabels(filters, format).join(" · ");
 }

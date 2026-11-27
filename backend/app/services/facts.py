@@ -1,8 +1,9 @@
 """Facts and relationships: provenance, review decisions, and supersession.
 
-A fact without provenance is a rumour. Every AI-written row must carry a chapter
-and a quote, and the quote's line numbers are located here rather than trusted
-from the caller. Accepted facts are the only ones the continuity context uses.
+Every AI-written row must carry a chapter and a quote, and the quote's line
+numbers are located here rather than trusted from the caller. A writer may add
+a field by hand without a manuscript source. Accepted facts are the only ones
+the continuity context uses.
 """
 
 from __future__ import annotations
@@ -81,19 +82,23 @@ async def get_fact(session: AsyncSession, fact_id: UUID) -> EntityFact:
 async def create_fact(
     session: AsyncSession, entity: Entity, payload: FactCreate, *, created_by: str = "human"
 ) -> EntityFact:
-    # A fact without a chapter is an opinion. Human and AI facts both carry one;
-    # AI facts must also carry a quote that is really in that chapter.
-    if payload.chapter_id is None:
+    # AI facts always carry a chapter and a checkable quote. A human may add a
+    # wiki field without one (a place's population, a character's age); it is
+    # still a fact, but it has no manuscript provenance to point at.
+    if payload.chapter_id is None and created_by == "ai":
         raise HTTPException(
-            status_code=422, detail="A fact needs the chapter it comes from."
+            status_code=422, detail="AI facts need the chapter they come from."
         )
-    chapter = await _owned_chapter(session, entity.story_id, payload.chapter_id)
-    chapter_number = chapter.chapter_number
+    chapter = None
+    chapter_number = None
+    if payload.chapter_id is not None:
+        chapter = await _owned_chapter(session, entity.story_id, payload.chapter_id)
+        chapter_number = chapter.chapter_number
     line_start, line_end = payload.line_start, payload.line_end
-    if payload.quote and line_start is None:
+    if chapter is not None and payload.quote and line_start is None:
         line_start, line_end = _locate(chapter, payload.quote)
     if created_by == "ai":
-        if not payload.quote:
+        if chapter is None or not payload.quote:
             raise HTTPException(
                 status_code=422, detail="AI facts need a chapter and a quote for provenance."
             )

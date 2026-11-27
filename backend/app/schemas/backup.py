@@ -1,6 +1,7 @@
 """Portable JSON backup: every story-owned row that is not derived or advisory."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,6 +17,7 @@ class BackupStory(BackupModel):
     scan_interval_words: int = Field(default=1500, ge=0)
     external_analysis_enabled: bool = False
     monthly_ai_budget: float = Field(default=0, ge=0)
+    wiki_format: dict[str, Any] | None = None
 
 
 class BackupArc(BackupModel):

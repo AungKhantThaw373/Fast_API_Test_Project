@@ -1067,7 +1067,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							<summary aria-label="Story menu" title="Story menu">⋯</summary>
 							<div>
 								<button className="menu-item" onClick={() => { setFocusMode((value) => !value); closeStoryMenu(); }}>{focusMode ? '◱ Exit focus mode' : '◱ Focus mode'}</button>
-								<button className="menu-item" onClick={() => { closeStoryMenu(); void navigate(`/stories/${storyId}/wiki`); }}>◇ Open full story wiki</button>
 								<button className="menu-item menu-settings" onClick={() => { closeStoryMenu(); void navigate(`/settings?section=ai&story=${encodeURIComponent(storyId)}`); }}>⚙ AI &amp; API settings</button>
 								{activeChapter && otherStories.length > 0 && (
 									<label className="menu-field">Move chapter to

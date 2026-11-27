@@ -4,7 +4,8 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 
 import { useEntitySearch } from "@/components/wiki/use-wiki";
-import { ENTITY_TYPE_LABELS, ENTITY_TYPES, entityTypeLabel } from "@/components/wiki/wiki-filters";
+import { useStoryWikiFormat } from "@/components/wiki/wiki-format-context";
+import { entityTypeLabel, typeOptionsFor } from "@/components/wiki/wiki-filters";
 import { api, type EntityType, type StoryDetails, type WikiEntity } from "@/lib/api";
 
 export type CaptureMode = "entity" | "fact" | "thread";
@@ -37,9 +38,10 @@ export function CaptureDialog({
 	onDone: (entity?: WikiEntity) => void;
 }) {
 	const quoted = selection.text.trim();
+	const format = useStoryWikiFormat();
 	const [mode, setMode] = useState<CaptureMode>(selection.mode);
 	const [name, setName] = useState(guessName(quoted));
-	const [entityType, setEntityType] = useState<EntityType>("character");
+	const [entityType, setEntityType] = useState<EntityType>(format?.types[0]?.key ?? "character");
 	const [title, setTitle] = useState(quoted.length > 120 ? `${quoted.slice(0, 117)}…` : quoted);
 	const [predicate, setPredicate] = useState("");
 	const [value, setValue] = useState("");
@@ -161,9 +163,9 @@ export function CaptureDialog({
 								<label>
 									<span>Type</span>
 									<select value={entityType} onChange={(event) => setEntityType(event.target.value as EntityType)}>
-										{ENTITY_TYPES.map((type) => (
+										{typeOptionsFor(format).map((type) => (
 											<option key={type} value={type}>
-												{ENTITY_TYPE_LABELS[type]}
+												{entityTypeLabel(type, format)}
 											</option>
 										))}
 									</select>
@@ -198,7 +200,7 @@ export function CaptureDialog({
 													}}
 												>
 													<strong>{entity.name}</strong>
-													<span>{entityTypeLabel(entity.entity_type)}</span>
+													<span>{entityTypeLabel(entity.entity_type, format)}</span>
 												</button>
 											</li>
 										))}

@@ -26,8 +26,9 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (250 tests)
-make test-frontend    # vitest (60 tests)
+make test             # backend pytest (257 tests)
+make test-frontend    # vitest (61 tests)
+make qa-wiki-format   # 22 story-wiki format/section/provenance checks
 make qa-phase6        # 8 Playwright local-AI checks
 make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
 make qa-phase8        # 15 diagnostics/account-data checks
@@ -97,7 +98,7 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   runbook/privacy/limitations docs. Release drills passed on a fresh database,
   a real scale backup, all exports, and a measured 30-minute mixed soak. The
   fixture is synthetic and the longest soak is 30 minutes, not 24 hours.
-- Backend: 250 tests pass, ruff and pyright clean, pip-audit clean.
+- Backend: 257 tests pass, ruff and pyright clean, pip-audit clean.
 - The separate draft-file library page and its upload/manage API are retired.
   Existing uploads stay in PostgreSQL and are still included in account export;
   no `/editing` page or endpoints are served.
@@ -105,16 +106,23 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   numbering and keep Wiki/Rename/Collection/Delete visible; chapters reorder by
   drag (or `Alt+Up/Down`) with no arrow buttons; arcs rename inline; loose
   chapters are grouped under **Unnamed**; **Full wiki** opens the whole story
-  wiki from the desk.
+  wiki from the desk, and that top-bar button is the only entry point (the old
+  story-menu duplicate is gone).
+- Each story owns its wiki shape in `stories.wiki_format`: editable entry types,
+  labels, descriptions, section switches, and custom fact-backed fields. The
+  default is only a starting skeleton; removing a type or section never deletes
+  entries or facts. Unknown types fall back to the full layout, and backups,
+  extraction, custom fields, and provenance all read the same format.
 - AI spend is recorded, not budget-gated. The monthly budget input, `402` guard,
   `budget_usd`/`remaining_usd` response fields, and `Story.monthly_ai_budget`
   API field are gone. The legacy DB column and backup schema remain only so old
   backups still restore; usage calls, spend, tokens, and the purpose ledger stay.
-- Frontend: lint, `tsc --noEmit`, `next build`, 60 vitest tests, and npm audit
+- Frontend: lint, `tsc --noEmit`, `next build`, 61 vitest tests, and npm audit
   clean. Expired sessions redirect once to `/login?next=<page>` and return there
   after sign-in (5 unit tests, 2 browser checks).
 - Browser QA: 8 Phase 7 suites / 85 checks, 15 Phase 8 checks, 10 Phase 9
-  storage checks, and 7 canon-coverage checks against the production build.
+  storage checks, 7 canon-coverage checks, and 22 wiki-format checks against
+  the production build.
 - CI workflow is committed but has never run on GitHub. Docker is not installed
   here, so the Compose stack has not been built or run.
 

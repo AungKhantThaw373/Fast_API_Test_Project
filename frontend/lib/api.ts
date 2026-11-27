@@ -427,6 +427,42 @@ export interface EntityAlias {
 	alias_type: "name" | "title" | "epithet" | "disguise" | "translation" | "other";
 }
 
+export type WikiSectionKey =
+	| "summary"
+	| "facts"
+	| "relationships"
+	| "aliases"
+	| "appearances"
+	| "threads";
+
+export interface WikiSectionFlags {
+	summary: boolean;
+	facts: boolean;
+	relationships: boolean;
+	aliases: boolean;
+	appearances: boolean;
+	threads: boolean;
+}
+
+export interface WikiFieldDefinition {
+	key: string;
+	label: string;
+	hint: string;
+}
+
+export interface WikiEntryType {
+	key: string;
+	label: string;
+	description: string;
+	sections: WikiSectionFlags;
+	fields: WikiFieldDefinition[];
+}
+
+export interface WikiFormat {
+	version: 1;
+	types: WikiEntryType[];
+}
+
 export interface WikiEntity {
 	id: string;
 	story_id: string;
@@ -742,6 +778,11 @@ export const api = {
 	storyIndexStatus: (storyId: string) => request<{ chapters: Array<Pick<Chapter, "id" | "revision" | "word_count" | "index_status" | "index_error" | "bible_scan_revision" | "bible_scan_error">>; worker_alive: boolean }>(`/stories/${storyId}/index-status`),
 	updateStory: (storyId: string, changes: Partial<Pick<Story, "title" | "collection_name" | "scan_interval_words" | "external_analysis_enabled">>) =>
 		request<Story>(`/stories/${storyId}`, { method: "PATCH", body: JSON.stringify(changes) }),
+	wikiFormat: (storyId: string) => request<WikiFormat>(`/stories/${storyId}/wiki-format`),
+	updateWikiFormat: (storyId: string, format: WikiFormat) =>
+		request<WikiFormat>(`/stories/${storyId}/wiki-format`, { method: "PUT", body: JSON.stringify(format) }),
+	resetWikiFormat: (storyId: string) =>
+		request<WikiFormat>(`/stories/${storyId}/wiki-format`, { method: "DELETE" }),
 	aiUsage: (storyId: string) => request<AIUsage>(`/stories/${storyId}/ai-usage`),
 	askStory: (storyId: string, question: string) => request<AskStoryResponse>(`/stories/${storyId}/ask`, { method: "POST", body: JSON.stringify({ question }) }),
 	queueScan: (chapterId: string, force = false) => request<ScanJob>(`/stories/chapters/${chapterId}/scan-job?force=${force}`, { method: "POST" }),

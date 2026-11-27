@@ -7,9 +7,11 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useConfirm } from "@/components/confirm-dialog";
+import { CustomFieldsSection } from "@/components/wiki/custom-fields-section";
 import { FactDialog, EMPTY_FACT, draftFromFact, type FactDraft } from "@/components/wiki/fact-dialog";
 import { FactSection } from "@/components/wiki/fact-section";
 import { MergeDialog } from "@/components/wiki/merge-dialog";
+import { useStoryWikiFormat } from "@/components/wiki/wiki-format-context";
 import {
 	useEntities,
 	useEntity,
@@ -19,12 +21,13 @@ import {
 	useStory,
 	useThreads,
 } from "@/components/wiki/use-wiki";
-import { ENTITY_TYPE_LABELS, ENTITY_TYPES, capitalise, entityTypeLabel, normalizeEntityType } from "@/components/wiki/wiki-filters";
+import { capitalise, entityTypeLabel, normalizeEntityType, typeOptionsFor } from "@/components/wiki/wiki-filters";
 import { api, type EntityFact, type EntityRelationship } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
 
 export function EntityDetail({ storyId, entityId }: { storyId: string; entityId: string }) {
 	const router = useRouter();
+	const format = useStoryWikiFormat();
 	const confirm = useConfirm();
 	const queryClient = useQueryClient();
 	const entity = useEntity(entityId);
@@ -132,12 +135,13 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 				: draft.valueType === "date"
 					? { value_date: draft.value }
 					: { value_text: draft.value };
+		const chapterId = draft.chapterId || null;
 		const payload = {
 			predicate: draft.predicate.trim(),
 			value_type: draft.valueType,
-			chapter_id: draft.chapterId,
-			quote: draft.quote.trim() || null,
-			line_start: draft.lineStart ? Number(draft.lineStart) : null,
+			chapter_id: chapterId,
+			quote: chapterId ? draft.quote.trim() || null : null,
+			line_start: chapterId && draft.lineStart ? Number(draft.lineStart) : null,
 			confidence: draft.confidence,
 			status: draft.status,
 			valid_from_chapter: draft.validFrom ? Number(draft.validFrom) : chapter?.chapter_number ?? null,
@@ -252,6 +256,12 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 
 	const detail = entity.data;
 	const lastAppearance = facts.data?.[0];
+	const typeConfig = format?.types.find((item) => item.key === detail.entity_type);
+	const sectionOn = (key: "summary" | "facts" | "relationships" | "aliases" | "appearances" | "threads") =>
+		typeConfig ? typeConfig.sections[key] : true;
+	const customFields = typeConfig?.fields ?? [];
+	const configuredPredicates = new Set(customFields.map((field) => field.key));
+	const typeOptions = typeOptionsFor(format);
 	return (
 		<div className="wiki-detail">
 			<header className="wiki-detail-head">
@@ -261,7 +271,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					</Link>
 					<h1>{detail.name}</h1>
 					<div className="wiki-detail-badges">
-						<span className="wiki-type-chip">{entityTypeLabel(detail.entity_type)}</span>
+						<span className="wiki-type-chip">{entityTypeLabel(detail.entity_type, format)}</span>
 						<span className={`wiki-status-chip status-${detail.status}`}>{capitalise(detail.status)}</span>
 						{detail.first_chapter_number && <span className="wiki-quiet">first seen ch. {detail.first_chapter_number}</span>}
 						{detail.last_chapter_number && <span className="wiki-quiet">last seen ch. {detail.last_chapter_number}</span>}
@@ -323,9 +333,9 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 						<span>Type</span>
 						<input name="type" defaultValue={detail.entity_type} list="entity-type-edit-suggestions" maxLength={32} />
 						<datalist id="entity-type-edit-suggestions">
-							{ENTITY_TYPES.map((value) => (
+							{typeOptions.map((value) => (
 								<option key={value} value={value}>
-									{ENTITY_TYPE_LABELS[value]}
+									{entityTypeLabel(value, format)}
 								</option>
 							))}
 						</datalist>
@@ -344,7 +354,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 						</button>
 					</div>
 				</form>
-			) : (
+			) : sectionOn("summary") ? (
 				<section className="wiki-detail-section" aria-labelledby="summary-heading">
 					<header className="wiki-section-head">
 						<h2 id="summary-heading">Summary</h2>
@@ -381,9 +391,10 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 						</div>
 					)}
 				</section>
-			)}
+			) : null}
 
-			<section className="wiki-detail-section" aria-labelledby="aliases-heading">
+			{sectionOn("aliases") && (
+				<section className="wiki-detail-section" aria-labelledby="aliases-heading">
 				<header className="wiki-section-head">
 					<h2 id="aliases-heading">Aliases</h2>
 					<button className="text-button" onClick={() => setAddingAlias(true)}>
@@ -434,19 +445,36 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 				)}
 				{addAlias.error instanceof Error && <p className="form-error">{addAlias.error.message}</p>}
 			</section>
+			)}
 
-			<FactSection
-				storyId={storyId}
-				entityId={entityId}
-				onAdd={() => setFactDialog({ fact: null })}
-				onEdit={(fact) => setFactDialog({ fact })}
-				onAccept={(fact) => decide.mutate({ fact, accept: true })}
-				onReject={(fact) => decide.mutate({ fact, accept: false })}
-				onDelete={(fact) => void deleteFact(fact)}
-				busyId={decide.isPending ? decide.variables?.fact.id ?? "" : ""}
-				entityNames={nameById}
-			/>
+			{sectionOn("facts") && (
+				<>
+					{customFields.length > 0 && (
+						<CustomFieldsSection
+							storyId={storyId}
+							entityId={entityId}
+							fields={customFields}
+							facts={factRows.data ?? []}
+							chapters={(story.data?.chapters ?? []).map((chapter) => ({ id: chapter.id, chapter_number: chapter.chapter_number }))}
+							onChanged={() => invalidateEntity(entityId)}
+						/>
+					)}
+					<FactSection
+						storyId={storyId}
+						entityId={entityId}
+						onAdd={() => setFactDialog({ fact: null })}
+						onEdit={(fact) => setFactDialog({ fact })}
+						onAccept={(fact) => decide.mutate({ fact, accept: true })}
+						onReject={(fact) => decide.mutate({ fact, accept: false })}
+						onDelete={(fact) => void deleteFact(fact)}
+						busyId={decide.isPending ? decide.variables?.fact.id ?? "" : ""}
+						entityNames={nameById}
+						hidePredicates={[...configuredPredicates]}
+					/>
+				</>
+			)}
 
+			{sectionOn("relationships") && (
 			<section className="wiki-detail-section" aria-labelledby="relationships-heading">
 				<header className="wiki-section-head">
 					<h2 id="relationships-heading">Relationships</h2>
@@ -476,7 +504,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 								.filter((row) => row.id !== entityId)
 								.map((row) => (
 									<option key={row.id} value={row.id}>
-										{row.name} · {entityTypeLabel(row.entity_type)}
+										{row.name} · {entityTypeLabel(row.entity_type, format)}
 									</option>
 								))}
 						</select>
@@ -566,7 +594,9 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					</div>
 				)}
 			</section>
+			)}
 
+			{sectionOn("appearances") && (
 			<section className="wiki-detail-section" aria-labelledby="appearances-heading">
 				<header className="wiki-section-head">
 					<h2 id="appearances-heading">Appearances and sources</h2>
@@ -593,7 +623,9 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					</ol>
 				)}
 			</section>
+			)}
 
+			{sectionOn("threads") && (
 			<section className="wiki-detail-section" aria-labelledby="threads-heading">
 				<header className="wiki-section-head">
 					<h2 id="threads-heading">Threads</h2>
@@ -615,15 +647,16 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					</ul>
 				)}
 			</section>
+			)}
 
 			{factDialog && (
 				<FactDialog
 					story={story.data}
 					entityName={detail.name}
-					suggestions={[...new Set((factRows.data ?? []).map((fact) => fact.predicate))]}
+					suggestions={[...new Set([...customFields.map((field) => field.key), ...(factRows.data ?? []).map((fact) => fact.predicate)])]}
 					initial={
 						factDialog.fact
-							? draftFromFact(factDialog.fact, story.data?.chapters[0]?.id ?? "")
+							? draftFromFact(factDialog.fact)
 							: { ...EMPTY_FACT, chapterId: story.data?.chapters[0]?.id ?? "" }
 					}
 					onClose={() => setFactDialog(null)}

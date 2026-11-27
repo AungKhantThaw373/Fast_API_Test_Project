@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useStoryWikiFormat } from "@/components/wiki/wiki-format-context";
 import { useEntities, useThreads } from "@/components/wiki/use-wiki";
 import {
 	entityTypeLabel,
@@ -17,13 +18,14 @@ import {
 	summariseAliases,
 	type WikiFilters,
 } from "@/components/wiki/wiki-filters";
-import type { WikiEntity } from "@/lib/api";
+import type { WikiEntity, WikiFormat } from "@/lib/api";
 
 const ROW_HEIGHT = 96;
 const VIRTUALISE_ABOVE = 100;
 
 export function EntityList({ storyId, filters }: { storyId: string; filters: WikiFilters }) {
 	const router = useRouter();
+	const format = useStoryWikiFormat();
 	const entities = useEntities(storyId, filtersForApi(filters));
 	const threads = useThreads(storyId);
 	const rows = useMemo(() => entities.data ?? [], [entities.data]);
@@ -99,7 +101,7 @@ export function EntityList({ storyId, filters }: { storyId: string; filters: Wik
 				<h2>{filtered ? "Nothing matches those filters." : "Your story has not been introduced yet."}</h2>
 				<p>
 					{filtered
-						? `Showing ${activeFilterLabels(filters).join(" · ")}.`
+						? `Showing ${activeFilterLabels(filters, format).join(" · ")}.`
 						: "The bible grows from the page: names, places, rules, and the promises between them."}
 				</p>
 				{!filtered && <div className="wiki-empty-steps"><span><b>01</b>Select a name in the paper.</span><span><b>02</b>Capture what the story knows.</span><span><b>03</b>Accept a fact to make it canon.</span></div>}
@@ -128,6 +130,7 @@ export function EntityList({ storyId, filters }: { storyId: string; filters: Wik
 							>
 								<EntityRow
 									entity={entity}
+									format={format}
 									threadCount={openThreadCount(entity.id, threads.data ?? [])}
 									selected={item.index === cursor}
 									onOpen={() => open(entity)}
@@ -141,6 +144,7 @@ export function EntityList({ storyId, filters }: { storyId: string; filters: Wik
 					<EntityRow
 						key={entity.id}
 						entity={entity}
+						format={format}
 						threadCount={openThreadCount(entity.id, threads.data ?? [])}
 						selected={index === cursor}
 						onOpen={() => open(entity)}
@@ -153,11 +157,13 @@ export function EntityList({ storyId, filters }: { storyId: string; filters: Wik
 
 function EntityRow({
 	entity,
+	format,
 	threadCount,
 	selected,
 	onOpen,
 }: {
 	entity: WikiEntity;
+	format: WikiFormat | null;
 	threadCount: number;
 	selected: boolean;
 	onOpen: () => void;
@@ -170,7 +176,7 @@ function EntityRow({
 				<span className="wiki-row-body">
 					<span className="wiki-row-head">
 						<strong>{entity.name}</strong>
-						<span className="wiki-type-chip">{entityTypeLabel(entity.entity_type)}</span>
+						<span className="wiki-type-chip">{entityTypeLabel(entity.entity_type, format)}</span>
 						{entity.status !== "active" && <span className={`wiki-status-chip status-${entity.status}`}>{entity.status}</span>}
 					</span>
 					<span className="wiki-row-summary">{oneLineSummary(entity)}</span>

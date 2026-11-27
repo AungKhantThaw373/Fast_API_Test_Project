@@ -18,12 +18,12 @@ export interface FactDraft {
 	validTo: string;
 }
 
-export function draftFromFact(fact: EntityFact, fallbackChapterId: string): FactDraft {
+export function draftFromFact(fact: EntityFact): FactDraft {
 	return {
 		predicate: fact.predicate,
 		value: fact.value_text ?? (fact.value_number !== null ? String(fact.value_number) : fact.value_date ?? ""),
 		valueType: fact.value_type,
-		chapterId: fact.chapter_id ?? fallbackChapterId,
+		chapterId: fact.chapter_id ?? "",
 		lineStart: fact.line_start ? String(fact.line_start) : "",
 		quote: fact.quote ?? "",
 		confidence: fact.confidence,
@@ -91,8 +91,8 @@ export function FactDialog({
 			setError("A fact needs a value.");
 			return;
 		}
-		if (!draft.chapterId) {
-			setError("Choose the chapter this comes from.");
+		if (draft.quote.trim() && !draft.chapterId) {
+			setError("Choose the chapter the quote comes from, or clear the quote.");
 			return;
 		}
 		setSaving(true);
@@ -114,7 +114,7 @@ export function FactDialog({
 				<Dialog.Content className="dialog-card" aria-describedby="fact-hint">
 					<Dialog.Title className="dialog-title">A fact about {entityName}</Dialog.Title>
 					<Dialog.Description id="fact-hint" className="dialog-hint">
-						Every fact needs the chapter it came from. A quote makes it checkable.
+						A chapter and quote make a fact checkable. You can also add a field by hand without either.
 					</Dialog.Description>
 					<form className="wiki-form" onSubmit={submit}>
 						<label>
@@ -145,7 +145,7 @@ export function FactDialog({
 						<label>
 							<span>Chapter</span>
 							<select value={draft.chapterId} onChange={(event) => setDraft({ ...draft, chapterId: event.target.value })}>
-								<option value="">Choose a chapter…</option>
+								<option value="">No chapter — a manual field</option>
 								{chapters.map((chapter) => (
 									<option key={chapter.id} value={chapter.id}>
 										{chapter.chapter_number}. {chapter.title}

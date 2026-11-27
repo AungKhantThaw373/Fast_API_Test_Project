@@ -1,4 +1,4 @@
-import type { EntityAlias, EntityType, WikiEntity } from "@/lib/api";
+import type { EntityAlias, EntityType, WikiEntity, WikiFormat } from "@/lib/api";
 
 export const ENTITY_TYPES: EntityType[] = [
 	"character",
@@ -24,8 +24,18 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 	other: "Other",
 };
 
-export function entityTypeLabel(value: string): string {
-	return ENTITY_TYPE_LABELS[value] ?? capitalise(value.replace(/_/g, " "));
+export function entityTypeLabel(value: string, format?: WikiFormat | null): string {
+	const configured = format?.types.find((item) => item.key === value);
+	return configured?.label ?? ENTITY_TYPE_LABELS[value] ?? capitalise(value.replace(/_/g, " "));
+}
+
+export function typeOptionsFor(format?: WikiFormat | null): EntityType[] {
+	if (!format?.types.length) return ENTITY_TYPES;
+	return format.types.map((item) => item.key);
+}
+
+export function fieldsForType(format: WikiFormat | null | undefined, value: string) {
+	return format?.types.find((item) => item.key === value)?.fields ?? [];
 }
 
 /** The API stores a short lowercase slug; spaces and punctuation become underscores. */
@@ -95,10 +105,10 @@ export function hasActiveFilters(filters: WikiFilters): boolean {
 	return Boolean(filters.type || filters.status || filters.arc || filters.q.trim());
 }
 
-export function activeFilterLabels(filters: WikiFilters): string[] {
+export function activeFilterLabels(filters: WikiFilters, format?: WikiFormat | null): string[] {
 	const labels: string[] = [];
 	if (filters.q.trim()) labels.push(`“${filters.q.trim()}”`);
-	if (filters.type) labels.push(entityTypeLabel(filters.type));
+	if (filters.type) labels.push(entityTypeLabel(filters.type, format));
 	if (filters.status) labels.push(filters.status === "archived" ? "Archived" : capitalise(filters.status));
 	return labels;
 }

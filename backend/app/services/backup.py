@@ -176,6 +176,7 @@ async def build_backup(session: AsyncSession, story: Story) -> StoryBackup:
             scan_interval_words=story.scan_interval_words,
             external_analysis_enabled=story.external_analysis_enabled,
             monthly_ai_budget=float(story.monthly_ai_budget),
+            wiki_format=story.wiki_format,
         ),
         arcs=[
             BackupArc(id=row.id, name=row.name, position=row.position, summary=row.summary)
@@ -290,6 +291,7 @@ async def import_backup(
         scan_interval_words=payload.story.scan_interval_words,
         external_analysis_enabled=payload.story.external_analysis_enabled,
         monthly_ai_budget=payload.story.monthly_ai_budget,
+        wiki_format=payload.story.wiki_format,
     )
     session.add(story)
     await session.flush()

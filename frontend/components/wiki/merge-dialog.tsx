@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 
 import { useEntitySearch } from "@/components/wiki/use-wiki";
+import { useStoryWikiFormat } from "@/components/wiki/wiki-format-context";
 import { entityTypeLabel } from "@/components/wiki/wiki-filters";
 import { api, type WikiEntity } from "@/lib/api";
 
@@ -18,6 +19,7 @@ export function MergeDialog({
 	onClose: () => void;
 	onMerged: (target: WikiEntity) => void;
 }) {
+	const format = useStoryWikiFormat();
 	const [term, setTerm] = useState("");
 	const [target, setTarget] = useState<WikiEntity | null>(null);
 	const [preview, setPreview] = useState<Record<string, number> | null>(null);
@@ -86,7 +88,7 @@ export function MergeDialog({
 									onClick={() => void choose(candidate)}
 								>
 									<strong>{candidate.name}</strong>
-									<span>{entityTypeLabel(candidate.entity_type)}</span>
+									<span>{entityTypeLabel(candidate.entity_type, format)}</span>
 									{candidate.summary && <small>{candidate.summary.slice(0, 90)}</small>}
 								</button>
 							</li>

@@ -994,7 +994,8 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   unlabelled list. Chapter numbers stay in the rail for orientation.
 - **Full wiki** in the desk top bar opens `/stories/{id}/wiki`. The right-pane
   Wiki tab remains the quick peek; the full page is now one click away on
-  desktop, and the mobile file menu has the same link.
+  desktop. The duplicate mobile file-menu link was removed; the top-bar control
+  is the single entry point.
 - Removed the monthly AI budget. The budget input, `402` guard,
   `budget_usd`/`remaining_usd` fields, and the `Story.monthly_ai_budget` API
   field are gone. The usage ledger still shows calls, spend, and tokens with a
@@ -1008,3 +1009,36 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   Playwright pass covered visible card actions, absent cover numbers, arc rename,
   drag reorder and cross-group filing, `Alt+Up/Down` reorder, the full-wiki
   title, dark and light screenshots, mobile overflow, and delete-to-trash.
+
+### Story-shaped wiki format
+
+- Each story now owns a `wiki_format` JSONB column: an ordered list of entry
+  types, section switches (summary, facts, relationships, aliases, appearances,
+  threads), and custom fields. The server fills a default skeleton when the
+  column is missing or malformed, so older stories keep working.
+- `GET/PUT/DELETE /stories/{id}/wiki-format` reads, saves, and restores that
+  format with ownership checks. Backups include it, and restore keeps it.
+- Extraction now receives the story format: the entity-type enum is narrowed to
+  the configured keys, the prompt names each type and field, and relationship
+  extraction skips type pairs whose format disables relationships.
+- The wiki rail has a **Format** editor. Every type, label, description, section,
+  and field is editable; types and fields can be added or removed. Removing a
+  type never deletes entries, and unknown types fall back to the full layout.
+- Entry detail renders only the enabled sections. Custom fields use ordinary
+  facts, so values keep provenance chips, review status, and source links; the
+  Facts list hides those same predicates to avoid duplication.
+- Human-created facts may now omit a chapter (a manual field). AI facts still
+  require a chapter and a quote that appears in it, verified server-side.
+- Removed the duplicate **Open full story wiki** item from the writing desk
+  story menu. The desk top-bar **Full wiki** button is the single entry point.
+  The full wiki uses the global app navigation and the fixed story nav on mobile;
+  the old vertical story links are hidden there, and the filter block collapses
+  behind one **Filters** button so entries stay above the fold.
+- Type labels, filter summaries, saved-view presets, and the headline count all
+  follow the story format instead of the hardcoded defaults. The broken
+  "Waiting for review" entity preset is gone; review lives on its own page.
+- Verification: **257 backend tests**, **61 Vitest tests**, and **22**
+  production-build Playwright checks; Ruff, Pyright, `tsc`, lint, and `next build`
+  clean. The browser pass covers the format dialog, section hiding, custom field
+  save/clear, provenance, the removed duplicate link, and the mobile filter
+  collapse.

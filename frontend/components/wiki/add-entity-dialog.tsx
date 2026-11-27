@@ -3,8 +3,8 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 
-import { api, type WikiEntity } from "@/lib/api";
-import { ENTITY_TYPE_LABELS, ENTITY_TYPES, normalizeEntityType } from "@/components/wiki/wiki-filters";
+import { api, type WikiEntity, type WikiFormat } from "@/lib/api";
+import { normalizeEntityType, typeOptionsFor } from "@/components/wiki/wiki-filters";
 import { toast } from "sonner";
 
 export interface EntityDraft {
@@ -30,6 +30,7 @@ export function AddEntityDialog({
 	onCreated,
 	title = "New wiki entry",
 	chapterId,
+	format,
 }: {
 	storyId: string;
 	initial?: Partial<EntityDraft>;
@@ -37,6 +38,7 @@ export function AddEntityDialog({
 	onCreated: (entity: WikiEntity) => void;
 	title?: string;
 	chapterId?: string | null;
+	format?: WikiFormat | null;
 }) {
 	const [draft, setDraft] = useState<EntityDraft>({ ...EMPTY_DRAFT, ...initial });
 	const [saving, setSaving] = useState(false);
@@ -110,13 +112,13 @@ export function AddEntityDialog({
 								maxLength={32}
 							/>
 							<datalist id="entity-type-suggestions">
-								{ENTITY_TYPES.map((type) => (
+								{typeOptionsFor(format).map((type) => (
 									<option key={type} value={type}>
-										{ENTITY_TYPE_LABELS[type]}
+										{format?.types.find((item) => item.key === type)?.label ?? type}
 									</option>
 								))}
 							</datalist>
-							<small>Any type works. Write what this novel calls it; the wiki remembers it.</small>
+							<small>These are the types in your format. Type another name if this entry needs its own kind.</small>
 						</label>
 						<label>
 							<span>Summary</span>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { capitalise, hasActiveFilters, toSearchParams, type WikiFilters } from "@/components/wiki/wiki-filters";
+import type { WikiEntryType } from "@/lib/api";
 
 const STORAGE_KEY = "stillroom:saved-views";
 
@@ -12,11 +13,25 @@ interface SavedView {
 }
 
 /** Views that are useful before anyone saves one. */
-const PRESETS: SavedView[] = [
+const TYPE_PRESETS: SavedView[] = [
 	{ name: "Characters", filters: { type: "character", status: "", arc: "", q: "" } },
 	{ name: "Places", filters: { type: "location", status: "", arc: "", q: "" } },
-	{ name: "Waiting for review", filters: { type: "other", status: "proposed", arc: "", q: "" } },
 ];
+function presetsFor(types?: Pick<WikiEntryType, "key" | "label">[]): SavedView[] {
+	if (!types?.length) return TYPE_PRESETS;
+	const seen = new Set<string>();
+	const typePresets: SavedView[] = [];
+	for (const type of types) {
+		if (seen.has(type.label)) continue;
+		seen.add(type.label);
+		typePresets.push({
+			name: type.label,
+			filters: { type: type.key, status: "", arc: "", q: "" },
+		});
+		if (typePresets.length === 2) break;
+	}
+	return typePresets;
+}
 
 function readViews(): SavedView[] {
 	if (typeof window === "undefined") return [];
@@ -37,10 +52,13 @@ function readViews(): SavedView[] {
 export function SavedViews({
 	filters,
 	onApply,
+	types,
 }: {
 	filters: WikiFilters;
 	onApply: (filters: WikiFilters) => void;
+	types?: Pick<WikiEntryType, "key" | "label">[];
 }) {
+	const presets = useMemo(() => presetsFor(types), [types]);
 	const [views, setViews] = useState<SavedView[]>([]);
 	const [naming, setNaming] = useState(false);
 	const [name, setName] = useState("");
@@ -104,7 +122,7 @@ export function SavedViews({
 					: "Set some filters, then save them."}
 			</p>
 			<ul className="saved-views-list">
-				{[...views, ...PRESETS.filter((preset) => !views.some((view) => view.name === preset.name))].map((view) => (
+				{[...views, ...presets.filter((preset) => !views.some((view) => view.name === preset.name))].map((view) => (
 					<li key={view.name}>
 						<button className="saved-view-apply" onClick={() => onApply(view.filters)}>
 							{capitalise(view.name)}

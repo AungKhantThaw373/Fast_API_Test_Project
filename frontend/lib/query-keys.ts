@@ -17,6 +17,7 @@ export const qk = {
 	me: () => ["me"] as const,
 	stories: () => ["stories"] as const,
 	story: (id: string) => ["story", id] as const,
+	wikiFormat: (id: string) => ["story", id, "wiki-format"] as const,
 	chapters: (id: string) => ["story", id, "chapters"] as const,
 	arcs: (id: string) => ["story", id, "arcs"] as const,
 	canon: (id: string) => ["story", id, "canon"] as const,

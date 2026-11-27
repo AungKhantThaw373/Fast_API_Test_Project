@@ -155,11 +155,13 @@ async def test_fact_requires_a_value_and_owned_chapter(user_client):
         f"/entities/{entity['id']}/facts", json={"predicate": "eye_color"}
     )
     assert empty.status_code == 422
-    no_chapter = await user_client.post(
+    # A writer may add a field value by hand without a manuscript source.
+    manual = await user_client.post(
         f"/entities/{entity['id']}/facts", json={"predicate": "eye_color", "value_text": "grey"}
     )
-    assert no_chapter.status_code == 422
-    assert "chapter" in no_chapter.json()["detail"]
+    assert manual.status_code == 201, manual.text
+    assert manual.json()["chapter_id"] is None
+    assert manual.json()["created_by"] == "human"
 
     foreign = await _story(user_client, "Other")
     other_chapter = await _chapter(user_client, foreign)

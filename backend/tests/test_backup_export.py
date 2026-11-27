@@ -64,6 +64,19 @@ async def _story_with_wiki(client):
 
 async def test_backup_round_trip_restores_content_and_graph(user_client):
     story_id, chapter, entity = await _story_with_wiki(user_client)
+    custom = {
+        "version": 1,
+        "types": [
+            {
+                "key": "technique",
+                "label": "Technique",
+                "sections": {"relationships": False},
+                "fields": [{"key": "element", "label": "Element"}],
+            }
+        ],
+    }
+    saved_format = await user_client.put(f"/stories/{story_id}/wiki-format", json=custom)
+    assert saved_format.status_code == 200, saved_format.text
     exported = await user_client.get(f"/stories/{story_id}/backup")
     assert exported.status_code == 200, exported.text
     data = exported.json()
@@ -73,6 +86,7 @@ async def test_backup_round_trip_restores_content_and_graph(user_client):
     assert data["entities"][0]["facts"][0]["status"] == "accepted"
     assert data["threads"][0]["title"] == "Who lit the lantern?"
     assert data["chapter_meta"][0]["synopsis"] == "Mira finds the gate unlocked."
+    assert data["story"]["wiki_format"]["types"][0]["key"] == "technique"
 
     restored = await user_client.post("/stories/import-backup", json=data)
     assert restored.status_code == 201, restored.text
@@ -97,6 +111,8 @@ async def test_backup_round_trip_restores_content_and_graph(user_client):
     assert facts.json()["facts"][0]["predicate"] == "carries"
     threads = await user_client.get(f"/stories/{new_id}/threads")
     assert threads.json()["threads"][0]["setup_chapter_id"] == new_chapter["id"]
+    restored_format = await user_client.get(f"/stories/{new_id}/wiki-format")
+    assert restored_format.json()["types"][0]["key"] == "technique"
 
 
 async def test_backup_rejects_unknown_format_version(user_client):

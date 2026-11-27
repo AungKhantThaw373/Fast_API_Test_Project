@@ -14,7 +14,7 @@ const NAV: { id: AppSection; href: string; label: string }[] = [
 	{ id: 'diagnostics', href: '/diagnostics', label: 'Diagnostics' },
 ];
 
-export function AppShell({ active, user, children }: { active: AppSection; user?: string | null; children: React.ReactNode }) {
+export function AppShell({ active, user, showBottomNav = true, children }: { active: AppSection; user?: string | null; showBottomNav?: boolean; children: React.ReactNode }) {
 	const router = useRouter();
 	const initial = (user?.trim()?.[0] ?? 's').toUpperCase();
 
@@ -55,11 +55,13 @@ export function AppShell({ active, user, children }: { active: AppSection; user?
 				</header>
 				{children}
 			</div>
-			<nav className="app-bottom-nav" aria-label="Workspace">
-				{NAV.map((item) => (
-					<Link key={item.id} href={item.href} aria-current={active === item.id ? 'page' : undefined}>{item.label}</Link>
-				))}
-			</nav>
+			{showBottomNav && (
+				<nav className="app-bottom-nav" aria-label="Workspace">
+					{NAV.map((item) => (
+						<Link key={item.id} href={item.href} aria-current={active === item.id ? 'page' : undefined}>{item.label}</Link>
+					))}
+				</nav>
+			)}
 		</div>
 	);
 }

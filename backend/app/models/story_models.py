@@ -43,6 +43,9 @@ class Story(Base):
     collection_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     scan_interval_words: Mapped[int] = mapped_column(Integer, nullable=False, default=1500)
     external_analysis_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Per-story wiki shape: entry types, section switches, and custom fields.
+    # Null means the default skeleton in services/wiki_format.py.
+    wiki_format: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     # Retained in backups for compatibility; AI usage is recorded, not budget-gated.
     monthly_ai_budget: Mapped[float] = mapped_column(
         Numeric(12, 4), nullable=False, default=0, server_default="0"
