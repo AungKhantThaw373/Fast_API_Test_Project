@@ -828,9 +828,14 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   removed.
 - Formatting is discoverable and no longer leaves empty markup. Bold, italic,
   underline, strike, highlight, and colour insert selectable placeholder words
-  when nothing is selected. Applying the same format again unwraps it. The
-  highlight control has its own amber treatment, Clear is named, and the colour
-  menu has ten inks with a gradient summary instead of a raw swatch row.
+  when nothing is selected. A shared nested parser paints `***bold italic***`,
+  `<u>`, `~~`, `==`, and coloured spans together instead of exposing the inner
+  delimiters. Applying the same format again unwraps the innermost pair, whether
+  the caret is inside it or just after its closing marker. Clear strips complete
+  marker runs (including `***`), and a stray trailing `==` is cleaned by toggling
+  Highlight at the caret. The highlight control has its own amber treatment,
+  Clear is named, and the colour menu has ten inks with a gradient summary
+  instead of a raw swatch row.
 - Replaced the green/cream cast with a cool paper/slate system across the studio,
   library, files, settings, and auth. Dark mode uses navy surfaces throughout
   (`--sr-canvas #0f141b`, `--sr-paper #212b38`, `--sr-rail #151b23`); login
@@ -845,5 +850,5 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   passed **8/8 suites, 85 checks** against the production build. The final
   colour-only pass was rebuilt and manually checked for the desk toggle in focus
   mode, two-line titles, dark inputs, and the dashboard rail footer.
-- Final checks: `npm test -- --run` 52/52, `npx tsc --noEmit` clean,
+- Final checks: `npm test -- --run` 58/58, `npx tsc --noEmit` clean,
   `npm run lint` 0 errors (4 pre-existing warnings), `npm run build` clean.
