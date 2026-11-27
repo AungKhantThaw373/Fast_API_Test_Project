@@ -41,6 +41,8 @@ await page.goto(WEB + '/stories/' + story.id);
 await page.locator('.cm-content').waitFor({ timeout: 30000 });
 const before = await page.locator('.cm-content').innerText();
 
+await page.locator('.desk-toggle').click();
+await page.getByRole('tab', { name: /Review/ }).click();
 await page.getByRole('tab', { name: 'Style' }).click();
 await page.locator('.style-panel').waitFor({ timeout: 10000 });
 const stats = await page.locator('.style-stats').innerText();

@@ -34,6 +34,7 @@ page.on('pageerror', (error) => errors.push(String(error)));
 const [name, value] = rawCookie.split('=');
 await context.addCookies([{ name, value, domain: '127.0.0.1', path: '/' }]);
 await page.goto(WEB + '/stories/' + story.id);
+if (!(await page.getByRole('button', { name: /Export manuscript/ }).isVisible())) await page.locator('.mobile-file-menu > summary').click();
 await page.getByRole('button', { name: /Export manuscript/ }).click();
 await page.getByRole('dialog', { name: 'Export' }).waitFor();
 check('export panel opens', await page.getByText('Whole-story backup').isVisible());

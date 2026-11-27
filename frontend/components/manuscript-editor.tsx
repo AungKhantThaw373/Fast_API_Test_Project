@@ -547,7 +547,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 				if (!pair) return;
 				const before = state.sliceDoc(Math.max(0, selection.from - pair.length), selection.from);
 				const after = state.sliceDoc(selection.to, Math.min(state.doc.length, selection.to + closing.length));
-				if (before === pair && after === closing) {
+				if (selected && before === pair && after === closing) {
 					view.dispatch({
 						changes: [
 							{ from: selection.from - pair.length, to: selection.from },
@@ -557,7 +557,10 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 					});
 					return;
 				}
-				const body = selected;
+				// An empty selection used to insert a pair of bare markers (****) that
+				// the inline renderer could not hide. Seed selectable text instead, so
+				// the toolbar always produces something visible and typing replaces it.
+				const body = selected || (command === 'highlight' ? 'highlighted text' : command === 'strike' ? 'struck text' : command === 'underline' ? 'underlined text' : color ? 'coloured text' : command === 'italic' ? 'italic text' : 'bold text');
 				view.dispatch({
 					changes: { from: selection.from, to: selection.to, insert: pair + body + closing },
 					selection: { anchor: selection.from + pair.length, head: selection.from + pair.length + body.length },

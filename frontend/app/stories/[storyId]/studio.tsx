@@ -29,6 +29,7 @@ import { lineText } from '@/lib/selection';
 import { analyzeStyle, type StyleIssue } from '@/lib/style-analysis';
 
 type Pane = 'notes' | 'wiki' | 'threads' | 'findings' | 'mentions' | 'find' | 'style' | 'recap';
+const REVIEW_PANES: ReadonlySet<Pane> = new Set(['findings', 'mentions', 'style', 'recap']);
 
 function wordCount(text: string) {
 	const prose = text.replace(/\*\*|~~|==|<[^>]+>|\*/g, '');
@@ -93,16 +94,31 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [scanProgress, setScanProgress] = useState<{ scenes_done?: number; scenes_total?: number; scenes_failed?: number } | null>(null);
 	const [lastScan, setLastScan] = useState<{ chapterId: string; revision: number } | null>(null);
 	const [focusMode, setFocusMode] = useState(false);
-	const [paneOpen, setPaneOpen] = useState(true);
+	const [paneOpen, setPaneOpen] = useState(false);
 	const [mobileDeskOpen, setMobileDeskOpen] = useState(false);
+	const storyMenuRef = useRef<HTMLDetailsElement>(null);
+	const closeStoryMenu = () => {
+		if (storyMenuRef.current) storyMenuRef.current.open = false;
+	};
 	const openDeskPane = (next: Pane) => {
 		setPane(next);
 		setPaneOpen(true);
 		setMobileDeskOpen(true);
+		setFocusMode(false);
 	};
 	const closeDesk = () => {
 		setPaneOpen(false);
 		setMobileDeskOpen(false);
+	};
+	const toggleDesk = () => {
+		if (focusMode) {
+			setFocusMode(false);
+			setPaneOpen(true);
+			setMobileDeskOpen(true);
+			return;
+		}
+		if (paneOpen) closeDesk();
+		else openDeskPane(pane);
 	};
 	const [arcs, setArcs] = useState<StoryArc[]>([]);
 	const [paneWidth, setPaneWidth] = useState(() => {
@@ -113,6 +129,14 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [error, setError] = useState('');
 	const [notice, setNotice] = useState('');
 	const [exportOpen, setExportOpen] = useState(false);
+	useEffect(() => {
+		const closeOnOutside = (event: PointerEvent) => {
+			const menu = storyMenuRef.current;
+			if (!exportOpen && menu?.open && !menu.contains(event.target as Node)) menu.open = false;
+		};
+		document.addEventListener('pointerdown', closeOnOutside);
+		return () => document.removeEventListener('pointerdown', closeOnOutside);
+	}, [exportOpen]);
 	const {
 		saveState,
 		setSaveState,
@@ -911,8 +935,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		window.setTimeout(() => locateLine(finding.draft_line), 0);
 	}
 
-	function openEntity() {
-		openDeskPane('wiki');
+	function openEntity(entityId: string) {
+		void go(`/stories/${storyId}/wiki/${entityId}`);
 	}
 
 	function handleFindingAction(finding: ContinuityFinding, action: 'resolve' | 'dismiss' | 'intentional') {
@@ -959,13 +983,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			<aside className="chapter-rail">
 				<div className="rail-brand-row"><button className="wordmark" onClick={() => void go("/dashboard")}><span className="wordmark-icon">s</span>stillroom</button><button className="back-link" onClick={() => void go("/dashboard")} aria-label="Back to stories">←</button></div>
 				<div className="book-label">YOUR STORY</div><div className="rail-story-title" title={story.title}>{story.title}</div>
-				<nav className="story-rail-nav rail-modes" aria-label="Story sections">
-					<button className={paneOpen && pane === 'notes' ? 'active' : ''} onClick={closeDesk}><span>✎</span>Write</button>
-					<button className={paneOpen && pane === 'wiki' ? 'active' : ''} onClick={() => openDeskPane('wiki')}><span>✳</span>Wiki</button>
-					<button className={paneOpen && pane === 'findings' ? 'active' : ''} onClick={() => openDeskPane('findings')}><span>⚑</span>Review</button>
-					<button className={paneOpen && pane === 'threads' ? 'active' : ''} onClick={() => openDeskPane('threads')}><span>↝</span>Threads</button>
-					<button className={'mobile-only-nav' + (paneOpen && pane === 'find' ? ' active' : '')} onClick={() => openDeskPane('find')}><span>⌕</span>Find</button>
-				</nav>
 				<div className="chapter-list-heading"><span>CHAPTERS</span><span>{chapters.length}</span></div>
 				<ChapterRail
 					chapters={chapters}
@@ -978,17 +995,14 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					onCreateArc={createArc}
 				/>
 				<button className="new-chapter-button" onClick={() => void addChapter()}>＋ <span>New chapter</span></button>
-				{activeChapter && otherStories.length > 0 && <label className="move-chapter-control"><span>Move active chapter</span><select defaultValue="" onChange={(event) => { if (event.target.value) void moveActiveChapter(event.target.value); event.target.value = ''; }}><option value="">Choose a story…</option>{otherStories.map((item) => <option value={item.id} key={item.id}>{item.title}</option>)}</select></label>}
-				<label className="import-button">↥ <span>Import .txt or .md</span><input type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(event) => void importManuscript(event)} /></label>
-				<button className="import-button" onClick={() => setExportOpen(true)}>↓ <span>Export manuscript</span></button>
-				<div className="rail-footer"><span className="quiet-dot" /> Your words stay yours <ThemeToggle compact /></div>
+				<div className="rail-footer"><button className="rail-settings-link" onClick={() => void go('/settings#ai')}>⚙ AI &amp; API settings</button><ThemeToggle compact /></div>
 			</aside>
 
 			<section className="writing-column">
 				<header className="studio-topbar">
 					<div className="studio-breadcrumb"><button className="text-button" onClick={() => void go("/dashboard")}>Stories</button><span>/</span><span>{story.title}</span></div>
 					<div className="mobile-chapter-row">{chapters.length > 0 && <label className="mobile-chapter-picker"><span className="sr-only">Chapter</span><select value={activeId ?? ''} onChange={(event) => { const next = chapters.find((chapter) => chapter.id === event.target.value); if (next) void selectChapter(next); }}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.id}>{String(chapter.chapter_number).padStart(2, '0')} · {chapter.title}</option>)}</select></label>}<button className="mobile-new-chapter" onClick={() => void addChapter()} aria-label="New chapter">＋</button></div>
-					<div className="studio-actions"><button className="studio-section-link" onClick={() => openDeskPane('find')}>Find in story</button><button className="studio-section-link" onClick={() => void go('/editing')}>Editing files</button><ThemeToggle compact />{(() => {
+					<div className="studio-actions">{(() => {
 						const status = saveStatus(saveState);
 						const isError = status.tone === 'error';
 						return (
@@ -997,7 +1011,31 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 								{(saveState.status === 'error' || saveState.status === 'conflict') && <button className="text-button" onClick={() => void flushSaves()}>Retry</button>}
 							</span>
 						);
-					})()}<button className="quiet-button focus-toggle" onClick={() => setFocusMode((value) => !value)}>{focusMode ? 'Show desk' : 'Focus'}</button><details className="mobile-file-menu"><summary aria-label="Story files" title="Story files">⋯</summary><div><label className="import-button">↥ Import .txt or .md<input type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(event) => void importManuscript(event)} /></label><button className="import-button" onClick={() => setExportOpen(true)}>↓ Export manuscript</button></div></details></div>
+					})()}
+						<button className={'desk-toggle' + (paneOpen ? ' is-open' : '')} onClick={toggleDesk} aria-expanded={paneOpen} aria-controls="chapter-desk">
+							<span aria-hidden="true">▤</span><span className="desk-toggle-label">Desk</span>
+						</button>
+						<span className="studio-theme"><ThemeToggle compact /></span>
+						<details className="mobile-file-menu" ref={storyMenuRef}>
+							<summary aria-label="Story menu" title="Story menu">⋯</summary>
+							<div>
+								<button className="menu-item" onClick={() => { setFocusMode((value) => !value); closeStoryMenu(); }}>{focusMode ? '◱ Exit focus mode' : '◱ Focus mode'}</button>
+								<button className="menu-item menu-settings" onClick={() => { closeStoryMenu(); void go('/settings#ai'); }}>⚙ AI &amp; API settings</button>
+								<button className="menu-item" onClick={() => { closeStoryMenu(); void go('/editing'); }}>▤ Editing files</button>
+								{activeChapter && otherStories.length > 0 && (
+									<label className="menu-field">Move chapter to
+										<select defaultValue="" onChange={(event) => { if (event.target.value) void moveActiveChapter(event.target.value); event.target.value = ''; closeStoryMenu(); }}>
+											<option value="">Choose a story…</option>
+											{otherStories.map((item) => <option value={item.id} key={item.id}>{item.title}</option>)}
+										</select>
+									</label>
+								)}
+								<span className="menu-separator" aria-hidden="true" />
+								<label className="import-button">↥ Import .txt or .md<input type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(event) => { closeStoryMenu(); void importManuscript(event); }} /></label>
+								<button className="import-button" onClick={() => setExportOpen(true)}>↓ Export manuscript</button>
+							</div>
+						</details>
+					</div>
 				</header>
 				{error && <div className="studio-notice error-notice" role="alert">{error}</div>}
 				{notice && <div className="studio-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice('')}>×</button></div>}
@@ -1066,10 +1104,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				]}
 			/>
 
-			{!focusMode && !paneOpen && (
-				<button className="pane-reopen" onClick={() => setPaneOpen(true)} title="Show the desk (Ctrl/Cmd + .)">‹ Desk</button>
-			)}
-			{!focusMode && paneOpen && <aside className={'insights-pane' + (mobileDeskOpen ? ' is-mobile-open' : '')} style={{ width: paneWidth }}>
+			{!focusMode && paneOpen && <aside id="chapter-desk" className={'insights-pane' + (mobileDeskOpen ? ' is-mobile-open' : '')} style={{ width: paneWidth }}>
 				<button className="pane-mobile-close" aria-label="Close the desk" title="Close the desk" onClick={closeDesk}>×</button>
 				<button
 					className="pane-resize"
@@ -1092,17 +1127,21 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					}}
 				/>
 				<div className="insights-heading"><div><div className="eyebrow">THE STORY, REMEMBERED</div><h2>Chapter desk</h2></div><span className="provider-status">{story.external_analysis_enabled ? 'AI checks on' : 'AI checks off'}</span></div>
-								<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages">
+				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages">
 					<button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Desk</button>
 					<button role="tab" aria-selected={pane === 'wiki'} className={pane === 'wiki' ? 'active' : ''} onClick={() => setPane('wiki')}>Wiki <span>{wikiEntities.length}</span></button>
+					<button role="tab" aria-selected={REVIEW_PANES.has(pane)} className={REVIEW_PANES.has(pane) ? 'active' : ''} onClick={() => setPane('findings')}>Review <span>{currentFindings.filter((item) => item.review_status === 'open').length}</span></button>
 					<button role="tab" aria-selected={pane === 'threads'} className={pane === 'threads' ? 'active' : ''} onClick={() => setPane('threads')}>Threads <span>{openThreads}</span></button>
-					<button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button>
-					<button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button>
-					<button role="tab" aria-selected={pane === 'style'} className={pane === 'style' ? 'active' : ''} onClick={() => setPane('style')}>Style</button>
-					<button role="tab" aria-selected={pane === 'recap'} className={pane === 'recap' ? 'active' : ''} onClick={() => setPane('recap')}>Recap</button>
 					<button role="tab" aria-selected={pane === 'find'} className={pane === 'find' ? 'active' : ''} onClick={() => setPane('find')}>Find</button>
-					<button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={closeDesk}>›</button>
 				</div>
+				{REVIEW_PANES.has(pane) && (
+					<div className="review-subtabs" role="tablist" aria-label="Review pages">
+						<button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button>
+						<button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button>
+						<button role="tab" aria-selected={pane === 'style'} className={pane === 'style' ? 'active' : ''} onClick={() => setPane('style')}>Style</button>
+						<button role="tab" aria-selected={pane === 'recap'} className={pane === 'recap' ? 'active' : ''} onClick={() => setPane('recap')}>Recap</button>
+					</div>
+				)}
 				<div className="pane-content">
 					{pane === 'notes' && <section className="notes-pane desk-cockpit">
 						<section className="desk-hero">
@@ -1110,7 +1149,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 								<div className="desk-orb"><span>{activeChapter ? String(activeChapter.chapter_number).padStart(2, '0') : '—'}</span><small>chapter</small></div>
 								<div><div className="eyebrow">OPEN ON THE DESK</div><h2>{activeChapter ? activeChapter.title : 'No chapter open'}</h2><p>{chapterMentions.length} remembered {chapterMentions.length === 1 ? 'detail' : 'details'} · {openThreads} open {openThreads === 1 ? 'loop' : 'loops'}</p></div>
 							</div>
-							<div className="desk-progress"><span><b>{words.toLocaleString()}</b> words this chapter</span>{editorPreferences.wordGoal > 0 ? <><span>{Math.min(100, Math.round((words / editorPreferences.wordGoal) * 100))}% of daily goal</span><i><b style={{ width: `${Math.min(100, (words / editorPreferences.wordGoal) * 100)}%` }} /></i></> : <span>Set a daily goal in the pen menu</span>}</div>
+							<div className="desk-progress"><span><b>{words.toLocaleString()}</b> words this chapter</span>{editorPreferences.wordGoal > 0 ? <><span>{Math.min(100, Math.round((words / editorPreferences.wordGoal) * 100))}% of daily goal</span><i><b style={{ width: `${Math.min(100, (words / editorPreferences.wordGoal) * 100)}%` }} /></i></> : <span>Set a daily goal in the ⋯ menu</span>}</div>
 						</section>
 						<div className="desk-actions">
 							<button onClick={() => openDeskPane('findings')}><span>⚑</span><b>Review</b><small>{currentFindings.filter((item) => item.review_status === 'open').length} open</small></button>

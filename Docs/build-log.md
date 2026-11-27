@@ -813,3 +813,37 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   validation, and one-shot behavior. Phase 8 browser QA gained two checks for
   revoking the current session, redirecting to `/login?next=%2Fsettings`, and
   returning to settings after sign-in: **15/15**.
+
+### Writing workspace overhaul (post-release)
+
+- Rebuilt the studio hierarchy instead of recolouring it. The chapter rail now
+  holds only the story, chapters, arc folders, AI settings, and one theme
+  control. Write/Wiki/Review/Threads duplicated the desk tabs, so that left nav
+  is gone. The desk is the sole tool surface, starts closed, and does not reserve
+  width until opened. Focus lives only in the `⋯` menu; Find lives only in the
+  desk; the desk toggle is the only panel control.
+- The desk keeps Desk, Wiki, Review (Findings, Mentions, Style, Recap), Threads,
+  and Find. Review is one tab with four subtabs instead of three competing
+  entries. Arc assignment is drag-and-drop only; the per-chapter arc select was
+  removed.
+- Formatting is discoverable and no longer leaves empty markup. Bold, italic,
+  underline, strike, highlight, and colour insert selectable placeholder words
+  when nothing is selected. Applying the same format again unwraps it. The
+  highlight control has its own amber treatment, Clear is named, and the colour
+  menu has ten inks with a gradient summary instead of a raw swatch row.
+- Replaced the green/cream cast with a cool paper/slate system across the studio,
+  library, files, settings, and auth. Dark mode uses navy surfaces throughout
+  (`--sr-canvas #0f141b`, `--sr-paper #212b38`, `--sr-rail #151b23`); login
+  fields, editor popovers, arc counts, and dashboard rails no longer inherit the
+  old olive fills. The rail footer pairs theme and sign-out instead of stacking
+  them.
+- The dashboard now opens with a navy library hero and rust/slate/blue/amber/
+  purple/wine covers; no green covers. Story titles in the rail clamp to two
+  lines instead of overflowing into a single clipped line.
+- Browser QA followed the new structure: arc assignment by drag, Find under the
+  desk, style/recap under Review, and export through the `⋯` menu. Phase 7
+  passed **8/8 suites, 85 checks** against the production build. The final
+  colour-only pass was rebuilt and manually checked for the desk toggle in focus
+  mode, two-line titles, dark inputs, and the dashboard rail footer.
+- Final checks: `npm test -- --run` 52/52, `npx tsc --noEmit` clean,
+  `npm run lint` 0 errors (4 pre-existing warnings), `npm run build` clean.

@@ -176,8 +176,8 @@ function DashboardInner() {
 		let hash = 0;
 		for (const character of story.title) hash = (hash * 31 + character.charCodeAt(0)) % 360;
 		const palettes = [
-			['#2f4938', '#7d9475'], ['#7b3e32', '#c4866b'], ['#3f5268', '#8aa0b6'],
-			['#6a532f', '#b59b68'], ['#4d3c58', '#9d839f'], ['#33534f', '#83aaa0'],
+			['#1e293b', '#64748b'], ['#7c2d12', '#c2704a'], ['#1e3a5f', '#3b82f6'],
+			['#78350f', '#b45309'], ['#3b0764', '#7e22ce'], ['#4c1d2f', '#a34d6b'],
 		];
 		const pair = palettes[hash % palettes.length];
 		return { background: `linear-gradient(145deg, ${pair[0]}, ${pair[1]})` };

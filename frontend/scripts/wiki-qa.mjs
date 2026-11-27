@@ -269,9 +269,8 @@ async function main() {
 	await page.keyboard.press("Enter");
 	await page.waitForSelector(".arc-group-toggle:has-text('The watch')", { timeout: 20_000 });
 	check("create an arc from the rail", await page.locator(".arc-group-toggle", { hasText: "The watch" }).isVisible());
-	const arcSelect = page.locator(".chapter-arc-select").first();
-	await arcSelect.selectOption({ label: "The watch" });
-	// The select updates optimistically; the count comes from the server.
+	await page.locator('.chapter-nav-block').first().dragTo(page.locator('.arc-folder', { hasText: 'The watch' }));
+	// The drop updates optimistically; the count comes from the server.
 	const arcsNow = await (async () => {
 		for (let attempt = 0; attempt < 20; attempt += 1) {
 			const rows = await request(`/stories/${story.id}/arcs`, {}, cookie);
@@ -280,7 +279,7 @@ async function main() {
 		}
 		return request(`/stories/${story.id}/arcs`, {}, cookie);
 	})();
-	check("assign a chapter to an arc", arcsNow[0]?.chapter_count === 1, JSON.stringify(arcsNow.map((a) => [a.name, a.chapter_count])));
+	check("drag a chapter into an arc", arcsNow[0]?.chapter_count === 1, JSON.stringify(arcsNow.map((a) => [a.name, a.chapter_count])));
 	await page.locator(".arc-group-toggle", { hasText: "The watch" }).click();
 	await page.waitForTimeout(300);
 	check("arc groups collapse", (await page.locator(".arc-group-toggle", { hasText: "The watch" }).getAttribute("aria-expanded")) === "false");

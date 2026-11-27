@@ -75,7 +75,8 @@ async function main() {
 	await page.goto(`${WEB}/stories/${story.id}`);
 	await page.waitForSelector(".manuscript-editor", { timeout: 20_000 });
 
-	await page.getByRole("button", { name: "Find in story" }).click();
+	await page.locator('.desk-toggle').click();
+	await page.getByRole('tab', { name: 'Find', exact: true }).click();
 	const search = page.getByLabel("Search this story");
 	await search.waitFor({ state: "visible" });
 	check("find-in-story panel opens", await search.isVisible());

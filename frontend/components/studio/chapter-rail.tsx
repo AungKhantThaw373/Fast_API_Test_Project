@@ -124,18 +124,6 @@ export function ChapterRail({ chapters, arcs, activeId, onSelect, onMove, onDele
 												</span>
 											</button>
 											<div className="chapter-row-actions">
-												<label className="arc-move-control" title="Move to another arc">
-													<span aria-hidden="true">⇄</span>
-													<select
-														className="chapter-arc-select"
-														aria-label={`Move ${chapter.title} to an arc`}
-														value={chapter.arc_id ?? ""}
-														onChange={(event) => onAssign(chapter.id, event.target.value || null)}
-													>
-														<option value="">Unsorted</option>
-														{arcs.map((arc) => <option key={arc.id} value={arc.id}>{arc.name}</option>)}
-													</select>
-												</label>
 												<button className="chapter-order-button" onClick={() => onMove(chapter.id, -1)} disabled={chapter.chapter_number === 1} aria-label={`Move ${chapter.title} up`} title="Move up">↑</button>
 												<button className="chapter-order-button" onClick={() => onMove(chapter.id, 1)} disabled={chapter.chapter_number === chapters.length} aria-label={`Move ${chapter.title} down`} title="Move down">↓</button>
 												<button className="chapter-delete-button" onClick={() => onDelete(chapter)} aria-label={`Delete ${chapter.title}`} title="Delete chapter">×</button>

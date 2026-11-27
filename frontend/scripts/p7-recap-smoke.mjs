@@ -39,6 +39,8 @@ await page.context().addCookies([{ name, value, domain: '127.0.0.1', path: '/' }
 await page.goto(WEB + '/stories/' + story.id);
 await page.locator('.cm-content').waitFor({ timeout: 30000 });
 
+await page.locator('.desk-toggle').click();
+await page.getByRole('tab', { name: /Review/ }).click();
 await page.getByRole('tab', { name: 'Recap' }).click();
 await page.locator('.recap-panel').waitFor({ timeout: 10000 });
 const editor = page.locator('.recap-editor');
@@ -55,6 +57,8 @@ check('synopsis saves from the desk', true);
 
 await page.reload();
 await page.locator('.cm-content').waitFor({ timeout: 30000 });
+await page.locator('.desk-toggle').click();
+await page.getByRole('tab', { name: /Review/ }).click();
 await page.getByRole('tab', { name: 'Recap' }).click();
 await page.locator('.recap-editor').waitFor({ timeout: 10000 });
 await page.waitForFunction(() => (document.querySelector('.recap-editor')?.value || '').length > 0);

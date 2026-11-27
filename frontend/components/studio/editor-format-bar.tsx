@@ -3,11 +3,16 @@
 import type { ManuscriptFormat } from "@/components/manuscript-editor";
 
 const INKS = [
-	{ name: "Ink", value: "#2b2a24" },
-	{ name: "Rust", value: "#a3543e" },
-	{ name: "Moss", value: "#49624c" },
-	{ name: "Ochre", value: "#8a6232" },
-	{ name: "Blue", value: "#3f6480" },
+	{ name: "Ink", value: "#111827" },
+	{ name: "Slate", value: "#475569" },
+	{ name: "Blue", value: "#2563eb" },
+	{ name: "Indigo", value: "#4f46e5" },
+	{ name: "Cyan", value: "#0e7490" },
+	{ name: "Amber", value: "#b45309" },
+	{ name: "Coral", value: "#c2410c" },
+	{ name: "Red", value: "#b91c1c" },
+	{ name: "Rose", value: "#be123c" },
+	{ name: "Plum", value: "#7e22ce" },
 ];
 
 export function EditorFormatBar({ onFormat }: { onFormat: (command: ManuscriptFormat, color?: string) => void }) {
@@ -25,15 +30,13 @@ export function EditorFormatBar({ onFormat }: { onFormat: (command: ManuscriptFo
 	);
 	return (
 		<div className="editor-format-bar" role="toolbar" aria-label="Text formatting">
-			{button("bold", "Bold", "B", "Bold (Markdown **)" )}
-			{button("italic", "Italic", "I", "Italic (Markdown *)" )}
-			{button("underline", "Underline", "U", "Underline" )}
-			{button("strike", "Strikethrough", "S", "Strikethrough" )}
+			{button("bold", "Bold", "B", "Bold — select text or type over the placeholder" )}
+			{button("italic", "Italic", "I", "Italic — select text or type over the placeholder" )}
+			{button("underline", "Underline", "U", "Underline — select text or type over the placeholder" )}
+			{button("strike", "Strikethrough", "S", "Strikethrough — select text or type over the placeholder" )}
 			<span className="format-divider" aria-hidden="true" />
-			{button("h2", "Heading", "H2", "Section heading" )}
-			{button("quote", "Block quote", "“", "Block quote" )}
-			{button("bullet", "Bulleted list", "•", "Bulleted list" )}
-			{button("highlight", "Highlight", "▰", "Highlight" )}
+			{button("h2", "Heading", "H2", "Turn this line into a section heading" )}
+			{button("highlight", "Highlight", "▰", "Highlight — select text or type over the placeholder" )}
 			<details className="format-colors">
 				<summary aria-label="Text color" title="Text color"><span>A</span><i /></summary>
 				<div className="format-color-menu">
@@ -55,7 +58,16 @@ export function EditorFormatBar({ onFormat }: { onFormat: (command: ManuscriptFo
 					))}
 				</div>
 			</details>
-			{button("clear", "Clear formatting", "×", "Clear inline formatting" )}
+			<button
+				type="button"
+				className="format-button format-clear"
+				aria-label="Clear formatting from the selected text"
+				title="Clear formatting from the selected text"
+				onMouseDown={(event) => event.preventDefault()}
+				onClick={() => onFormat("clear")}
+			>
+				Clear
+			</button>
 		</div>
 	);
 }

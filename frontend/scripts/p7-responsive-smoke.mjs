@@ -37,6 +37,7 @@ await context.addCookies([{ name: cookieName, value: cookieValue, domain: '127.0
 
 await page.goto(WEB + '/stories/' + story.id);
 await page.locator('.manuscript-surface').waitFor({ timeout: 30000 });
+if (!(await page.getByRole('button', { name: /Export manuscript/ }).isVisible())) await page.locator('.mobile-file-menu > summary').click();
 await page.getByRole('button', { name: /Export manuscript/ }).click();
 await page.getByRole('dialog', { name: 'Export' }).waitFor();
 check('export dialog takes focus', await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Close export panel'));
@@ -69,7 +70,8 @@ await page.setViewportSize({ width: 390, height: 844 });
 await page.reload();
 await page.locator('.manuscript-surface').waitFor({ timeout: 30000 });
 check('phone studio does not overflow sideways', await noPageOverflow(page));
-check('phone studio keeps the chapter rail and editor reachable', await page.locator('.chapter-rail').isVisible() && await page.locator('.manuscript-surface').isVisible());
+check('phone studio keeps the chapter picker and editor reachable', await page.locator('.mobile-chapter-picker').isVisible() && await page.locator('.manuscript-surface').isVisible());
+if (!(await page.getByRole('button', { name: /Export manuscript/ }).isVisible())) await page.locator('.mobile-file-menu > summary').click();
 await page.getByRole('button', { name: /Export manuscript/ }).click();
 await page.getByRole('dialog', { name: 'Export' }).waitFor();
 const panelBox = await page.locator('.export-panel').boundingBox();
@@ -106,6 +108,7 @@ await page.keyboard.press('ArrowRight');
 await page.waitForTimeout(250);
 await page.keyboard.press('Space');
 await page.locator('.thread-resolve-dialog').waitFor({ timeout: 15000 });
+await page.waitForTimeout(150);
 check('keyboard drag can open the payoff dialog', true);
 check('payoff dialog focuses its chapter choice', await page.evaluate(() => document.activeElement?.tagName === 'SELECT'));
 trapped = true;
