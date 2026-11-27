@@ -83,6 +83,14 @@ async def owned_chapter(
     return chapter
 
 
+INLINE_MARKUP = re.compile(r"\*\*|~~|==|<[^>]+>|\*")
+
+
+def count_words(content: str) -> int:
+    """Count prose words, not the Markdown/HTML used for inline styling."""
+    return len(INLINE_MARKUP.sub("", content).split())
+
+
 async def create_chapter(session: AsyncSession, story: Story, title: str, content: str) -> Chapter:
     chapter = Chapter(
         story_id=story.id,
@@ -90,7 +98,7 @@ async def create_chapter(session: AsyncSession, story: Story, title: str, conten
         position=await next_position(session, story.id),
         title=title.strip() or "Untitled chapter",
         content=content,
-        word_count=len(content.split()),
+        word_count=count_words(content),
         revision=1,
         index_status="pending",
     )
@@ -138,7 +146,7 @@ async def import_manuscript(
             position=position + offset * 1024.0,
             title=title,
             content=content,
-            word_count=len(content.split()),
+            word_count=count_words(content),
             revision=1,
             index_status="pending",
         )
@@ -198,7 +206,7 @@ async def save_chapter(
         chapter.index_status = "pending"
         chapter.index_error = None
         if "content" in changes:
-            chapter.word_count = len(chapter.content.split())
+            chapter.word_count = count_words(chapter.content)
             await _drop_stale_suggestions(session, chapter)
         story = await session.get(Story, chapter.story_id)
         if story is not None:

@@ -62,3 +62,16 @@ async def test_word_count_tracks_content(user_client):
     )
     assert response.status_code == 200
     assert response.json()["word_count"] == 5
+
+
+async def test_word_count_ignores_inline_styling(user_client):
+    _story, chapter = await _story_and_chapter(user_client)
+    response = await user_client.put(
+        f"/stories/chapters/{chapter['id']}",
+        json={
+            "content": '**one** <span style="color:#a3543e">two</span> ==three== ~~four~~ <u>five</u>',
+            "expected_revision": chapter["revision"],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["word_count"] == 5
