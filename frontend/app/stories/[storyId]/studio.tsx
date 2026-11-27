@@ -3,12 +3,13 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
 import { Toaster, toast } from 'sonner';
-import Link from 'next/link';
 import { CaptureDialog, type CaptureMode, type CaptureSelection } from '@/components/wiki/capture-dialog';
 import { NameCandidatesPanel } from '@/components/wiki/name-candidates-panel';
 import { ChapterRail } from '@/components/studio/chapter-rail';
 import { ChapterHistoryDialog } from '@/components/studio/chapter-history-dialog';
-import { StoryMobileNav } from '@/components/story-mobile-nav';
+import { EditorFormatBar } from '@/components/studio/editor-format-bar';
+import { StoryWikiPeek } from '@/components/studio/story-wiki-peek';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPalette } from '@/components/command-palette';
 import { EditorPreferencesMenu } from '@/components/editor-preferences';
 import { ExportPanel } from '@/components/export-panel';
@@ -27,14 +28,11 @@ import { useChapterSaves, type ConflictPrompt } from '@/components/studio/use-ch
 import { lineText } from '@/lib/selection';
 import { analyzeStyle, type StyleIssue } from '@/lib/style-analysis';
 
-type Pane = 'notes' | 'findings' | 'mentions' | 'find' | 'style' | 'recap';
-
-const CATEGORY_LABEL: Record<BibleEntry['category'], string> = {
-	character: 'Character', location: 'Place', item: 'Important item', world_rule: 'World rule', worldbuilding: 'Worldbuilding', power_system: 'Power system', plot_thread: 'Story thread',
-};
+type Pane = 'notes' | 'wiki' | 'threads' | 'findings' | 'mentions' | 'find' | 'style' | 'recap';
 
 function wordCount(text: string) {
-	return text.trim() ? text.trim().split(/\s+/).length : 0;
+	const prose = text.replace(/\*\*|~~|==|<[^>]+>|\*/g, '');
+	return prose.trim() ? prose.trim().split(/\s+/).length : 0;
 }
 
 export default function StoryStudio({ storyId }: { storyId: string }) {
@@ -96,6 +94,16 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [lastScan, setLastScan] = useState<{ chapterId: string; revision: number } | null>(null);
 	const [focusMode, setFocusMode] = useState(false);
 	const [paneOpen, setPaneOpen] = useState(true);
+	const [mobileDeskOpen, setMobileDeskOpen] = useState(false);
+	const openDeskPane = (next: Pane) => {
+		setPane(next);
+		setPaneOpen(true);
+		setMobileDeskOpen(true);
+	};
+	const closeDesk = () => {
+		setPaneOpen(false);
+		setMobileDeskOpen(false);
+	};
 	const [arcs, setArcs] = useState<StoryArc[]>([]);
 	const [paneWidth, setPaneWidth] = useState(() => {
 		if (typeof window === 'undefined') return 372;
@@ -405,7 +413,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			}
 			if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'w') {
 				event.preventDefault();
-				void go(`/stories/${storyId}/wiki`);
+				openDeskPane('wiki');
 			}
 		};
 		window.addEventListener('keydown', onKeyDown);
@@ -890,7 +898,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		await selectChapter(target);
 		window.setTimeout(() => {
 			editorRef.current?.focusLine(line);
-			setPaneOpen(false);
+			closeDesk();
 		}, 60);
 	}
 
@@ -903,8 +911,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 		window.setTimeout(() => locateLine(finding.draft_line), 0);
 	}
 
-	function openEntity(entityId: string) {
-		void go(`/stories/${storyId}/wiki/${entityId}`);
+	function openEntity() {
+		openDeskPane('wiki');
 	}
 
 	function handleFindingAction(finding: ContinuityFinding, action: 'resolve' | 'dismiss' | 'intentional') {
@@ -951,11 +959,12 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			<aside className="chapter-rail">
 				<div className="rail-brand-row"><button className="wordmark" onClick={() => void go("/dashboard")}><span className="wordmark-icon">s</span>stillroom</button><button className="back-link" onClick={() => void go("/dashboard")} aria-label="Back to stories">←</button></div>
 				<div className="book-label">YOUR STORY</div><div className="rail-story-title" title={story.title}>{story.title}</div>
-				<nav className="story-rail-nav" aria-label="Story sections">
-					<Link href={`/stories/${storyId}`} aria-current="page">Write</Link>
-					<Link href={`/stories/${storyId}/wiki`}>Wiki</Link>
-					<Link href={`/stories/${storyId}/wiki/review`}>Review</Link>
-					<Link href={`/stories/${storyId}/wiki/threads`}>Threads</Link>
+				<nav className="story-rail-nav rail-modes" aria-label="Story sections">
+					<button className={paneOpen && pane === 'notes' ? 'active' : ''} onClick={closeDesk}><span>✎</span>Write</button>
+					<button className={paneOpen && pane === 'wiki' ? 'active' : ''} onClick={() => openDeskPane('wiki')}><span>✳</span>Wiki</button>
+					<button className={paneOpen && pane === 'findings' ? 'active' : ''} onClick={() => openDeskPane('findings')}><span>⚑</span>Review</button>
+					<button className={paneOpen && pane === 'threads' ? 'active' : ''} onClick={() => openDeskPane('threads')}><span>↝</span>Threads</button>
+					<button className={'mobile-only-nav' + (paneOpen && pane === 'find' ? ' active' : '')} onClick={() => openDeskPane('find')}><span>⌕</span>Find</button>
 				</nav>
 				<div className="chapter-list-heading"><span>CHAPTERS</span><span>{chapters.length}</span></div>
 				<ChapterRail
@@ -972,13 +981,14 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				{activeChapter && otherStories.length > 0 && <label className="move-chapter-control"><span>Move active chapter</span><select defaultValue="" onChange={(event) => { if (event.target.value) void moveActiveChapter(event.target.value); event.target.value = ''; }}><option value="">Choose a story…</option>{otherStories.map((item) => <option value={item.id} key={item.id}>{item.title}</option>)}</select></label>}
 				<label className="import-button">↥ <span>Import .txt or .md</span><input type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(event) => void importManuscript(event)} /></label>
 				<button className="import-button" onClick={() => setExportOpen(true)}>↓ <span>Export manuscript</span></button>
-				<div className="rail-footer"><span className="quiet-dot" /> Your words stay yours</div>
+				<div className="rail-footer"><span className="quiet-dot" /> Your words stay yours <ThemeToggle compact /></div>
 			</aside>
 
 			<section className="writing-column">
 				<header className="studio-topbar">
 					<div className="studio-breadcrumb"><button className="text-button" onClick={() => void go("/dashboard")}>Stories</button><span>/</span><span>{story.title}</span></div>
-					<div className="studio-actions"><button className="studio-section-link" onClick={() => { setPane('find'); setPaneOpen(true); }}>Find in story</button><button className="studio-section-link" onClick={() => void go('/editing')}>Editing files</button>{(() => {
+					<div className="mobile-chapter-row">{chapters.length > 0 && <label className="mobile-chapter-picker"><span className="sr-only">Chapter</span><select value={activeId ?? ''} onChange={(event) => { const next = chapters.find((chapter) => chapter.id === event.target.value); if (next) void selectChapter(next); }}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.id}>{String(chapter.chapter_number).padStart(2, '0')} · {chapter.title}</option>)}</select></label>}<button className="mobile-new-chapter" onClick={() => void addChapter()} aria-label="New chapter">＋</button></div>
+					<div className="studio-actions"><button className="studio-section-link" onClick={() => openDeskPane('find')}>Find in story</button><button className="studio-section-link" onClick={() => void go('/editing')}>Editing files</button><ThemeToggle compact />{(() => {
 						const status = saveStatus(saveState);
 						const isError = status.tone === 'error';
 						return (
@@ -987,7 +997,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 								{(saveState.status === 'error' || saveState.status === 'conflict') && <button className="text-button" onClick={() => void flushSaves()}>Retry</button>}
 							</span>
 						);
-					})()}<button className="quiet-button focus-toggle" onClick={() => setFocusMode((value) => !value)}>{focusMode ? 'Show desk' : 'Focus'}</button></div>
+					})()}<button className="quiet-button focus-toggle" onClick={() => setFocusMode((value) => !value)}>{focusMode ? 'Show desk' : 'Focus'}</button><details className="mobile-file-menu"><summary aria-label="Story files" title="Story files">⋯</summary><div><label className="import-button">↥ Import .txt or .md<input type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(event) => void importManuscript(event)} /></label><button className="import-button" onClick={() => setExportOpen(true)}>↓ Export manuscript</button></div></details></div>
 				</header>
 				{error && <div className="studio-notice error-notice" role="alert">{error}</div>}
 				{notice && <div className="studio-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice('')}>×</button></div>}
@@ -997,6 +1007,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					<div className="editor-page">
 						<input className="chapter-title-input" aria-label="Chapter title" value={draftTitle} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, title: event.target.value }; setHasUnsavedChanges(true); setDraftTitle(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Chapter title" maxLength={200} />
 						<div className="editor-rule" />
+						<EditorFormatBar onFormat={(command, color) => editorRef.current?.applyFormat(command, color)} />
 						<ManuscriptEditor
 							ref={editorRef}
 							chapterId={activeChapter.id}
@@ -1044,7 +1055,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				onQuietView={() => setFocusMode((value) => !value)}
 				onSearchHit={(chapterId, line) => void openSearchHit(chapterId, line)}
 				extra={[
-					{ label: 'Ask your story', hint: 'Cited answer', run: () => { setPane('find'); setPaneOpen(true); setAskFocus((value) => value + 1); } },
+					{ label: 'Ask your story', hint: 'Cited answer', run: () => { openDeskPane('find'); setAskFocus((value) => value + 1); } },
 					{ label: 'Run continuity check', hint: checking ? 'Checking…' : 'Current chapter', run: () => void runCheck(false, true) },
 					{ label: 'Add selected passage to wiki', hint: selection ? 'From selection' : 'Select text first', run: () => openCapture('entity') },
 					{ label: 'Add fact from selection', hint: selection ? 'From selection' : 'Select text first', run: () => openCapture('fact') },
@@ -1058,7 +1069,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			{!focusMode && !paneOpen && (
 				<button className="pane-reopen" onClick={() => setPaneOpen(true)} title="Show the desk (Ctrl/Cmd + .)">‹ Desk</button>
 			)}
-			{!focusMode && paneOpen && <aside className="insights-pane" style={{ width: paneWidth }}>
+			{!focusMode && paneOpen && <aside className={'insights-pane' + (mobileDeskOpen ? ' is-mobile-open' : '')} style={{ width: paneWidth }}>
+				<button className="pane-mobile-close" aria-label="Close the desk" title="Close the desk" onClick={closeDesk}>×</button>
 				<button
 					className="pane-resize"
 					aria-label="Resize the desk"
@@ -1080,67 +1092,87 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					}}
 				/>
 				<div className="insights-heading"><div><div className="eyebrow">THE STORY, REMEMBERED</div><h2>Chapter desk</h2></div><span className="provider-status">{story.external_analysis_enabled ? 'AI checks on' : 'AI checks off'}</span></div>
-				<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages"><button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Notes</button><button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button><button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button><button role="tab" aria-selected={pane === 'style'} className={pane === 'style' ? 'active' : ''} onClick={() => setPane('style')}>Style</button><button role="tab" aria-selected={pane === 'recap'} className={pane === 'recap' ? 'active' : ''} onClick={() => setPane('recap')}>Recap</button><button role="tab" aria-selected={pane === 'find'} className={pane === 'find' ? 'active' : ''} onClick={() => setPane('find')}>Find</button><button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={() => setPaneOpen(false)}>›</button></div>
+								<div className="pane-tabs" role="tablist" aria-label="Chapter desk pages">
+					<button role="tab" aria-selected={pane === 'notes'} className={pane === 'notes' ? 'active' : ''} onClick={() => setPane('notes')}>Desk</button>
+					<button role="tab" aria-selected={pane === 'wiki'} className={pane === 'wiki' ? 'active' : ''} onClick={() => setPane('wiki')}>Wiki <span>{wikiEntities.length}</span></button>
+					<button role="tab" aria-selected={pane === 'threads'} className={pane === 'threads' ? 'active' : ''} onClick={() => setPane('threads')}>Threads <span>{openThreads}</span></button>
+					<button role="tab" aria-selected={pane === 'findings'} className={pane === 'findings' ? 'active' : ''} onClick={() => setPane('findings')}>Findings <span>{currentFindings.length}</span></button>
+					<button role="tab" aria-selected={pane === 'mentions'} className={pane === 'mentions' ? 'active' : ''} onClick={() => setPane('mentions')}>Mentions <span>{chapterMentions.length}</span></button>
+					<button role="tab" aria-selected={pane === 'style'} className={pane === 'style' ? 'active' : ''} onClick={() => setPane('style')}>Style</button>
+					<button role="tab" aria-selected={pane === 'recap'} className={pane === 'recap' ? 'active' : ''} onClick={() => setPane('recap')}>Recap</button>
+					<button role="tab" aria-selected={pane === 'find'} className={pane === 'find' ? 'active' : ''} onClick={() => setPane('find')}>Find</button>
+					<button className="pane-collapse" aria-label="Collapse the desk" title="Collapse (Ctrl/Cmd + .)" onClick={closeDesk}>›</button>
+				</div>
 				<div className="pane-content">
-					{pane === 'notes' && <section className="notes-pane">
-						<div className="pane-section-title"><strong>This chapter</strong><span>{activeChapter ? `Chapter ${activeChapter.chapter_number}` : 'No chapter open'}</span></div>
-						<p className="pane-hint">{activeChapter ? activeChapter.title : 'Open a chapter to see what the story already knows about it.'}</p>
-						<dl className="notes-stats"><div><dt>Mentioned here</dt><dd>{chapterMentions.length}</dd></div><div><dt>Open threads</dt><dd>{openThreads}</dd></div></dl>
-						{chapterMentions.length > 0 && <ul className="notes-mentions">{chapterMentions.slice(0, 12).map((entry) => <li key={entry.id}><button className="link-button" onClick={() => void go(`/stories/${storyId}/wiki/${entry.id}`)}>{entry.name}</button><span>{CATEGORY_LABEL[entry.category]}</span></li>)}</ul>}
-						<div className="pane-links"><Link href={`/stories/${storyId}/wiki/review`}>Review inbox</Link><Link href={`/stories/${storyId}/wiki`}>Open the wiki</Link><Link href="/settings">AI settings</Link></div>
-						<section className="notes-threads">
-							<div className="pane-section-title"><strong>Open threads</strong><span>{openThreads}</span></div>
-							{threads.length ? threads.map((entry) => <article className={'thread-card' + (entry.thread_state === 'resolved' ? ' resolved' : '')} key={entry.id}><div className="thread-status">{entry.thread_state === 'resolved' ? 'Resolved' : 'Still open'}</div><h3>{entry.name}</h3><p>{entry.description}</p><div className="bible-entry-actions"><button className="text-button" onClick={() => void setThread(entry, entry.thread_state === 'resolved' ? 'open' : 'resolved')}>{entry.thread_state === 'resolved' ? 'Reopen thread' : 'Mark resolved'}</button>{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Open source</button>}</div></article>) : <div className="pane-empty">Unresolved setups and questions will appear here when they are noticed in your chapters.</div>}
-						</section>
-						<div className="pane-section-title"><strong>Checks for this story</strong><span>{story.external_analysis_enabled ? 'Enabled' : 'Paused'}</span></div>
-						<label className="story-analysis-toggle">
-							<span><strong>Allow external AI analysis</strong><small>Chapter text and relevant earlier passages go to your selected API host.</small></span>
-							<input type="checkbox" checked={story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ external_analysis_enabled: event.target.checked })} />
-						</label>
-						<label className="ai-field">
-							<span>Automatic check interval</span>
-							<select value={story.scan_interval_words} disabled={!story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ scan_interval_words: Number(event.target.value) })}>
-								<option value={0}>Off · check manually</option>
-								<option value={500}>Every 500 new words</option>
-								<option value={1000}>Every 1,000 new words</option>
-								<option value={1500}>Every 1,500 new words</option>
-								<option value={3000}>Every 3,000 new words</option>
-							</select>
-							<small>Automatic checks are optional. You can also check a draft manually.</small>
-						</label>
-						<div className="ai-privacy-note"><strong>Privacy</strong><p>External analysis is limited to this story. Local indexing stays on Ollama.</p></div>
-						<section className="ai-usage-panel">
-							<div className="pane-section-title"><strong>AI usage this month</strong><span>{aiUsage ? `${aiUsage.calls} ${aiUsage.calls === 1 ? 'call' : 'calls'}` : 'No calls yet'}</span></div>
-							<dl className="notes-stats">
-								<div><dt>Spent</dt><dd>{aiUsage ? `$${aiUsage.spent_usd.toFixed(2)}` : '$0.00'}</dd></div>
-								<div><dt>Tokens</dt><dd>{aiUsage ? (aiUsage.input_tokens + aiUsage.output_tokens).toLocaleString() : '0'}</dd></div>
-							</dl>
-							<label className="ai-field">
-								<span>Monthly cloud budget (USD)</span>
-								<input key={story.monthly_ai_budget} type="number" min={0} step={5} defaultValue={story.monthly_ai_budget} onBlur={(event) => { const value = Math.max(0, Number(event.target.value) || 0); if (value !== story.monthly_ai_budget) void changeStorySetting({ monthly_ai_budget: value }); }} />
-								<small>Zero keeps this story local-only. Cloud scans are refused before they spend above the budget.</small>
-							</label>
-							{aiUsage && aiUsage.by_purpose.length > 0 && <ul className="notes-mentions">{aiUsage.by_purpose.slice(0, 4).map((entry) => <li key={`${entry.purpose}-${entry.model}`}><span>{entry.purpose}</span><span>{entry.calls} · ${entry.cost_usd.toFixed(3)}</span></li>)}</ul>}
-						</section>
-						<section className="bible-scan-panel">
-							<div className="pane-section-title"><strong>Read for details</strong><span>Finds proposals</span></div>
-							<p className="pane-hint">Choose a chapter range. Anything found becomes a proposal in the review inbox.</p>
-							<div className="bible-scan-range">
-								<label><span>From</span><select value={bibleScanStart} onChange={(event) => setBibleScanStart(Number(event.target.value))}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.title}</option>)}</select></label>
-								<label><span>Through</span><select value={bibleScanEnd} onChange={(event) => setBibleScanEnd(Number(event.target.value))}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.title}</option>)}</select></label>
+					{pane === 'notes' && <section className="notes-pane desk-cockpit">
+						<section className="desk-hero">
+							<div className="desk-hero-top">
+								<div className="desk-orb"><span>{activeChapter ? String(activeChapter.chapter_number).padStart(2, '0') : '—'}</span><small>chapter</small></div>
+								<div><div className="eyebrow">OPEN ON THE DESK</div><h2>{activeChapter ? activeChapter.title : 'No chapter open'}</h2><p>{chapterMentions.length} remembered {chapterMentions.length === 1 ? 'detail' : 'details'} · {openThreads} open {openThreads === 1 ? 'loop' : 'loops'}</p></div>
 							</div>
+							<div className="desk-progress"><span><b>{words.toLocaleString()}</b> words this chapter</span>{editorPreferences.wordGoal > 0 ? <><span>{Math.min(100, Math.round((words / editorPreferences.wordGoal) * 100))}% of daily goal</span><i><b style={{ width: `${Math.min(100, (words / editorPreferences.wordGoal) * 100)}%` }} /></i></> : <span>Set a daily goal in the pen menu</span>}</div>
+						</section>
+						<div className="desk-actions">
+							<button onClick={() => openDeskPane('findings')}><span>⚑</span><b>Review</b><small>{currentFindings.filter((item) => item.review_status === 'open').length} open</small></button>
+							<button onClick={() => openDeskPane('wiki')}><span>✳</span><b>Wiki</b><small>{wikiEntities.length} entries</small></button>
+							<button onClick={() => openDeskPane('threads')}><span>↝</span><b>Threads</b><small>{openThreads} open</small></button>
+							<button onClick={() => void runCheck(false, true)} disabled={checking}><span>◎</span><b>Check</b><small>{checking ? 'reading…' : 'this draft'}</small></button>
+						</div>
+						{chapterMentions.length > 0 && <section className="desk-card desk-cast"><header><span>IN THIS CHAPTER</span><button onClick={() => openDeskPane('wiki')}>See all →</button></header><div className="desk-chips">{chapterMentions.slice(0, 16).map((entry) => <button key={entry.id} onClick={() => { setPane('wiki'); setPaneOpen(true); }}><span className={`chip-dot tone-${entry.category}`} />{entry.name}</button>)}</div></section>}
+						<section className="desk-card">
+							<header><span>OPEN LOOPS</span><button onClick={() => setPane('threads')}>All {threads.length} →</button></header>
+							{threads.filter((entry) => entry.thread_state !== 'resolved').slice(0, 3).map((entry) => <article className="desk-loop" key={entry.id}><span className="loop-mark">↝</span><div><strong>{entry.name}</strong><p>{entry.description || 'Waiting to be paid off.'}</p></div><button aria-label={`Resolve ${entry.name}`} onClick={() => void setThread(entry, 'resolved')}>✓</button></article>)}
+							{openThreads === 0 && <p className="desk-empty">No loose promises. The story is tidy.</p>}
+						</section>
+						<details className="desk-controls">
+							<summary><span>Story controls</span><small>{story.external_analysis_enabled ? 'AI checks on' : 'Local only'}</small><i>+</i></summary>
+							<label className="story-analysis-toggle">
+								<span><strong>Allow external AI analysis</strong><small>Chapter text and relevant earlier passages go to your selected API host.</small></span>
+								<input type="checkbox" checked={story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ external_analysis_enabled: event.target.checked })} />
+							</label>
+							<label className="ai-field">
+								<span>Automatic check interval</span>
+								<select value={story.scan_interval_words} disabled={!story.external_analysis_enabled} onChange={(event) => void changeStorySetting({ scan_interval_words: Number(event.target.value) })}>
+									<option value={0}>Off · check manually</option>
+									<option value={500}>Every 500 new words</option>
+									<option value={1000}>Every 1,000 new words</option>
+									<option value={1500}>Every 1,500 new words</option>
+									<option value={3000}>Every 3,000 new words</option>
+								</select>
+							</label>
+							<div className="ai-privacy-note"><strong>Privacy</strong><p>External analysis is limited to this story. Local indexing stays on Ollama.</p></div>
+							<section className="ai-usage-panel">
+								<div className="pane-section-title"><strong>AI usage this month</strong><span>{aiUsage ? `${aiUsage.calls} ${aiUsage.calls === 1 ? 'call' : 'calls'}` : 'No calls yet'}</span></div>
+								<dl className="notes-stats"><div><dt>Spent</dt><dd>{aiUsage ? `$${aiUsage.spent_usd.toFixed(2)}` : '$0.00'}</dd></div><div><dt>Tokens</dt><dd>{aiUsage ? (aiUsage.input_tokens + aiUsage.output_tokens).toLocaleString() : '0'}</dd></div></dl>
+								<label className="ai-field">
+									<span>Monthly cloud budget (USD)</span>
+									<input key={story.monthly_ai_budget} type="number" min={0} step={5} defaultValue={story.monthly_ai_budget} onBlur={(event) => { const value = Math.max(0, Number(event.target.value) || 0); if (value !== story.monthly_ai_budget) void changeStorySetting({ monthly_ai_budget: value }); }} />
+									<small>Zero keeps this story local-only. Cloud scans are refused before they spend above the budget.</small>
+								</label>
+							</section>
+						</details>
+						<details className="desk-controls">
+							<summary><span>Read a range</span><small>Finds proposals</small><i>+</i></summary>
+							<div className="bible-scan-range"><label><span>From</span><select value={bibleScanStart} onChange={(event) => setBibleScanStart(Number(event.target.value))}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.title}</option>)}</select></label><label><span>Through</span><select value={bibleScanEnd} onChange={(event) => setBibleScanEnd(Number(event.target.value))}>{chapters.map((chapter) => <option key={chapter.id} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.title}</option>)}</select></label></div>
 							<button className="button button-bible-scan" onClick={() => void scanBibleRange()} disabled={!chapters.length || hasUnsavedChanges || scanningBible || bibleScanPending.length > 0 || bibleScanStart > bibleScanEnd}>{scanningBible ? 'Queueing scan…' : 'Read range'}</button>
 							<label className="bible-scan-force"><input type="checkbox" checked={bibleScanForce} onChange={(event) => setBibleScanForce(event.target.checked)} /><span>Read unchanged chapters again</span></label>
 							{bibleScanMessage && <p className={`bible-scan-message${bibleScanFailed ? ' is-error' : ''}`} role="status">{bibleScanMessage}</p>}
-						</section>
+						</details>
 					</section>}
-					{pane === 'find' && <StorySearch storyId={storyId} chapters={chapters} arcs={arcs} focusAsk={askFocus} onOpen={(chapterId, line) => void openSearchHit(chapterId, line)} />}
+					{pane === 'wiki' && <StoryWikiPeek storyId={storyId} entities={wikiEntities} />}
+
+					{pane === 'threads' && <section className="threads-pane">
+						<div className="threads-pane-head"><div><div className="eyebrow">PROMISES IN PLAY</div><h2>Threads</h2></div><span>{openThreads} open · {threads.length - openThreads} paid off</span></div>
+						<p className="pane-hint">Every setup is a promise. Resolve it when the chapter pays it off.</p>
+						{threads.length ? threads.map((entry) => <article className={'thread-card' + (entry.thread_state === 'resolved' ? ' resolved' : '')} key={entry.id}><div className="thread-status">{entry.thread_state === 'resolved' ? 'Paid off' : 'Still open'}</div><h3>{entry.name}</h3><p>{entry.description || 'No details yet.'}</p><div className="bible-entry-actions"><button className="text-button" onClick={() => void setThread(entry, entry.thread_state === 'resolved' ? 'open' : 'resolved')}>{entry.thread_state === 'resolved' ? 'Reopen' : 'Mark paid off'}</button>{entry.source_chapter_id && <button className="text-button subtle" onClick={() => void openBibleSource(entry)}>Open source</button>}</div></article>) : <div className="pane-empty">No threads yet. Capture one from a selected passage.</div>}
+					</section>}
+{pane === 'find' && <StorySearch storyId={storyId} chapters={chapters} arcs={arcs} focusAsk={askFocus} onOpen={(chapterId, line) => void openSearchHit(chapterId, line)} />}
 					{pane === 'style' && <StylePanel report={styleReport} issues={styleIssues} dismissedCount={dismissedStyleCount} onJump={jumpToStyleIssue} onDismiss={dismissStyleIssue} onDismissPattern={dismissStylePattern} onReset={resetStyleDismissals} />}
 					{pane === 'recap' && (activeChapter ? <RecapPanel key={activeChapter.id} storyId={storyId} chapter={activeChapter} arcs={arcs} onOpenCitation={(chapterId, line) => void openSearchHit(chapterId, line)} /> : <div className="pane-empty">Choose a chapter to see its synopsis.</div>)}
 					{pane === 'mentions' && <NameCandidatesPanel
 						storyId={storyId}
 						chapter={activeChapter ? { id: activeChapter.id, chapter_number: activeChapter.chapter_number, title: activeChapter.title } : null}
-						onOpenEntity={(entityId) => void go(`/stories/${storyId}/wiki/${entityId}`)}
+						onOpenEntity={() => openDeskPane('wiki')}
 					/>}
 					{pane === 'findings' && <section>
 						<div className="pane-section-title continuity-title">
@@ -1196,7 +1228,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				/>
 			)}
 			{exportOpen && story && <ExportPanel storyId={storyId} title={story.title} onClose={() => setExportOpen(false)} onPrepare={prepareExport} />}
-			<StoryMobileNav storyId={storyId} />
 		</main>
 	);
 }

@@ -94,13 +94,16 @@ export function EntityList({ storyId, filters }: { storyId: string; filters: Wik
 	if (!rows.length) {
 		const filtered = hasActiveFilters(filters);
 		return (
-			<div className="wiki-empty">
-				<h2>{filtered ? "Nothing matches those filters." : "Nothing in the wiki yet."}</h2>
+			<div className={"wiki-empty" + (filtered ? "" : " wiki-empty-rich")}>
+				{!filtered && <span className="wiki-empty-emblem" aria-hidden="true">✳</span>}
+				<h2>{filtered ? "Nothing matches those filters." : "Your story has not been introduced yet."}</h2>
 				<p>
 					{filtered
 						? `Showing ${activeFilterLabels(filters).join(" · ")}.`
-						: "Scan a chapter or add an entry. Facts you accept will gather here."}
+						: "The bible grows from the page: names, places, rules, and the promises between them."}
 				</p>
+				{!filtered && <div className="wiki-empty-steps"><span><b>01</b>Select a name in the paper.</span><span><b>02</b>Capture what the story knows.</span><span><b>03</b>Accept a fact to make it canon.</span></div>}
+				{!filtered && <Link className="button button-primary" href={`/stories/${storyId}`}>Open the paper →</Link>}
 			</div>
 		);
 	}
@@ -163,22 +166,25 @@ function EntityRow({
 	return (
 		<article className={`wiki-row${selected ? " selected" : ""}${entity.status === "archived" ? " archived" : ""}`}>
 			<button className="wiki-row-main" onClick={onOpen}>
-				<div className="wiki-row-head">
-					<strong>{entity.name}</strong>
-					<span className="wiki-type-chip">{ENTITY_TYPE_LABELS[entity.entity_type as EntityType] ?? entity.entity_type}</span>
-					{entity.status !== "active" && <span className={`wiki-status-chip status-${entity.status}`}>{entity.status}</span>}
-				</div>
-				<p className="wiki-row-summary">{oneLineSummary(entity)}</p>
-				<div className="wiki-row-meta">
-					<span>{lastSeenLabel(entity)}</span>
-					{threadCount > 0 && <span className="wiki-thread-chip">{threadCount} open {threadCount === 1 ? "thread" : "threads"}</span>}
-					{shown.length > 0 && (
-						<span className="wiki-aliases">
-							{shown.join(" · ")}
-							{more > 0 ? ` +${more}` : ""}
-						</span>
-					)}
-				</div>
+				<span className={`wiki-avatar type-${entity.entity_type}`} aria-hidden="true">{entity.name.slice(0, 1)}</span>
+				<span className="wiki-row-body">
+					<span className="wiki-row-head">
+						<strong>{entity.name}</strong>
+						<span className="wiki-type-chip">{ENTITY_TYPE_LABELS[entity.entity_type as EntityType] ?? entity.entity_type}</span>
+						{entity.status !== "active" && <span className={`wiki-status-chip status-${entity.status}`}>{entity.status}</span>}
+					</span>
+					<span className="wiki-row-summary">{oneLineSummary(entity)}</span>
+					<span className="wiki-row-meta">
+						<span>{lastSeenLabel(entity)}</span>
+						{threadCount > 0 && <span className="wiki-thread-chip">{threadCount} open {threadCount === 1 ? "thread" : "threads"}</span>}
+						{shown.length > 0 && (
+							<span className="wiki-aliases">
+								{shown.join(" · ")}
+								{more > 0 ? ` +${more}` : ""}
+							</span>
+						)}
+					</span>
+				</span>
 			</button>
 			<Link className="text-button subtle wiki-row-open" href={`/stories/${entity.story_id}/wiki/${entity.id}`}>
 				Open

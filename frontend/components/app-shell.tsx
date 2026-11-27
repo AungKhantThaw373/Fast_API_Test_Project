@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 type AppSection = 'library' | 'files' | 'settings' | 'diagnostics';
 
@@ -42,13 +43,16 @@ export function AppShell({ active, user, children }: { active: AppSection; user?
 						<span className="app-avatar" aria-hidden="true">{initial}</span>
 						<div><strong>{user || 'Your account'}</strong><Link href="/settings">Account settings</Link></div>
 					</div>
-					<button className="app-rail-signout" onClick={() => void signOut()}>Sign out</button>
+					<div className="app-rail-tools"><ThemeToggle /><button className="app-rail-signout" onClick={() => void signOut()}>Sign out</button></div>
 				</div>
 			</aside>
 			<div className="app-main">
 				<header className="app-mobile-header">
 					<Link className="app-mobile-brand" href="/dashboard"><span className="app-rail-mark">s</span>stillroom</Link>
-					<Link className="app-mobile-account" href="/settings">{user || 'Account'}</Link>
+					<div className="app-mobile-tools">
+						<ThemeToggle compact />
+						<Link className="app-mobile-account" href="/settings">{user || 'Account'}</Link>
+					</div>
 				</header>
 				{children}
 			</div>

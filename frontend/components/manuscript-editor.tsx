@@ -4,7 +4,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyField, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, defaultHighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
-import { Compartment, EditorState, type Extension } from '@codemirror/state';
+import { Compartment, EditorState, RangeSetBuilder, type Extension } from '@codemirror/state';
 import {
 	EditorView,
 	crosshairCursor,
@@ -17,6 +17,9 @@ import {
 	lineNumbers,
 	placeholder,
 	rectangularSelection,
+	Decoration,
+	ViewPlugin,
+	type DecorationSet,
 	type ViewUpdate,
 } from '@codemirror/view';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
@@ -28,8 +31,11 @@ import { buildEntityMatcher, type EntityMatcher } from '@/lib/entity-matcher';
 import { annotationField, buildAnnotations, createFindingGutter, findingRange, setAnnotations } from '@/lib/manuscript-decorations';
 import type { StyleIssue } from '@/lib/style-analysis';
 
+export type ManuscriptFormat = 'bold' | 'italic' | 'underline' | 'strike' | 'highlight' | 'h2' | 'quote' | 'bullet' | 'color' | 'clear';
+
 export interface ManuscriptEditorHandle {
 	focus: () => void;
+	applyFormat: (command: ManuscriptFormat, color?: string) => void;
 	focusRange: (from: number, to: number) => void;
 	focusLine: (line: number) => void;
 	getSelection: () => { text: string; from: number; to: number; line: number } | null;
@@ -74,6 +80,61 @@ function themeFor(preferences: EditorPreferences): Extension {
 		},
 	});
 }
+
+type InlineFormat = { from: number; to: number; contentFrom: number; contentTo: number; className: string; color?: string };
+
+function collectInlineFormats(view: EditorView): DecorationSet {
+	const candidates: InlineFormat[] = [];
+	const seen = new Set<string>();
+	for (const visible of view.visibleRanges) {
+		const start = view.state.doc.lineAt(visible.from).from;
+		const end = view.state.doc.lineAt(visible.to).to;
+		const text = view.state.doc.sliceString(start, end);
+		const patterns: Array<{ regex: RegExp; open: number; close: number; className: string }> = [
+			{ regex: /\*\*([^*]+?)\*\*/g, open: 2, close: 2, className: 'cm-format-bold' },
+			{ regex: /~~([^~]+?)~~/g, open: 2, close: 2, className: 'cm-format-strike' },
+			{ regex: /==([^=]+?)==/g, open: 2, close: 2, className: 'cm-format-highlight' },
+			{ regex: /<u>([^<]+?)<\/u>/g, open: 3, close: 4, className: 'cm-format-underline' },
+			{ regex: /\*([^*]+?)\*/g, open: 1, close: 1, className: 'cm-format-italic' },
+		];
+		for (const pattern of patterns) {
+			for (const match of text.matchAll(pattern.regex)) {
+				if (match.index === undefined) continue;
+				const from = start + match.index;
+				const key = `${from}:${match[0].length}:${pattern.className}`;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				candidates.push({ from, to: from + match[0].length, contentFrom: from + pattern.open, contentTo: from + match[0].length - pattern.close, className: pattern.className });
+			}
+		}
+		for (const match of text.matchAll(/<span style="color:(#[0-9a-fA-F]{3,8})">([^<]+?)<\/span>/g)) {
+			if (match.index === undefined) continue;
+			const from = start + match.index;
+			const key = `${from}:${match[0].length}:color`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			const open = match[0].indexOf('>') + 1;
+			candidates.push({ from, to: from + match[0].length, contentFrom: from + open, contentTo: from + match[0].length - 7, className: 'cm-format-color', color: match[1] });
+		}
+	}
+	candidates.sort((a, b) => a.from - b.from || a.to - b.to);
+	const builder = new RangeSetBuilder<Decoration>();
+	let lastEnd = -1;
+	for (const candidate of candidates) {
+		if (candidate.from < lastEnd || candidate.contentTo <= candidate.contentFrom) continue;
+		builder.add(candidate.from, candidate.contentFrom, Decoration.replace({}));
+		builder.add(candidate.contentFrom, candidate.contentTo, Decoration.mark({ class: candidate.className, attributes: candidate.color ? { style: `color:${candidate.color}` } : undefined }));
+		builder.add(candidate.contentTo, candidate.to, Decoration.replace({}));
+		lastEnd = candidate.to;
+	}
+	return builder.finish();
+}
+
+const inlineFormatting = ViewPlugin.fromClass(class {
+	decorations: DecorationSet;
+	constructor(view: EditorView) { this.decorations = collectInlineFormats(view); }
+	update(update: ViewUpdate) { if (update.docChanged || update.viewportChanged) this.decorations = collectInlineFormats(update.view); }
+}, { decorations: (value) => value.decorations });
 
 function clamp(value: number, minimum: number, maximum: number): number {
 	return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
@@ -270,6 +331,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 				highlightSelectionMatches(),
 				syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
 				markdown(),
+				inlineFormatting,
 				EditorView.lineWrapping,
 				placeholder('Begin the chapter…'),
 				keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
@@ -453,6 +515,54 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 
 		useImperativeHandle(ref, () => ({
 			focus: () => viewRef.current?.focus(),
+			applyFormat: (command, color) => {
+				const view = viewRef.current;
+				if (!view) return;
+				view.focus();
+				const state = view.state;
+				const selection = state.selection.main;
+				const selected = state.sliceDoc(selection.from, selection.to);
+				if (command === 'h2' || command === 'quote' || command === 'bullet') {
+					const prefix = command === 'h2' ? '## ' : command === 'quote' ? '> ' : '- ';
+					const start = state.doc.lineAt(selection.from).from;
+					const end = state.doc.lineAt(selection.to).to;
+					const block = state.sliceDoc(start, end);
+					const next = block.split('\n').map((line) => (line.startsWith(prefix) ? line.slice(prefix.length) : prefix + line)).join('\n');
+					view.dispatch({ changes: { from: start, to: end, insert: next }, selection: { anchor: start, head: start + next.length } });
+					return;
+				}
+				if (command === 'clear') {
+					const cleaned = selected.replace(/\*\*|__|~~|==|<\/?u>|<\/?em>|<\/?strong>/g, '').replace(/<span style="color:#[0-9a-fA-F]{3,8}">|<\/span>/g, '');
+					if (!selected) return;
+					view.dispatch({ changes: { from: selection.from, to: selection.to, insert: cleaned }, selection: { anchor: selection.from, head: selection.from + cleaned.length } });
+					return;
+				}
+				const pair = command === 'bold' ? '**'
+					: command === 'italic' ? '*'
+					: command === 'underline' ? '<u>'
+					: command === 'strike' ? '~~'
+					: command === 'highlight' ? '=='
+					: color ? `<span style="color:${color}">` : '';
+				const closing = command === 'underline' ? '</u>' : color ? '</span>' : pair;
+				if (!pair) return;
+				const before = state.sliceDoc(Math.max(0, selection.from - pair.length), selection.from);
+				const after = state.sliceDoc(selection.to, Math.min(state.doc.length, selection.to + closing.length));
+				if (before === pair && after === closing) {
+					view.dispatch({
+						changes: [
+							{ from: selection.from - pair.length, to: selection.from },
+							{ from: selection.to, to: selection.to + closing.length },
+						],
+						selection: { anchor: selection.from - pair.length, head: selection.to - pair.length },
+					});
+					return;
+				}
+				const body = selected;
+				view.dispatch({
+					changes: { from: selection.from, to: selection.to, insert: pair + body + closing },
+					selection: { anchor: selection.from + pair.length, head: selection.from + pair.length + body.length },
+				});
+			},
 			focusRange: (from, to) => {
 				const view = viewRef.current;
 				if (!view) {

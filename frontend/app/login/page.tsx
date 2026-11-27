@@ -21,7 +21,6 @@ export default function LoginPage() {
 		// The notice depends on the URL the browser opened; reading it once is intentional.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (new URLSearchParams(window.location.search).get('reset') === 'done') setNotice('Password changed. Sign in with the new password.');
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (new URLSearchParams(window.location.search).get('deleted') === 'done') setNotice('Your account and its data have been deleted.');
 	}, []);
 

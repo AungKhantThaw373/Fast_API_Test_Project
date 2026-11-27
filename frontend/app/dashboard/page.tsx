@@ -169,28 +169,71 @@ function DashboardInner() {
 		story.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()) &&
 		(collectionFilter === 'all' || story.collection_name === collectionFilter),
 	);
+	const totalWords = stories.reduce((sum, story) => sum + (story.word_count ?? 0), 0);
+	const totalChapters = stories.reduce((sum, story) => sum + (story.chapter_count ?? 0), 0);
+	const recent = [...stories].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
+	const coverFor = (story: Story) => {
+		let hash = 0;
+		for (const character of story.title) hash = (hash * 31 + character.charCodeAt(0)) % 360;
+		const palettes = [
+			['#2f4938', '#7d9475'], ['#7b3e32', '#c4866b'], ['#3f5268', '#8aa0b6'],
+			['#6a532f', '#b59b68'], ['#4d3c58', '#9d839f'], ['#33534f', '#83aaa0'],
+		];
+		const pair = palettes[hash % palettes.length];
+		return { background: `linear-gradient(145deg, ${pair[0]}, ${pair[1]})` };
+	};
 
 	return (
 		<AppShell active="library" user={user?.username}>
-			<section className="library-content">
-				<div className="welcome-block"><div className="eyebrow">YOUR WRITING DESK</div><h1>Make room for a story.</h1><p>A quiet place for the pages, and a careful eye on the details.</p></div>
+			<section className="library-content library-home">
+				<div className="library-hero">
+					<div className="library-hero-copy">
+						<div className="eyebrow"><span className="eyebrow-rule" /> STILLROOM / YOUR LIBRARY</div>
+						<h1>Pick up a thread.<br /><em>Leave a mark.</em></h1>
+						<p>Every story keeps its own rooms: the pages, the people, the promises still waiting to be paid.</p>
+						<form className="hero-create" onSubmit={createStory}>
+							<label htmlFor="new-story-title">Start something new</label>
+							<div><input id="new-story-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Give the story a working title" maxLength={200} aria-label="Story title" required /><button className="button button-primary" disabled={busy}>{busy ? 'Opening…' : 'Open a desk →'}</button></div>
+						</form>
+					</div>
+					<aside className="library-hero-aside" aria-label="Your library at a glance">
+						<div className="desk-stats">
+							<div><strong>{stories.length}</strong><span>{stories.length === 1 ? 'story' : 'stories'}</span></div>
+							<div><strong>{totalChapters}</strong><span>chapters</span></div>
+							<div><strong>{totalWords >= 1000 ? `${(totalWords / 1000).toFixed(totalWords >= 10000 ? 0 : 1)}k` : totalWords}</strong><span>words kept</span></div>
+						</div>
+						{recent ? (
+							<Link className="continue-card" href={`/stories/${recent.id}`}>
+								<div className="continue-cover" style={coverFor(recent)}><span>{recent.title.slice(0, 1)}</span></div>
+								<div><span className="continue-kicker">CONTINUE WRITING</span><strong>{recent.title}</strong><small>{recent.chapter_count ?? 0} chapters · last touched {new Date(recent.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></div>
+								<span className="continue-arrow" aria-hidden="true">→</span>
+							</Link>
+						) : (
+							<div className="continue-card continue-card-empty"><span className="continue-kicker">A FRESH PAGE</span><p>Your first story will appear here.</p></div>
+						)}
+					</aside>
+				</div>
 				{error && <div className="notice" role="alert">{error}</div>}
-				<form className="new-story-card" onSubmit={createStory}>
-					<div className="new-story-mark">+</div>
-					<div className="new-story-copy"><strong>Begin a new story</strong><span>Start with a title. You can change it whenever you like.</span></div>
-					<div className="new-story-controls"><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="A working title" maxLength={200} aria-label="Story title" required /><button className="button button-primary" disabled={busy}>{busy ? 'Opening…' : 'Open writing desk'}</button></div>
-				</form>
-				<div className="library-heading"><div><div className="eyebrow">YOUR WORK</div><h2>Stories</h2></div><span>{visibleStories.length} of {stories.length}</span></div>
-				{stories.length > 0 && <div className="story-library-tools"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a story" aria-label="Search stories" /><select value={collectionFilter} onChange={(event) => setCollectionFilter(event.target.value)} aria-label="Filter by collection"><option value="all">All collections</option>{collections.map((collection) => <option key={collection} value={collection}>{collection}</option>)}</select></div>}
-				{visibleStories.length ? <div className="story-grid">{visibleStories.map((story) => <article className="story-card" key={story.id}>
+				<div className="library-heading"><div><div className="eyebrow">THE SHELF</div><h2>Your stories</h2></div><span>{visibleStories.length} of {stories.length}</span></div>
+				{stories.length > 0 && <div className="story-library-tools"><label className="shelf-search"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search the shelf" aria-label="Search stories" /></label><select value={collectionFilter} onChange={(event) => setCollectionFilter(event.target.value)} aria-label="Filter by collection"><option value="all">All collections</option>{collections.map((collection) => <option key={collection} value={collection}>{collection}</option>)}</select><span className="shelf-hint">Drag nothing. Just write.</span></div>}
+				{visibleStories.length ? <div className="story-grid">{visibleStories.map((story, index) => <article className="story-card" key={story.id}>
 					<Link className="story-card-link" href={`/stories/${story.id}`}>
-						<div className="story-card-top"><span className="story-card-mark">✳</span><span className="story-open">{story.collection_name || 'Unsorted'} · Open ↗</span></div>
-						<h3>{story.title}</h3><p>{story.chapter_count ?? 0} {(story.chapter_count ?? 0) === 1 ? 'chapter' : 'chapters'} <span>·</span> {(story.word_count ?? 0).toLocaleString()} words</p>
-						{(story.chapter_count ?? 0) >= (story.chapter_warning_at ?? 1000) && <p className="story-size-warning">This story is very long. Consider splitting the manuscript into volumes; Stillroom will keep working, but navigation gets heavy.</p>}
-						<div className="story-card-foot"><span>Last tended</span><time>{new Date(story.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</time></div>
+						<div className="story-cover" style={coverFor(story)}>
+							<span className="story-cover-kicker">STILLROOM · {String(index + 1).padStart(2, '0')}</span>
+							<span className="story-cover-glyph" aria-hidden="true">{story.title.slice(0, 2)}</span>
+							<span className="story-cover-rule" aria-hidden="true" />
+							<span className="story-cover-collection">{story.collection_name || 'Unfiled'}</span>
+						</div>
+						<div className="story-card-copy">
+							<div className="story-card-topline"><span>{story.chapter_count ?? 0} {(story.chapter_count ?? 0) === 1 ? 'chapter' : 'chapters'}</span><span>{(story.word_count ?? 0).toLocaleString()} words</span></div>
+							<h3>{story.title}</h3>
+							<p className="story-blurb">{(story.word_count ?? 0) > 0 ? 'The next sentence is already waiting.' : 'A blank page with room to begin.'}</p>
+							{(story.chapter_count ?? 0) >= (story.chapter_warning_at ?? 1000) && <p className="story-size-warning">This story is very long. Consider splitting the manuscript into volumes; Stillroom will keep working, but navigation gets heavy.</p>}
+							<div className="story-card-foot"><span>Last tended</span><time>{new Date(story.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</time><span className="story-open">Open</span></div>
+						</div>
 					</Link>
 					<div className="story-card-actions"><button className="story-delete-button" onClick={() => setRename({ story, field: 'title' })}>Rename</button><button className="story-delete-button" onClick={() => setRename({ story, field: 'collection_name' })}>Collection</button><button className="story-delete-button" onClick={() => void deleteStory(story)} disabled={deletingStoryId === story.id}>{deletingStoryId === story.id ? 'Deleting…' : 'Delete'}</button></div>
-				</article>)}</div> : <div className="library-empty"><span>✳</span><h3>{stories.length ? 'No stories match that filter.' : 'Your first page is waiting.'}</h3><p>{stories.length ? 'Try another search or collection.' : 'Create a story above to open your writing desk.'}</p></div>}
+				</article>)}</div> : <div className="library-empty"><span className="empty-glyph">✳</span><h3>{stories.length ? 'Nothing on this part of the shelf.' : 'Your first page is waiting.'}</h3><p>{stories.length ? 'Try another search or collection.' : 'Create a story above to open your writing desk.'}</p>{!stories.length && <div className="empty-steps"><span><b>1</b> Name it</span><span><b>2</b> Write a chapter</span><span><b>3</b> Let the wiki remember</span></div>}</div>}
 				<section className="trash-panel" aria-label="Trash">
 					<header>
 						<h2>Trash</h2>
