@@ -94,8 +94,10 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [scanProgress, setScanProgress] = useState<{ scenes_done?: number; scenes_total?: number; scenes_failed?: number } | null>(null);
 	const [lastScan, setLastScan] = useState<{ chapterId: string; revision: number } | null>(null);
 	const [focusMode, setFocusMode] = useState(false);
-	const [paneOpen, setPaneOpen] = useState(false);
+	const [paneOpen, setPaneOpen] = useState(true);
 	const [mobileDeskOpen, setMobileDeskOpen] = useState(false);
+	const [deskEntityId, setDeskEntityId] = useState<string | null>(null);
+	const [deskFocusKey, setDeskFocusKey] = useState(0);
 	const storyMenuRef = useRef<HTMLDetailsElement>(null);
 	const closeStoryMenu = () => {
 		if (storyMenuRef.current) storyMenuRef.current.open = false;
@@ -936,7 +938,12 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	}
 
 	function openEntity(entityId: string) {
-		void go(`/stories/${storyId}/wiki/${entityId}`);
+		setDeskEntityId(entityId);
+		setDeskFocusKey((value) => value + 1);
+		setPane('wiki');
+		setPaneOpen(true);
+		setMobileDeskOpen(true);
+		setFocusMode(false);
 	}
 
 	function handleFindingAction(finding: ContinuityFinding, action: 'resolve' | 'dismiss' | 'intentional') {
@@ -1198,7 +1205,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							{bibleScanMessage && <p className={`bible-scan-message${bibleScanFailed ? ' is-error' : ''}`} role="status">{bibleScanMessage}</p>}
 						</details>
 					</section>}
-					{pane === 'wiki' && <StoryWikiPeek storyId={storyId} entities={wikiEntities} />}
+					{pane === 'wiki' && <StoryWikiPeek key={`${deskEntityId ?? "all"}:${deskFocusKey}`} storyId={storyId} entities={wikiEntities} focusEntityId={deskEntityId} />}
 
 					{pane === 'threads' && <section className="threads-pane">
 						<div className="threads-pane-head"><div><div className="eyebrow">PROMISES IN PLAY</div><h2>Threads</h2></div><span>{openThreads} open · {threads.length - openThreads} paid off</span></div>

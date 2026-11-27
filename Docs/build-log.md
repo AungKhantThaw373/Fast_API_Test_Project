@@ -819,8 +819,8 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
 - Rebuilt the studio hierarchy instead of recolouring it. The chapter rail now
   holds only the story, chapters, arc folders, AI settings, and one theme
   control. Write/Wiki/Review/Threads duplicated the desk tabs, so that left nav
-  is gone. The desk is the sole tool surface, starts closed, and does not reserve
-  width until opened. Focus lives only in the `⋯` menu; Find lives only in the
+  is gone. The desk is the sole tool surface, starts open on desktop, and does not reserve
+  width until opened on smaller screens. Focus lives only in the `⋯` menu; Find lives only in the
   desk; the desk toggle is the only panel control.
 - The desk keeps Desk, Wiki, Review (Findings, Mentions, Style, Recap), Threads,
   and Find. Review is one tab with four subtabs instead of three competing
@@ -852,3 +852,33 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   mode, two-line titles, dark inputs, and the dashboard rail footer.
 - Final checks: `npm test -- --run` 58/58, `npx tsc --noEmit` clean,
   `npm run lint` 0 errors (4 pre-existing warnings), `npm run build` clean.
+
+### Wiki reachability and the inline desk dossier (post-release)
+
+- The library story card now has a **Wiki** action beside Rename, Collection,
+  and Delete, so the full story bible is reachable without opening the desk
+  first. The writing workspace opens with the chapter desk already expanded on
+  desktop.
+- The desk Wiki tab no longer navigates away when an entry is clicked. It loads
+  the selected entry in place: type/status, aliases, summary, meta, facts,
+  relationships, chapter-only appearances, and linked threads. The view is a
+  dense line dossier (dotted rules and two-column rows), not a stack of cards.
+- Appearances and Sources on the full entry now list each chapter once. The API
+  still returns every mention; the deduplication and filing by chapter happen in
+  the client so the passage data remains available to provenance links.
+- Entity-valued facts and relationship targets now resolve to names on the full
+  entry instead of showing `linked entity` or a truncated UUID.
+- An original JJK-inspired demo seed (`backend/scripts/seed_jjk_demo.py`) now
+  writes 11 chapters, one arc pair, 25 entities, 69 facts, 21 relationships,
+  10 threads, 11 events, and 148 mentions. Chapters 1-10 are the first-arc
+  draft; chapter 11 deliberately contradicts the earlier age, hair colour,
+  finger count, shikigami colours, weapon, and the deaths of Gojo, Junpei, and
+  Nagi. It also revives Junpei without explanation.
+- The live `stillroom` schema was dropped and rebuilt from Alembic, not the test
+  database. Demo login: `demo@stillroom.local` / `correct horse battery`.
+- Verified against the production build: desk expanded on entry, dashboard Wiki
+  link resolves to the 25-entry bible, inline dossier keeps the studio URL and
+  shows 11 chapters plus 8 facts for Yuji, and the full entry shows 11 unique
+  appearance rows with no per-passage list. `npm test -- --run` 58/58,
+  `npx tsc --noEmit` clean, `npm run lint` 0 errors (4 existing warnings),
+  `npm run build` clean, `ruff check` clean on the seed.

@@ -46,6 +46,25 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 		return list.filter((thread) => thread.linked_entity_ids.includes(entityId));
 	}, [threads.data, entityId]);
 
+	const appearanceChapters = useMemo(() => {
+		const chapters = new Map<string, { chapter_id: string; chapter_number: number; chapter_title: string }>();
+		for (const appearance of facts.data ?? []) {
+			if (!chapters.has(appearance.chapter_id)) chapters.set(appearance.chapter_id, {
+				chapter_id: appearance.chapter_id,
+				chapter_number: appearance.chapter_number,
+				chapter_title: appearance.chapter_title,
+			});
+		}
+		return [...chapters.values()].sort((a, b) => a.chapter_number - b.chapter_number);
+	}, [facts.data]);
+
+	const nameById = useMemo(() => {
+		const names = new Map<string, string>();
+		if (entity.data) names.set(entity.data.id, entity.data.name);
+		for (const row of allEntities.data ?? []) names.set(row.id, row.name);
+		return names;
+	}, [entity.data, allEntities.data]);
+
 	const invalidateEntity = async (id: string) => {
 		await Promise.all([
 			queryClient.invalidateQueries({ queryKey: qk.entity(id) }),
@@ -159,8 +178,6 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 
 	const detail = entity.data;
 	const lastAppearance = facts.data?.[0];
-	const nameById = new Map<string, string>([[detail.id, detail.name]]);
-
 	return (
 		<div className="wiki-detail">
 			<header className="wiki-detail-head">
@@ -336,6 +353,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 				onAccept={(fact) => decide.mutate({ fact, accept: true })}
 				onReject={(fact) => decide.mutate({ fact, accept: false })}
 				busyId={decide.isPending ? decide.variables?.fact.id ?? "" : ""}
+				entityNames={nameById}
 			/>
 
 			<section className="wiki-detail-section" aria-labelledby="relationships-heading">
@@ -419,7 +437,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 			<section className="wiki-detail-section" aria-labelledby="appearances-heading">
 				<header className="wiki-section-head">
 					<h2 id="appearances-heading">Appearances and sources</h2>
-					<span className="wiki-quiet">{facts.data?.length ?? 0} passages</span>
+					<span className="wiki-quiet">{appearanceChapters.length} {appearanceChapters.length === 1 ? "chapter" : "chapters"}</span>
 				</header>
 				{facts.isPending ? (
 					<p className="wiki-quiet">Loading passages…</p>
@@ -427,17 +445,15 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					<p className="wiki-quiet">This name has not been found in the manuscript yet.</p>
 				) : (
 					<ol className="appearance-list">
-						{(facts.data ?? []).map((appearance) => (
-							<li key={`${appearance.chapter_id}-${appearance.line_start}`}>
+						{appearanceChapters.map((chapter) => (
+							<li key={chapter.chapter_id}>
 								<Link
 									className="appearance-row"
-									href={`/stories/${storyId}?chapter=${appearance.chapter_id}&line=${appearance.line_start}`}
+									href={`/stories/${storyId}?chapter=${chapter.chapter_id}`}
 								>
 									<span className="appearance-chapter">
-										Ch. {appearance.chapter_number} · {appearance.chapter_title}
+										Ch. {chapter.chapter_number} · {chapter.chapter_title}
 									</span>
-									<span className="appearance-line">line {appearance.line_start}</span>
-									<span className="appearance-quote">“{appearance.quote}”</span>
 								</Link>
 							</li>
 						))}

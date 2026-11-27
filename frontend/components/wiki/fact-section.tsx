@@ -24,7 +24,7 @@ export function groupFacts(facts: EntityFact[]): FactGroup[] {
 	return [...byPredicate.entries()]
 		.map(([predicate, group]) => {
 			const live = group.filter((fact) => fact.status === "accepted");
-			const values = new Set(live.map(factValue));
+			const values = new Set(live.map((fact) => factValue(fact)));
 			return {
 				predicate,
 				facts: group.sort((a, b) => statusRank(a.status) - statusRank(b.status) || b.confidence - a.confidence),
@@ -38,11 +38,11 @@ function statusRank(status: FactStatus): number {
 	return { proposed: 0, accepted: 1, superseded: 2, rejected: 3 }[status];
 }
 
-export function factValue(fact: EntityFact): string {
+export function factValue(fact: EntityFact, entityNames?: Map<string, string>): string {
 	if (fact.value_text) return fact.value_text;
 	if (fact.value_number !== null) return String(fact.value_number);
 	if (fact.value_date) return fact.value_date;
-	if (fact.value_entity_id) return "linked entity";
+	if (fact.value_entity_id) return entityNames?.get(fact.value_entity_id) ?? fact.value_entity_id;
 	return "—";
 }
 
@@ -54,9 +54,11 @@ export function FactSection({
 	onAccept,
 	onReject,
 	busyId,
+	entityNames,
 }: {
 	storyId: string;
 	entityId: string;
+	entityNames?: Map<string, string>;
 	onAdd: () => void;
 	onEdit: (fact: EntityFact) => void;
 	onAccept: (fact: EntityFact) => void;
@@ -93,7 +95,7 @@ export function FactSection({
 							{group.facts.map((fact) => (
 								<div className={`fact-row status-${fact.status}`} key={fact.id}>
 									<div className="fact-row-main">
-										<p className="fact-value">{factValue(fact)}</p>
+										<p className="fact-value">{factValue(fact, entityNames)}</p>
 										<div className="fact-meta">
 											<ProvenanceChip
 												storyId={storyId}
