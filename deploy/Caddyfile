@@ -1,0 +1,19 @@
+{$PUBLIC_HOST} {
+	encode zstd gzip
+
+	handle /api/py/* {
+		uri strip_prefix /api/py
+		reverse_proxy api:8000
+	}
+
+	handle {
+		header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# Next.js reads its own security headers; Caddy only adds transport ones.
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -1,0 +1,1213 @@
+{
+  "version": 1,
+  "story": "The Lantern Coast",
+  "questions": [
+    {
+      "id": "q001",
+      "type": "entity_fact",
+      "question": "What colour are Mira's eyes?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "Her eyes were grey"
+        }
+      ],
+      "answer_contains": [
+        "grey"
+      ]
+    },
+    {
+      "id": "q002",
+      "type": "entity_fact",
+      "question": "What colour are the captain's eyes?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "Her eyes were grey"
+        }
+      ],
+      "answer_contains": [
+        "grey"
+      ]
+    },
+    {
+      "id": "q003",
+      "type": "entity_fact",
+      "question": "What is Mira's rank?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "She was the captain of the Night Watch now"
+        }
+      ],
+      "answer_contains": [
+        "captain"
+      ]
+    },
+    {
+      "id": "q004",
+      "type": "entity_fact",
+      "question": "What is the name of Mira's ship?",
+      "expected_entities": [
+        "The Lantern"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "The Lantern came into Brinehold"
+        }
+      ],
+      "answer_contains": [
+        "The Lantern"
+      ]
+    },
+    {
+      "id": "q005",
+      "type": "entity_fact",
+      "question": "Which port town does Mira return to?",
+      "expected_entities": [
+        "Brinehold"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "The Lantern came into Brinehold"
+        }
+      ],
+      "answer_contains": [
+        "Brinehold"
+      ]
+    },
+    {
+      "id": "q006",
+      "type": "entity_fact",
+      "question": "What colour is Kael's hair?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "A red-haired man pushed through the crowd"
+        }
+      ],
+      "answer_contains": [
+        "red"
+      ]
+    },
+    {
+      "id": "q007",
+      "type": "entity_fact",
+      "question": "What is Kael's trade?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 2,
+          "quote_contains": "You are still a blacksmith"
+        }
+      ],
+      "answer_contains": [
+        "blacksmith"
+      ]
+    },
+    {
+      "id": "q008",
+      "type": "relationship",
+      "question": "Who is Kael to Mira?",
+      "expected_entities": [
+        "Kael Voss",
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 2,
+          "quote_contains": "He was her brother"
+        }
+      ],
+      "answer_contains": [
+        "brother"
+      ]
+    },
+    {
+      "id": "q009",
+      "type": "entity_fact",
+      "question": "What scar does Kael have?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 2,
+          "quote_contains": "The old burn scar ran from his thumb to his wrist"
+        }
+      ],
+      "answer_contains": [
+        "burn"
+      ]
+    },
+    {
+      "id": "q010",
+      "type": "entity_fact",
+      "question": "How did Kael get the scar on his hand?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 2,
+          "quote_contains": "It was the forge"
+        }
+      ],
+      "answer_contains": [
+        "forge"
+      ]
+    },
+    {
+      "id": "q011",
+      "type": "entity_fact",
+      "question": "What is the lighthouse keeper's name?",
+      "expected_entities": [
+        "Orin Hale"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 3,
+          "quote_contains": "The lighthouse keeper was named Orin Hale"
+        }
+      ],
+      "answer_contains": [
+        "Orin"
+      ]
+    },
+    {
+      "id": "q012",
+      "type": "entity_fact",
+      "question": "What is Orin's job?",
+      "expected_entities": [
+        "Orin Hale"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 3,
+          "quote_contains": "The lighthouse keeper was named Orin Hale"
+        }
+      ],
+      "answer_contains": [
+        "lighthouse keeper"
+      ]
+    },
+    {
+      "id": "q013",
+      "type": "entity_fact",
+      "question": "How many fingers has Orin lost?",
+      "expected_entities": [
+        "Orin Hale"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 3,
+          "quote_contains": "he had lost two fingers"
+        }
+      ],
+      "answer_contains": [
+        "two"
+      ]
+    },
+    {
+      "id": "q014",
+      "type": "entity_fact",
+      "question": "What is wrong with the lighthouse lens?",
+      "expected_entities": [
+        "The lighthouse lens"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 3,
+          "quote_contains": "the cracked lens"
+        }
+      ],
+      "answer_contains": [
+        "cracked"
+      ]
+    },
+    {
+      "id": "q015",
+      "type": "entity_fact",
+      "question": "How long has the lighthouse lens been cracked?",
+      "expected_entities": [
+        "The lighthouse lens"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "Its lens had been cracked for three years"
+        }
+      ],
+      "answer_contains": [
+        "three years"
+      ]
+    },
+    {
+      "id": "q016",
+      "type": "entity_fact",
+      "question": "What does the tide bell ring for?",
+      "expected_entities": [
+        "The tide bell"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 3,
+          "quote_contains": "The bell rings only for the drowned"
+        }
+      ],
+      "answer_contains": [
+        "the drowned"
+      ]
+    },
+    {
+      "id": "q017",
+      "type": "entity_fact",
+      "question": "How many times does the tide bell ring during the storm?",
+      "expected_entities": [
+        "The tide bell"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 7,
+          "quote_contains": "It rang three times"
+        }
+      ],
+      "answer_contains": [
+        "three"
+      ]
+    },
+    {
+      "id": "q018",
+      "type": "entity_fact",
+      "question": "What colour coat does Sera wear?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 4,
+          "quote_contains": "She wore a green coat"
+        }
+      ],
+      "answer_contains": [
+        "green"
+      ]
+    },
+    {
+      "id": "q019",
+      "type": "entity_fact",
+      "question": "What is Sera's trade?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 4,
+          "quote_contains": "The smuggler"
+        }
+      ],
+      "answer_contains": [
+        "smuggler"
+      ]
+    },
+    {
+      "id": "q020",
+      "type": "entity_fact",
+      "question": "What does Sera carry under her arm?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 4,
+          "quote_contains": "a roll of tide charts"
+        }
+      ],
+      "answer_contains": [
+        "tide charts"
+      ]
+    },
+    {
+      "id": "q021",
+      "type": "entity_fact",
+      "question": "Where do Sera's tide charts lead?",
+      "expected_entities": [
+        "Sera Dunne",
+        "The Drowned Abbey"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 4,
+          "quote_contains": "These will take you to the Drowned Abbey"
+        }
+      ],
+      "answer_contains": [
+        "Drowned Abbey"
+      ]
+    },
+    {
+      "id": "q022",
+      "type": "event",
+      "question": "Where was the Night Watch betrayed?",
+      "expected_entities": [
+        "The Night Watch"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 5,
+          "quote_contains": "The Night Watch had been betrayed at the Salt Road"
+        }
+      ],
+      "answer_contains": [
+        "Salt Road"
+      ]
+    },
+    {
+      "id": "q023",
+      "type": "entity_fact",
+      "question": "What did the traitor wear?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 5,
+          "quote_contains": "the traitor wore a grey cloak"
+        }
+      ],
+      "answer_contains": [
+        "grey cloak"
+      ]
+    },
+    {
+      "id": "q024",
+      "type": "entity_fact",
+      "question": "What accent did the traitor have?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 5,
+          "quote_contains": "spoke with a Brinehold accent"
+        }
+      ],
+      "answer_contains": [
+        "Brinehold"
+      ]
+    },
+    {
+      "id": "q025",
+      "type": "entity_fact",
+      "question": "What clue linked the traitor to Sera?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 5,
+          "quote_contains": "the traitor knew the tide charts"
+        }
+      ],
+      "answer_contains": [
+        "tide charts"
+      ]
+    },
+    {
+      "id": "q026",
+      "type": "entity_fact",
+      "question": "What did Mira find in the ashes of the forge?",
+      "expected_entities": [
+        "The brass compass"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 6,
+          "quote_contains": "Mira found a brass compass"
+        }
+      ],
+      "answer_contains": [
+        "compass"
+      ]
+    },
+    {
+      "id": "q027",
+      "type": "entity_fact",
+      "question": "Where does the brass compass point?",
+      "expected_entities": [
+        "The brass compass"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 6,
+          "quote_contains": "The needle pointed east, toward the Drowned Abbey"
+        }
+      ],
+      "answer_contains": [
+        "Drowned Abbey"
+      ]
+    },
+    {
+      "id": "q028",
+      "type": "entity_fact",
+      "question": "Who did the brass compass belong to?",
+      "expected_entities": [
+        "The brass compass",
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 6,
+          "quote_contains": "That was Mother's"
+        }
+      ],
+      "answer_contains": [
+        "mother"
+      ]
+    },
+    {
+      "id": "q029",
+      "type": "entity_fact",
+      "question": "What was Mira's mother's occupation?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 6,
+          "quote_contains": "She was a lighthouse keeper"
+        },
+        {
+          "chapter_number": 9,
+          "quote_contains": "Her mother had been a lighthouse keeper before her"
+        }
+      ],
+      "answer_contains": [
+        "lighthouse keeper"
+      ]
+    },
+    {
+      "id": "q030",
+      "type": "entity_fact",
+      "question": "Was Mira's mother only a lighthouse keeper?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 6,
+          "quote_contains": "She was both"
+        }
+      ],
+      "answer_contains": [
+        "sailor"
+      ]
+    },
+    {
+      "id": "q031",
+      "type": "event",
+      "question": "When did the storm strike Brinehold?",
+      "expected_entities": [
+        "Brinehold"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 7,
+          "quote_contains": "The storm struck Brinehold at midnight"
+        }
+      ],
+      "answer_contains": [
+        "midnight"
+      ]
+    },
+    {
+      "id": "q032",
+      "type": "event",
+      "question": "Where did the storm strike?",
+      "expected_entities": [
+        "Brinehold"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 7,
+          "quote_contains": "The storm struck Brinehold at midnight"
+        }
+      ],
+      "answer_contains": [
+        "Brinehold"
+      ]
+    },
+    {
+      "id": "q033",
+      "type": "event",
+      "question": "What rang in the harbour during the storm?",
+      "expected_entities": [
+        "The tide bell"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 7,
+          "quote_contains": "the tide bell began to ring"
+        }
+      ],
+      "answer_contains": [
+        "tide bell"
+      ]
+    },
+    {
+      "id": "q034",
+      "type": "event",
+      "question": "Did anyone drown on the night the bell rang?",
+      "expected_entities": [
+        "The tide bell"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 7,
+          "quote_contains": "No one had drowned that night"
+        }
+      ],
+      "answer_contains": [
+        "no"
+      ]
+    },
+    {
+      "id": "q035",
+      "type": "entity_fact",
+      "question": "What did Kael confess at dawn?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 8,
+          "quote_contains": "He had sold the lighthouse lens to pay a debt"
+        }
+      ],
+      "answer_contains": [
+        "sold the lens"
+      ]
+    },
+    {
+      "id": "q036",
+      "type": "entity_fact",
+      "question": "Why did Kael sell the lighthouse lens?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 8,
+          "quote_contains": "to pay a debt"
+        }
+      ],
+      "answer_contains": [
+        "debt"
+      ]
+    },
+    {
+      "id": "q037",
+      "type": "entity_fact",
+      "question": "Did Kael sell the Night Watch?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 8,
+          "quote_contains": "I did not sell the Night Watch"
+        }
+      ],
+      "answer_contains": [
+        "no"
+      ]
+    },
+    {
+      "id": "q038",
+      "type": "entity_fact",
+      "question": "Who bought the lighthouse lens?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 8,
+          "quote_contains": "A woman in a green coat"
+        }
+      ],
+      "answer_contains": [
+        "Sera"
+      ]
+    },
+    {
+      "id": "q039",
+      "type": "entity_fact",
+      "question": "How did the lens buyer pay?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 8,
+          "quote_contains": "She paid in silver"
+        }
+      ],
+      "answer_contains": [
+        "silver"
+      ]
+    },
+    {
+      "id": "q040",
+      "type": "entity_fact",
+      "question": "Where is the Drowned Abbey?",
+      "expected_entities": [
+        "The Drowned Abbey"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 9,
+          "quote_contains": "The Drowned Abbey stood in the shallows east of Brinehold"
+        }
+      ],
+      "answer_contains": [
+        "shallows east of Brinehold"
+      ]
+    },
+    {
+      "id": "q041",
+      "type": "entity_fact",
+      "question": "How did Mira reach the abbey?",
+      "expected_entities": [
+        "The Drowned Abbey"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 9,
+          "quote_contains": "a channel ran between the sandbars"
+        }
+      ],
+      "answer_contains": [
+        "channel"
+      ]
+    },
+    {
+      "id": "q042",
+      "type": "event",
+      "question": "Whose voice does Mira hear in the abbey?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 9,
+          "quote_contains": "It was her mother's voice"
+        }
+      ],
+      "answer_contains": [
+        "mother"
+      ]
+    },
+    {
+      "id": "q043",
+      "type": "thread",
+      "question": "What secret did Mira's mother keep?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 9,
+          "quote_contains": "She had also kept a secret"
+        }
+      ],
+      "answer_contains": [
+        "secret"
+      ]
+    },
+    {
+      "id": "q044",
+      "type": "thread",
+      "question": "Who betrayed the Night Watch?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 10,
+          "quote_contains": "You betrayed the Night Watch"
+        }
+      ],
+      "answer_contains": [
+        "Sera"
+      ]
+    },
+    {
+      "id": "q045",
+      "type": "entity_fact",
+      "question": "How does Sera justify the betrayal?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 10,
+          "quote_contains": "I warned them about the storm"
+        }
+      ],
+      "answer_contains": [
+        "warned"
+      ]
+    },
+    {
+      "id": "q046",
+      "type": "entity_fact",
+      "question": "Who bought the lens from Kael?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 10,
+          "quote_contains": "Kael sold the lens. I bought it."
+        }
+      ],
+      "answer_contains": [
+        "Sera"
+      ]
+    },
+    {
+      "id": "q047",
+      "type": "event",
+      "question": "How many lives did the Night Watch lose?",
+      "expected_entities": [
+        "The Night Watch"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 10,
+          "quote_contains": "eight lives"
+        }
+      ],
+      "answer_contains": [
+        "eight"
+      ]
+    },
+    {
+      "id": "q048",
+      "type": "entity_fact",
+      "question": "What weapon does Sera hold at the abbey?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 10,
+          "quote_contains": "she held a long knife"
+        }
+      ],
+      "answer_contains": [
+        "knife"
+      ]
+    },
+    {
+      "id": "q049",
+      "type": "entity_fact",
+      "question": "What does Mira see in her reflection?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 11,
+          "quote_contains": "She saw a captain"
+        }
+      ],
+      "answer_contains": [
+        "captain"
+      ]
+    },
+    {
+      "id": "q050",
+      "type": "event",
+      "question": "What does Kael say to Mira at the abbey?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 11,
+          "quote_contains": "I am sorry"
+        }
+      ],
+      "answer_contains": [
+        "sorry"
+      ]
+    },
+    {
+      "id": "q051",
+      "type": "relationship",
+      "question": "What does Mira call Kael at the end?",
+      "expected_entities": [
+        "Kael Voss",
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 11,
+          "quote_contains": "You are still my brother"
+        }
+      ],
+      "answer_contains": [
+        "brother"
+      ]
+    },
+    {
+      "id": "q052",
+      "type": "entity_fact",
+      "question": "Which way does the compass point after the abbey?",
+      "expected_entities": [
+        "The brass compass"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 11,
+          "quote_contains": "the needle turned north"
+        }
+      ],
+      "answer_contains": [
+        "north"
+      ]
+    },
+    {
+      "id": "q053",
+      "type": "event",
+      "question": "When does The Lantern sail?",
+      "expected_entities": [
+        "The Lantern"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 12,
+          "quote_contains": "The Lantern sailed at dawn"
+        }
+      ],
+      "answer_contains": [
+        "dawn"
+      ]
+    },
+    {
+      "id": "q054",
+      "type": "entity_fact",
+      "question": "Was the lighthouse lens recovered by the end?",
+      "expected_entities": [
+        "The lighthouse lens"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 12,
+          "quote_contains": "The lighthouse lens was still missing"
+        }
+      ],
+      "answer_contains": [
+        "no"
+      ]
+    },
+    {
+      "id": "q055",
+      "type": "event",
+      "question": "How does Orin say farewell?",
+      "expected_entities": [
+        "Orin Hale"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 12,
+          "quote_contains": "his two remaining fingers raised in farewell"
+        }
+      ],
+      "answer_contains": [
+        "two fingers"
+      ]
+    },
+    {
+      "id": "q056",
+      "type": "entity_fact",
+      "question": "What does Orin say the bell will do?",
+      "expected_entities": [
+        "The tide bell"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 12,
+          "quote_contains": "The bell will ring again"
+        }
+      ],
+      "answer_contains": [
+        "ring again"
+      ]
+    },
+    {
+      "id": "q057",
+      "type": "thread",
+      "question": "What question about Mira's mother remains open?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 12,
+          "quote_contains": "Who had her mother been?"
+        }
+      ],
+      "answer_contains": [
+        "who"
+      ]
+    },
+    {
+      "id": "q058",
+      "type": "exact_phrase",
+      "question": "Where did I write the phrase 'grey eyes'?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "Her eyes were grey"
+        }
+      ],
+      "answer_contains": [
+        "chapter 1"
+      ]
+    },
+    {
+      "id": "q059",
+      "type": "exact_phrase",
+      "question": "Where did I write about the tide bell?",
+      "expected_entities": [
+        "The tide bell"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 7,
+          "quote_contains": "the tide bell began to ring"
+        }
+      ],
+      "answer_contains": [
+        "chapter 7"
+      ]
+    },
+    {
+      "id": "q060",
+      "type": "exact_phrase",
+      "question": "Where did I write 'Drowned Abbey'?",
+      "expected_entities": [
+        "The Drowned Abbey"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 9,
+          "quote_contains": "The Drowned Abbey stood in the shallows"
+        }
+      ],
+      "answer_contains": [
+        "chapter 9"
+      ]
+    },
+    {
+      "id": "q061",
+      "type": "entity_fact",
+      "question": "What colour are the captain's eyes, using her title?",
+      "expected_entities": [
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 1,
+          "quote_contains": "Her eyes were grey"
+        }
+      ],
+      "answer_contains": [
+        "grey"
+      ]
+    },
+    {
+      "id": "q062",
+      "type": "entity_fact",
+      "question": "How many fingers has the lighthouse keeper lost?",
+      "expected_entities": [
+        "Orin Hale"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 3,
+          "quote_contains": "he had lost two fingers"
+        }
+      ],
+      "answer_contains": [
+        "two"
+      ]
+    },
+    {
+      "id": "q063",
+      "type": "entity_fact",
+      "question": "What colour is the smuggler's coat?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 4,
+          "quote_contains": "She wore a green coat"
+        }
+      ],
+      "answer_contains": [
+        "green"
+      ]
+    },
+    {
+      "id": "q064",
+      "type": "entity_fact",
+      "question": "Where is the blacksmith's scar?",
+      "expected_entities": [
+        "Kael Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 2,
+          "quote_contains": "The old burn scar ran from his thumb to his wrist"
+        }
+      ],
+      "answer_contains": [
+        "left palm"
+      ]
+    },
+    {
+      "id": "q065",
+      "type": "relationship",
+      "question": "Who is Mira to Kael?",
+      "expected_entities": [
+        "Kael Voss",
+        "Mira Voss"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 2,
+          "quote_contains": "He was her brother"
+        }
+      ],
+      "answer_contains": [
+        "sister"
+      ]
+    },
+    {
+      "id": "q066",
+      "type": "event",
+      "question": "What happened at the Salt Road?",
+      "expected_entities": [
+        "The Night Watch"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 5,
+          "quote_contains": "The Night Watch had been betrayed at the Salt Road"
+        }
+      ],
+      "answer_contains": [
+        "betrayal"
+      ]
+    },
+    {
+      "id": "q067",
+      "type": "event",
+      "question": "What happened at midnight in Brinehold?",
+      "expected_entities": [
+        "Brinehold"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 7,
+          "quote_contains": "The storm struck Brinehold at midnight"
+        }
+      ],
+      "answer_contains": [
+        "storm"
+      ]
+    },
+    {
+      "id": "q068",
+      "type": "thread",
+      "question": "What happened to the lighthouse lens?",
+      "expected_entities": [
+        "The lighthouse lens"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 3,
+          "quote_contains": "the cracked lens"
+        },
+        {
+          "chapter_number": 8,
+          "quote_contains": "He had sold the lighthouse lens"
+        },
+        {
+          "chapter_number": 10,
+          "quote_contains": "Sera had stolen the light"
+        }
+      ],
+      "answer_contains": [
+        "cracked, sold, stolen"
+      ]
+    },
+    {
+      "id": "q069",
+      "type": "thread",
+      "question": "Who stole the lighthouse light?",
+      "expected_entities": [
+        "Sera Dunne"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 10,
+          "quote_contains": "Sera had stolen the light"
+        }
+      ],
+      "answer_contains": [
+        "Sera"
+      ]
+    },
+    {
+      "id": "q070",
+      "type": "entity_fact",
+      "question": "What is the name of the abbey in the shallows?",
+      "expected_entities": [
+        "The Drowned Abbey"
+      ],
+      "expected_evidence": [
+        {
+          "chapter_number": 9,
+          "quote_contains": "The Drowned Abbey stood in the shallows"
+        }
+      ],
+      "answer_contains": [
+        "Drowned Abbey"
+      ]
+    }
+  ]
+}

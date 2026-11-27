@@ -1,0 +1,140 @@
+# ==========================================================
+# Root .gitignore  —  Fast_API_Test_Project (Story Studio)
+# Rule of thumb: commit source, lockfiles, migrations, config
+# templates and docs. Never commit secrets, dependencies,
+# build output, caches, or local scratch work.
+# ==========================================================
+
+# ---------- Secrets / environment ----------
+# Real credentials never go in git. Commit .env.example instead.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets.json
+
+# ---------- OS clutter ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ---------- Editors / IDEs ----------
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.fleet/
+*.iml
+*.swp
+*.swo
+*~
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.python-version.bak
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+sdist/
+wheels/
+.installed.cfg
+*.manifest
+pip-wheel-metadata/
+
+# ---------- Python tooling caches ----------
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+# ---------- Jupyter ----------
+.ipynb_checkpoints/
+Untitled.ipynb
+*checkpoint.ipynb
+*checkpoint.txt
+
+# ---------- Node / Next.js ----------
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+.next/
+out/
+build/
+.turbo/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+.eslintcache
+
+# ---------- Logs / runtime output ----------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.sqlite
+*.sqlite3
+*.db
+uploads/
+tmp/
+temp/
+
+# ---------- Local scratch / AI agent output ----------
+# One-off scripts, pasted transcripts and file dumps produced
+# while debugging or prompting an AI assistant. Never part of
+# the product source.
+/codex.md
+scratch/
+sandbox/
+/backend/generated_code.py
+/backend/downloads_filtered_for_ai.txt
+/backend/clean.py
+/sdsddfsfddfdf
+*.tmp
+*.bak
+*.orig
+
+# ---------- Personal research material ----------
+# Notebooks, PDFs and datasets kept locally, not shipped or
+# versioned with the application. Project documentation in Docs/ IS versioned.
+Jupyter/
+data/
+datasets/
+# The retrieval eval corpus is application test data, not personal research.
+!backend/eval/datasets/
+!backend/eval/datasets/**
+
+# ---------- Database dumps (contain manuscript data) ----------
+backups/
+*.dump

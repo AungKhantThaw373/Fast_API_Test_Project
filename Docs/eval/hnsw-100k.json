@@ -1,0 +1,71 @@
+{
+  "dimensions": 768,
+  "limit": 30,
+  "query_points": 5,
+  "reports": [
+    {
+      "rows": 100000,
+      "story_rows": 50000,
+      "insert_seconds": 110.01,
+      "hnsw_build_seconds": 112.19,
+      "table_mb": 403.7,
+      "hnsw_index_mb": 390.6,
+      "exact_filtered": {
+        "p50_ms": 1460.4,
+        "p95_ms": 1598.1,
+        "max_ms": 2174.8,
+        "runs": 20
+      },
+      "hnsw": {
+        "plain_ef_200": {
+          "p50_ms": 2.8,
+          "p95_ms": 4.5,
+          "max_ms": 6.2,
+          "runs": 20,
+          "recall_at_30": 0.8,
+          "returned": 30
+        },
+        "plain_ef_400": {
+          "p50_ms": 5.1,
+          "p95_ms": 8.2,
+          "max_ms": 8.4,
+          "runs": 20,
+          "recall_at_30": 1.0,
+          "returned": 30
+        },
+        "plain_ef_800": {
+          "p50_ms": 5.3,
+          "p95_ms": 7.9,
+          "max_ms": 8.7,
+          "runs": 20,
+          "recall_at_30": 1.0,
+          "returned": 30
+        },
+        "iterative_ef_200": {
+          "p50_ms": 2.0,
+          "p95_ms": 2.8,
+          "max_ms": 2.9,
+          "runs": 20,
+          "recall_at_30": 0.8,
+          "returned": 30
+        },
+        "iterative_ef_400": {
+          "p50_ms": 2.2,
+          "p95_ms": 4.8,
+          "max_ms": 8.4,
+          "runs": 20,
+          "recall_at_30": 1.0,
+          "returned": 30
+        },
+        "iterative_ef_800": {
+          "p50_ms": 5.0,
+          "p95_ms": 7.7,
+          "max_ms": 8.6,
+          "runs": 20,
+          "recall_at_30": 1.0,
+          "returned": 30
+        }
+      }
+    }
+  ]
+}

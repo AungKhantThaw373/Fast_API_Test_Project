@@ -1,0 +1,15 @@
+title = "Stillroom secret scan"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders that are deliberately not secrets."
+regexes = [
+  '''test-secret-that-is-long-enough-for-validation''',
+  '''replace-with-a-random-secret-of-at-least-32-characters''',
+  '''change-me''',
+]
+paths = [
+  '''backend/.env.example''',
+]
