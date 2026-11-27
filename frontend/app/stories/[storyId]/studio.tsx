@@ -15,7 +15,7 @@ import { EditorPreferencesMenu } from '@/components/editor-preferences';
 import { ExportPanel } from '@/components/export-panel';
 import { StylePanel } from '@/components/style-panel';
 import { RecapPanel } from '@/components/recap-panel';
-import ManuscriptEditor, { type ManuscriptEditorHandle } from '@/components/manuscript-editor';
+import ManuscriptEditor, { type ManuscriptEditorHandle, type ManuscriptFormat } from '@/components/manuscript-editor';
 import { StorySearch } from '@/components/story-search';
 import { ConflictDialog } from '@/components/conflict-dialog';
 import { ConfirmProvider, useConfirm } from '@/components/confirm-dialog';
@@ -54,6 +54,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const deepLine = Number(searchParams.get('line') ?? '') || 0;
 	const jumpedRef = useRef('');
 	const editorRef = useRef<ManuscriptEditorHandle>(null);
+	const [pendingFormat, setPendingFormat] = useState<ManuscriptFormat | null>(null);
 	const scanBusyRef = useRef(false);
 	const lastScannedWordsRef = useRef(new Map<string, number>());
 	const draftEditVersionRef = useRef(0);
@@ -1002,7 +1003,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					onCreateArc={createArc}
 				/>
 				<button className="new-chapter-button" onClick={() => void addChapter()}>＋ <span>New chapter</span></button>
-				<div className="rail-footer"><button className="rail-settings-link" onClick={() => void go('/settings#ai')}>⚙ AI &amp; API settings</button><ThemeToggle compact /></div>
+				<div className="rail-footer"><button className="rail-settings-link" onClick={() => void go(`/settings?section=ai&story=${encodeURIComponent(storyId)}`)}>⚙ AI &amp; API settings</button><ThemeToggle compact /></div>
 			</aside>
 
 			<section className="writing-column">
@@ -1027,7 +1028,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							<summary aria-label="Story menu" title="Story menu">⋯</summary>
 							<div>
 								<button className="menu-item" onClick={() => { setFocusMode((value) => !value); closeStoryMenu(); }}>{focusMode ? '◱ Exit focus mode' : '◱ Focus mode'}</button>
-								<button className="menu-item menu-settings" onClick={() => { closeStoryMenu(); void go('/settings#ai'); }}>⚙ AI &amp; API settings</button>
+								<button className="menu-item menu-settings" onClick={() => { closeStoryMenu(); void go(`/settings?section=ai&story=${encodeURIComponent(storyId)}`); }}>⚙ AI &amp; API settings</button>
 								<button className="menu-item" onClick={() => { closeStoryMenu(); void go('/editing'); }}>▤ Editing files</button>
 								{activeChapter && otherStories.length > 0 && (
 									<label className="menu-field">Move chapter to
@@ -1052,7 +1053,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 					<div className="editor-page">
 						<input className="chapter-title-input" aria-label="Chapter title" value={draftTitle} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, title: event.target.value }; setHasUnsavedChanges(true); setDraftTitle(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Chapter title" maxLength={200} />
 						<div className="editor-rule" />
-						<EditorFormatBar onFormat={(command, color) => editorRef.current?.applyFormat(command, color)} />
+						<EditorFormatBar activeFormat={pendingFormat} onFormat={(command, color) => editorRef.current?.applyFormat(command, color)} />
 						<ManuscriptEditor
 							ref={editorRef}
 							chapterId={activeChapter.id}
@@ -1064,6 +1065,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 								setDraftContent(content);
 							}}
 							onSelectionChange={setSelection}
+							onPendingFormat={setPendingFormat}
 							onBlur={() => void persistChapter(activeChapter.id, draftTitle, editorRef.current?.getValue() ?? draftContent)}
 							preferences={editorPreferences}
 							entities={wikiEntities}

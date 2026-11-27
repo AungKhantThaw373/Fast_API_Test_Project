@@ -24,6 +24,22 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 	other: "Other",
 };
 
+export function entityTypeLabel(value: string): string {
+	return ENTITY_TYPE_LABELS[value] ?? capitalise(value.replace(/_/g, " "));
+}
+
+/** The API stores a short lowercase slug; spaces and punctuation become underscores. */
+export function normalizeEntityType(value: string): string {
+	const slug = value
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "_")
+		.replace(/^_+|_+$/g, "")
+		.slice(0, 32);
+	if (!slug) return "other";
+	return /^[a-z]/.test(slug) ? slug : `type_${slug}`.slice(0, 32);
+}
+
 export interface WikiFilters {
 	type: string;
 	status: string;
@@ -82,7 +98,7 @@ export function hasActiveFilters(filters: WikiFilters): boolean {
 export function activeFilterLabels(filters: WikiFilters): string[] {
 	const labels: string[] = [];
 	if (filters.q.trim()) labels.push(`“${filters.q.trim()}”`);
-	if (filters.type) labels.push(ENTITY_TYPE_LABELS[filters.type as EntityType] ?? filters.type);
+	if (filters.type) labels.push(entityTypeLabel(filters.type));
 	if (filters.status) labels.push(filters.status === "archived" ? "Archived" : capitalise(filters.status));
 	return labels;
 }

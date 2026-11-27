@@ -10,10 +10,10 @@ import { CommandPalette } from "@/components/command-palette";
 import { SavedViews } from "@/components/wiki/saved-views";
 import { useArcs, useCanonCoverage, useChapters, useEntities, useStory } from "@/components/wiki/use-wiki";
 import {
-	ENTITY_TYPE_LABELS,
 	ENTITY_TYPES,
 	EMPTY_FILTERS,
 	activeFilterLabels,
+	entityTypeLabel,
 	filtersForApi,
 	hasActiveFilters,
 	parseFilters,
@@ -54,7 +54,20 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 	const chapters = useChapters(storyId);
 	const coverage = useCanonCoverage(storyId);
 	const entities = useEntities(storyId, filtersForApi(filters));
-	const rows = entities.data ?? [];
+	const rows = useMemo(() => entities.data ?? [], [entities.data]);
+	const typeOptions = useMemo(() => {
+		const seen = new Set<string>(ENTITY_TYPES);
+		for (const row of rows) seen.add(row.entity_type);
+		if (filters.type) seen.add(filters.type);
+		return [...seen].sort((a, b) => {
+			const builtInA = ENTITY_TYPES.indexOf(a);
+			const builtInB = ENTITY_TYPES.indexOf(b);
+			if (builtInA !== -1 && builtInB !== -1) return builtInA - builtInB;
+			if (builtInA !== -1) return -1;
+			if (builtInB !== -1) return 1;
+			return entityTypeLabel(a).localeCompare(entityTypeLabel(b));
+		});
+	}, [filters.type, rows]);
 	const currentArc = coverage.data?.arcs.find((arc) => arc.arc_id === coverage.data?.current_arc_id);
 	const currentArcIndex = currentArc ? (coverage.data?.arcs.indexOf(currentArc) ?? -1) + 1 : 0;
 
@@ -156,9 +169,9 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 						<span>Type</span>
 						<select value={filters.type} onChange={(event) => apply({ ...filters, type: event.target.value })}>
 							<option value="">Every type</option>
-							{ENTITY_TYPES.map((type) => (
+							{typeOptions.map((type) => (
 								<option key={type} value={type}>
-									{ENTITY_TYPE_LABELS[type]}
+									{entityTypeLabel(type)}
 								</option>
 							))}
 						</select>

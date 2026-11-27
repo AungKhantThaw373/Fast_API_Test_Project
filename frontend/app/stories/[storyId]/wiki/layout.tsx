@@ -1,3 +1,4 @@
+import { ConfirmProvider } from "@/components/confirm-dialog";
 import { WikiShell } from "@/components/wiki/wiki-shell";
 
 export default async function WikiLayout({
@@ -8,5 +9,9 @@ export default async function WikiLayout({
 	params: Promise<{ storyId: string }>;
 }) {
 	const { storyId } = await params;
-	return <WikiShell storyId={storyId}>{children}</WikiShell>;
+	return (
+		<ConfirmProvider>
+			<WikiShell storyId={storyId}>{children}</WikiShell>
+		</ConfirmProvider>
+	);
 }

@@ -277,6 +277,46 @@ async def test_relationships_and_guards(user_client):
     assert deleted.status_code == 204
 
 
+async def test_custom_entity_types_and_relationship_edits(user_client):
+    story_id = await _story(user_client)
+    technique = await _entity(
+        user_client, story_id, name="Limitless", entity_type="Cursed Technique"
+    )
+    assert technique["entity_type"] == "cursed_technique"
+    invalid = await user_client.post(
+        f"/stories/{story_id}/entities",
+        json={"name": "Nine Lives", "entity_type": "9lives"},
+    )
+    assert invalid.status_code == 422
+
+    hero = await _entity(user_client, story_id, name="Satoru")
+    rival = await _entity(user_client, story_id, name="Suguru")
+    first = await user_client.post(
+        f"/entities/{hero['id']}/relationships",
+        json={"to_entity_id": rival["id"], "relationship_type": "friend_of"},
+    )
+    assert first.status_code == 201, first.text
+    rival_link = await user_client.post(
+        f"/entities/{hero['id']}/relationships",
+        json={"to_entity_id": rival["id"], "relationship_type": "rival_of"},
+    )
+    assert rival_link.status_code == 201, rival_link.text
+
+    patched = await user_client.patch(
+        f"/relationships/{first.json()['id']}",
+        json={"relationship_type": "best_friend_of", "description": "Since school."},
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["relationship_type"] == "best_friend_of"
+    assert patched.json()["description"] == "Since school."
+
+    conflict = await user_client.patch(
+        f"/relationships/{first.json()['id']}",
+        json={"relationship_type": "rival_of"},
+    )
+    assert conflict.status_code == 409
+
+
 async def test_threads_and_events(user_client):
     story_id = await _story(user_client)
     chapter = await _chapter(user_client, story_id)
@@ -458,8 +498,20 @@ async def test_other_users_cannot_touch_entities(make_client):
     bob = await make_client("bob", "bob@example.com")
     story_id = await _story(alice)
     entity = await _entity(alice, story_id)
+    other = await _entity(alice, story_id, name="Jax")
+    relationship = await alice.post(
+        f"/entities/{entity['id']}/relationships",
+        json={"to_entity_id": other["id"], "relationship_type": "knows"},
+    )
+    assert relationship.status_code == 201
 
     assert (await bob.get(f"/entities/{entity['id']}")).status_code == 404
+    assert (
+        await bob.patch(
+            f"/relationships/{relationship.json()['id']}",
+            json={"description": "stolen"},
+        )
+    ).status_code == 404
     assert (await bob.get(f"/stories/{story_id}/entities")).status_code == 404
     assert (await bob.get(f"/stories/{story_id}/inbox")).status_code == 404
     assert (

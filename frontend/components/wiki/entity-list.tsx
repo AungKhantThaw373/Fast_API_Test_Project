@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useEntities, useThreads } from "@/components/wiki/use-wiki";
 import {
-	ENTITY_TYPE_LABELS,
+	entityTypeLabel,
 	activeFilterLabels,
 	filtersForApi,
 	hasActiveFilters,
@@ -17,7 +17,7 @@ import {
 	summariseAliases,
 	type WikiFilters,
 } from "@/components/wiki/wiki-filters";
-import type { EntityType, WikiEntity } from "@/lib/api";
+import type { WikiEntity } from "@/lib/api";
 
 const ROW_HEIGHT = 96;
 const VIRTUALISE_ABOVE = 100;
@@ -170,7 +170,7 @@ function EntityRow({
 				<span className="wiki-row-body">
 					<span className="wiki-row-head">
 						<strong>{entity.name}</strong>
-						<span className="wiki-type-chip">{ENTITY_TYPE_LABELS[entity.entity_type as EntityType] ?? entity.entity_type}</span>
+						<span className="wiki-type-chip">{entityTypeLabel(entity.entity_type)}</span>
 						{entity.status !== "active" && <span className={`wiki-status-chip status-${entity.status}`}>{entity.status}</span>}
 					</span>
 					<span className="wiki-row-summary">{oneLineSummary(entity)}</span>

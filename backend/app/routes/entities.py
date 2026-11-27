@@ -27,6 +27,7 @@ from app.schemas.wiki import (
     RelationshipCreate,
     RelationshipListOut,
     RelationshipOut,
+    RelationshipUpdate,
     UnmergeOut,
 )
 from app.security import get_current_user
@@ -441,6 +442,22 @@ async def create_relationship(
     await session.commit()
     await session.refresh(relationship)
     return RelationshipOut.model_validate(relationship)
+
+
+@router.patch("/relationships/{relationship_id}", response_model=RelationshipOut)
+async def update_relationship(
+    relationship_id: UUID,
+    payload: RelationshipUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> RelationshipOut:
+    relationship = await fact_service.get_relationship(session, relationship_id)
+    entity = await entity_service.get_entity(session, relationship.from_entity_id)
+    await stories_service.owned_story(session, entity.story_id, user.id)
+    updated = await fact_service.update_relationship(session, relationship, payload)
+    await session.commit()
+    await session.refresh(updated)
+    return RelationshipOut.model_validate(updated)
 
 
 @router.delete("/relationships/{relationship_id}", status_code=status.HTTP_204_NO_CONTENT)

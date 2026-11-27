@@ -15,12 +15,19 @@ const INKS = [
 	{ name: "Plum", value: "#7e22ce" },
 ];
 
-export function EditorFormatBar({ onFormat }: { onFormat: (command: ManuscriptFormat, color?: string) => void }) {
+export function EditorFormatBar({
+	onFormat,
+	activeFormat,
+}: {
+	onFormat: (command: ManuscriptFormat, color?: string) => void;
+	activeFormat?: ManuscriptFormat | null;
+}) {
 	const button = (command: ManuscriptFormat, label: string, glyph: string, title: string) => (
 		<button
 			type="button"
-			className="format-button"
+			className={`format-button${activeFormat === command ? " is-active" : ""}`}
 			aria-label={label}
+			aria-pressed={activeFormat === command}
 			title={title}
 			onMouseDown={(event) => event.preventDefault()}
 			onClick={() => onFormat(command)}
@@ -30,13 +37,13 @@ export function EditorFormatBar({ onFormat }: { onFormat: (command: ManuscriptFo
 	);
 	return (
 		<div className="editor-format-bar" role="toolbar" aria-label="Text formatting">
-			{button("bold", "Bold", "B", "Bold — select text or type over the placeholder" )}
-			{button("italic", "Italic", "I", "Italic — select text or type over the placeholder" )}
-			{button("underline", "Underline", "U", "Underline — select text or type over the placeholder" )}
-			{button("strike", "Strikethrough", "S", "Strikethrough — select text or type over the placeholder" )}
+			{button("bold", "Bold", "B", "Bold — Ctrl/Cmd+B or hold for the next words")}
+			{button("italic", "Italic", "I", "Italic — Ctrl/Cmd+I or hold for the next words")}
+			{button("underline", "Underline", "U", "Underline the selection or the next words")}
+			{button("strike", "Strikethrough", "S", "Strike through the selection or the next words")}
 			<span className="format-divider" aria-hidden="true" />
 			{button("h2", "Heading", "H2", "Turn this line into a section heading" )}
-			{button("highlight", "Highlight", "▰", "Highlight — select text or type over the placeholder" )}
+			{button("highlight", "Highlight", "▰", "Highlight the selection or the next words")}
 			<details className="format-colors">
 				<summary aria-label="Text color" title="Text color"><span>A</span><i /></summary>
 				<div className="format-color-menu">

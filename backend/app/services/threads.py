@@ -193,6 +193,8 @@ async def update_thread(
     session: AsyncSession, thread: StoryThread, payload: ThreadUpdate
 ) -> StoryThread:
     data = payload.model_dump(exclude_unset=True)
+    if data.get("setup_chapter_id") is not None:
+        await _owned_chapter(session, thread.story_id, data["setup_chapter_id"])
     if data.get("payoff_chapter_id") is not None:
         await _owned_chapter(session, thread.story_id, data["payoff_chapter_id"])
     if data.get("linked_entity_ids") is not None:

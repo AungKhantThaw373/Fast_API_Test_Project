@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 
 import { useEntitySearch } from "@/components/wiki/use-wiki";
-import { ENTITY_TYPE_LABELS, ENTITY_TYPES } from "@/components/wiki/wiki-filters";
+import { ENTITY_TYPE_LABELS, ENTITY_TYPES, entityTypeLabel } from "@/components/wiki/wiki-filters";
 import { api, type EntityType, type StoryDetails, type WikiEntity } from "@/lib/api";
 
 export type CaptureMode = "entity" | "fact" | "thread";
@@ -198,7 +198,7 @@ export function CaptureDialog({
 													}}
 												>
 													<strong>{entity.name}</strong>
-													<span>{ENTITY_TYPE_LABELS[entity.entity_type] ?? entity.entity_type}</span>
+													<span>{entityTypeLabel(entity.entity_type)}</span>
 												</button>
 											</li>
 										))}

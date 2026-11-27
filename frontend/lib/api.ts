@@ -415,7 +415,10 @@ export type EntityType =
 	| "world_rule"
 	| "power_system"
 	| "creature"
-	| "other";
+	| "other"
+	// A novel can name its own kind of entry. The built-ins stay first for
+	// autocomplete; the API stores any lowercase slug (max 32 characters).
+	| (string & {});
 
 export type FactStatus = "proposed" | "accepted" | "rejected" | "superseded";
 export type FactValueType = "text" | "number" | "date" | "entity" | "boolean";
@@ -982,6 +985,19 @@ export const api = {
 			method: "POST",
 			body: JSON.stringify(input),
 		}),
+	updateRelationship: (
+		relationshipId: string,
+		changes: {
+			relationship_type?: string;
+			description?: string;
+			since_chapter?: number | null;
+			until_chapter?: number | null;
+		},
+	) =>
+		request<EntityRelationship>(`/relationships/${relationshipId}`, {
+			method: "PATCH",
+			body: JSON.stringify(changes),
+		}),
 	deleteRelationship: (relationshipId: string) =>
 		request<void>(`/relationships/${relationshipId}`, { method: "DELETE" }),
 	threads: async (storyId: string, state?: string) => {
@@ -1012,6 +1028,7 @@ export const api = {
 		changes: {
 			title?: string;
 			description?: string;
+			setup_chapter_id?: string | null;
 			state?: string;
 			payoff_chapter_id?: string | null;
 			linked_entity_ids?: string[];

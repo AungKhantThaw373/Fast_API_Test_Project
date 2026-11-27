@@ -1,12 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { api, type AuditEvent, type AuthSession, type CurrentUser } from '@/lib/api';
 import { isUnauthorized } from '@/lib/auth-redirect';
 import { AIProviderSettingsForm } from '@/components/ai-provider-settings';
 import { AppShell } from '@/components/app-shell';
+
+type SettingsSection = 'profile' | 'ai' | 'security' | 'sessions' | 'data' | 'activity';
+
+const SECTIONS: { id: SettingsSection; label: string; hint: string }[] = [
+	{ id: 'profile', label: 'Profile', hint: 'Name and email' },
+	{ id: 'ai', label: 'AI & API', hint: 'Provider, model, key' },
+	{ id: 'security', label: 'Security', hint: 'Password' },
+	{ id: 'sessions', label: 'Sessions', hint: 'Devices and sign-out' },
+	{ id: 'data', label: 'Data & privacy', hint: 'Export and deletion' },
+	{ id: 'activity', label: 'Activity', hint: 'Recent account events' },
+];
+
+function sectionFrom(value: string | null): SettingsSection {
+	return SECTIONS.some((item) => item.id === value) ? (value as SettingsSection) : 'profile';
+}
 
 function deviceName(userAgent: string) {
 	if (!userAgent) return 'Unknown device';
@@ -41,8 +56,47 @@ const ACTION_LABELS: Record<string, string> = {
 	story_backup_imported: 'Restored a story backup',
 };
 
+function SettingsPanel({
+	id,
+	eyebrow,
+	title,
+	description,
+	children,
+	danger = false,
+}: {
+	id: string;
+	eyebrow: string;
+	title: string;
+	description: string;
+	children: ReactNode;
+	danger?: boolean;
+}) {
+	return (
+		<section className={`settings-panel${danger ? ' settings-danger' : ''}`} id={id} aria-labelledby={`${id}-heading`}>
+			<header className="settings-panel-head">
+				<div className="eyebrow">{eyebrow}</div>
+				<h2 id={`${id}-heading`}>{title}</h2>
+				<p>{description}</p>
+			</header>
+			<div className="settings-panel-body">{children}</div>
+		</section>
+	);
+}
+
 export default function GeneralSettingsPage() {
+	return (
+		<Suspense fallback={<main className="quiet-loading"><span className="loading-mark" /><p>Opening settings…</p></main>}>
+			<SettingsInner />
+		</Suspense>
+	);
+}
+
+function SettingsInner() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const storyParam = searchParams.get('story');
+	const storyId = storyParam && /^[0-9a-f-]{36}$/i.test(storyParam) ? storyParam : null;
+	const [section, setSection] = useState<SettingsSection>(() => sectionFrom(searchParams.get('section')));
 	const [user, setUser] = useState<CurrentUser | null>(null);
 	const [sessions, setSessions] = useState<AuthSession[]>([]);
 	const [audit, setAudit] = useState<AuditEvent[]>([]);
@@ -68,6 +122,14 @@ export default function GeneralSettingsPage() {
 		api.auditEvents().then((rows) => { if (active) setAudit(rows); }).catch(() => undefined);
 		return () => { active = false; };
 	}, [router]);
+
+	function chooseSection(next: SettingsSection) {
+		setSection(next);
+		const params = new URLSearchParams();
+		params.set('section', next);
+		if (storyId) params.set('story', storyId);
+		router.replace(`/settings?${params.toString()}`, { scroll: false });
+	}
 
 	async function changePassword(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -129,71 +191,106 @@ export default function GeneralSettingsPage() {
 
 	if (loading) return <main className="quiet-loading"><span className="loading-mark" /><p>Opening settings…</p></main>;
 
+	const backHref = storyId ? `/stories/${storyId}` : '/dashboard';
+	const backLabel = storyId ? 'Back to the writing desk' : 'Back to the library';
+
 	return <AppShell active="settings" user={user?.username}>
-		<section className="general-settings-page">
-			<h1>Settings</h1>
-			<p className="general-settings-intro">Your account, sessions, and website preferences.</p>
-			<div className="general-settings-layout">
-				<nav className="general-settings-nav" aria-label="Settings sections"><span className="selected">Profile</span><a href="#ai">AI</a><a href="#password">Password</a><a href="#sessions">Sessions</a><a href="#your-data">Data</a><a href="#activity">Activity</a><a href="#privacy">Privacy</a></nav>
-				<div className="general-settings-main">
-					<section className="profile-settings-card"><div className="eyebrow">PROFILE</div><h2>Account details</h2><dl><div><dt>Username</dt><dd>{user?.username ?? '—'}</dd></div><div><dt>Email</dt><dd>{user?.email ?? '—'}</dd></div></dl></section>
-					<section className="profile-settings-card" id="ai"><AIProviderSettingsForm /></section>
-					<section className="profile-settings-card" id="password">
-						<div className="eyebrow">PASSWORD</div><h2>Change your password</h2>
-						<p>Changing it signs out every device, including this one. You will sign in again with the new password.</p>
-						<form className="account-form" onSubmit={changePassword}>
-							<label>Current password<input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required autoComplete="current-password" /></label>
-							<label>New password<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required minLength={10} autoComplete="new-password" /></label>
-							<label>Confirm new password<input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required minLength={10} autoComplete="new-password" /></label>
+		<main className="settings-page">
+			<header className="settings-head">
+				<Link className="settings-back" href={backHref}>← {backLabel}</Link>
+				<div className="eyebrow">YOUR WORKSPACE</div>
+				<h1>Settings</h1>
+				<p>Account, API connection, privacy, and the trail of changes. Choose a category on the left; the page keeps its place.</p>
+			</header>
+			<div className="settings-layout">
+				<aside className="settings-nav" aria-label="Settings categories">
+					<label className="settings-select-label">
+						<span>Category</span>
+						<select value={section} onChange={(event) => chooseSection(event.target.value as SettingsSection)}>
+							{SECTIONS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
+						</select>
+					</label>
+					<nav className="settings-nav-list">
+						{SECTIONS.map((item, index) => (
+							<button key={item.id} type="button" aria-current={section === item.id ? 'page' : undefined} onClick={() => chooseSection(item.id)}>
+								<span className="settings-nav-number">{String(index + 1).padStart(2, '0')}</span>
+								<span><strong>{item.label}</strong><small>{item.hint}</small></span>
+							</button>
+						))}
+					</nav>
+				</aside>
+				<div className="settings-content">
+					{section === 'profile' && (
+						<SettingsPanel id="profile" eyebrow="PROFILE" title="Account details" description="The name on your work and the address used to sign in.">
+							<dl className="settings-facts">
+								<div><dt>Username</dt><dd>{user?.username ?? '—'}</dd></div>
+								<div><dt>Email</dt><dd>{user?.email ?? '—'}</dd></div>
+							</dl>
+							<p className="settings-note">To change either field, contact the workspace owner. This build keeps account identity fixed so story ownership cannot drift.</p>
+						</SettingsPanel>
+					)}
+					{section === 'ai' && (
+						<SettingsPanel id="ai" eyebrow="MODEL & CONNECTION" title="AI & API" description="Choose the provider that reads your manuscript when you ask for a check. Keys stay encrypted and are never shown again.">
+							<AIProviderSettingsForm showHeading={false} />
+						</SettingsPanel>
+					)}
+					{section === 'security' && (
+						<SettingsPanel id="security" eyebrow="SECURITY" title="Password" description="Changing it signs out every device, including this one. You will sign in again with the new password.">
+							<form className="account-form settings-form" onSubmit={changePassword}>
+								<label>Current password<input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required autoComplete="current-password" /></label>
+								<label>New password<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required minLength={10} autoComplete="new-password" /></label>
+								<label>Confirm new password<input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required minLength={10} autoComplete="new-password" /></label>
+								{accountNotice && <p className="form-notice" role="status">{accountNotice}</p>}
+								{accountError && <p className="form-error" role="alert">{accountError}</p>}
+								<button className="button button-primary" disabled={busy}>{busy ? 'Changing…' : 'Change password'}</button>
+							</form>
+						</SettingsPanel>
+					)}
+					{section === 'sessions' && (
+						<SettingsPanel id="sessions" eyebrow="SESSIONS" title="Where you are signed in" description="Each row is one browser session. Revoke anything you do not recognise.">
 							{accountNotice && <p className="form-notice" role="status">{accountNotice}</p>}
 							{accountError && <p className="form-error" role="alert">{accountError}</p>}
-							<button className="button button-primary" disabled={busy}>{busy ? 'Changing…' : 'Change password'}</button>
-						</form>
-					</section>
-					<section className="profile-settings-card" id="sessions">
-						<div className="eyebrow">SESSIONS</div><h2>Where you are signed in</h2>
-						<p>Each row is one browser session. Revoke anything you do not recognise.</p>
-						<ul className="session-list">
-							{sessions.map((session) => <li key={session.id} className="session-row">
-								<div><strong>{deviceName(session.user_agent)} {session.current && <span className="session-current">This device</span>}</strong>
-									<span>{session.ip || 'Unknown address'} · signed in {shortDate(session.created_at)} · last seen {shortDate(session.last_seen_at)}</span></div>
-								<button className="quiet-button" onClick={() => void revoke(session)}>{session.current ? 'Sign out' : 'Revoke'}</button>
-							</li>)}
-						</ul>
-						{sessions.length === 0 && <p>No active sessions were returned.</p>}
-						<button className="quiet-button" onClick={() => void revokeEverywhere()}>Sign out everywhere</button>
-					</section>
-					<section className="profile-settings-card" id="your-data">
-						<div className="eyebrow">YOUR DATA</div><h2>Take it with you</h2>
-						<p>Download every story, chapter, wiki entry, draft file, and preference in one archive. It opens with any zip tool: a JSON data file, Markdown reading copies, and your original uploads. Provider API keys are never included.</p>
-						<div className="data-actions"><a className="button button-primary" href={api.accountExportUrl} download>Export all my data (.zip)</a></div>
-						<p className="data-retention">Deleted stories and chapters wait in the trash for 30 days. Deleting your account removes everything immediately, including that trash; the export above is the only copy you keep.</p>
-					</section>
-					<section className="profile-settings-card" id="activity">
-						<div className="eyebrow">ACTIVITY</div><h2>Recent account changes</h2>
-						<p>The last few sensitive actions on this account. Each entry keeps only a short description, an address, and a time; story prose is never written to this log.</p>
-						<ul className="audit-list">
-							{audit.map((event) => <li key={event.id} className="audit-row">
-								<div><strong>{ACTION_LABELS[event.action] ?? event.action.replaceAll('_', ' ')}</strong>
-									{typeof event.detail.title === 'string' && <span>{event.detail.title}</span>}
-									<span>{shortDate(event.created_at)} · {event.ip || 'unknown address'}</span></div>
-							</li>)}
-						</ul>
-						{audit.length === 0 && <p>No activity has been recorded yet.</p>}
-					</section>
-					<section className="profile-settings-card danger-card" id="delete-account">
-						<div className="eyebrow">DANGER ZONE</div><h2>Delete this account</h2>
-						<p>This deletes your account and every story, chapter, wiki entry, upload, session, and setting. It cannot be undone, and it is not limited to the trash. Export your data first if you want a copy.</p>
-						<form className="account-form" onSubmit={deleteAccount}>
-							<label>Type your username to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} required autoComplete="off" placeholder={user?.username ?? 'username'} /></label>
-							<label>Password<input type="password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} required autoComplete="current-password" /></label>
-							{deleteError && <p className="form-error" role="alert">{deleteError}</p>}
-							<button className="button danger-button" disabled={deleting}>{deleting ? 'Deleting…' : 'Delete my account and data'}</button>
-						</form>
-					</section>
-					<section className="general-privacy" id="privacy"><div className="eyebrow">PRIVACY</div><h2>Your story data</h2><p>Your AI provider is configured in AI above. Each story’s analysis controls stay with that story. When analysis is enabled, chapter text and relevant earlier excerpts are sent to that provider. Local indexing stays on Ollama.</p><Link className="settings-writing-link" href="/dashboard">Go to Writing</Link></section>
+							<ul className="settings-session-list">
+								{sessions.map((session) => <li key={session.id}>
+									<div><strong>{deviceName(session.user_agent)} {session.current && <span className="settings-chip">This device</span>}</strong><span>{session.ip || 'Unknown address'} · signed in {shortDate(session.created_at)} · last seen {shortDate(session.last_seen_at)}</span></div>
+									<button className="quiet-button" onClick={() => void revoke(session)}>{session.current ? 'Sign out' : 'Revoke'}</button>
+								</li>)}
+							</ul>
+							{sessions.length === 0 && <p className="settings-note">No active sessions were returned.</p>}
+							<div className="settings-actions"><button className="quiet-button" onClick={() => void revokeEverywhere()}>Sign out everywhere</button></div>
+						</SettingsPanel>
+					)}
+					{section === 'data' && (
+						<>
+							<SettingsPanel id="data" eyebrow="YOUR DATA" title="Take it with you" description="Download every story, chapter, wiki entry, draft file, and preference in one archive. Provider API keys are never included.">
+								<div className="settings-actions"><a className="button button-primary" href={api.accountExportUrl} download>Export all my data (.zip)</a></div>
+								<p className="settings-note">Deleted stories and chapters wait in the trash for 30 days. Deleting your account removes everything immediately, including that trash; the export above is the only copy you keep.</p>
+							</SettingsPanel>
+							<SettingsPanel id="delete-account" eyebrow="DANGER ZONE" title="Delete this account" description="This removes your account and every story, chapter, wiki entry, upload, session, and setting. It cannot be undone and is not limited to the trash." danger>
+								<form className="account-form settings-form" onSubmit={deleteAccount}>
+									<label>Type your username to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} required autoComplete="off" placeholder={user?.username ?? 'username'} /></label>
+									<label>Password<input type="password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} required autoComplete="current-password" /></label>
+									{deleteError && <p className="form-error" role="alert">{deleteError}</p>}
+									<button className="button danger-button" disabled={deleting}>{deleting ? 'Deleting…' : 'Delete my account and data'}</button>
+								</form>
+							</SettingsPanel>
+						</>
+					)}
+					{section === 'activity' && (
+						<SettingsPanel id="activity" eyebrow="ACTIVITY" title="Recent account changes" description="The last few sensitive actions on this account. Each entry keeps only a short description, an address, and a time; story prose is never written to this log.">
+							<ul className="settings-audit-list">
+								{audit.map((event) => <li key={event.id}>
+									<div><strong>{ACTION_LABELS[event.action] ?? event.action.replaceAll('_', ' ')}</strong>
+										{typeof event.detail.title === 'string' && <span>{event.detail.title}</span>}
+										<span>{shortDate(event.created_at)} · {event.ip || 'unknown address'}</span></div>
+								</li>)}
+							</ul>
+							{audit.length === 0 && <p className="settings-note">No activity has been recorded yet.</p>}
+						</SettingsPanel>
+					)}
+					<footer className="settings-foot"><span>Stillroom keeps the details. The story stays yours.</span><Link href={backHref}>{backLabel} →</Link></footer>
 				</div>
 			</div>
-		</section>
+		</main>
 	</AppShell>;
 }

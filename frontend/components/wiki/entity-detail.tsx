@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { FactDialog, EMPTY_FACT, draftFromFact, type FactDraft } from "@/components/wiki/fact-dialog";
 import { FactSection } from "@/components/wiki/fact-section";
 import { MergeDialog } from "@/components/wiki/merge-dialog";
@@ -13,20 +14,23 @@ import {
 	useEntities,
 	useEntity,
 	useEntityAppearances,
+	useEntityFacts,
 	useEntityRelationships,
 	useStory,
 	useThreads,
 } from "@/components/wiki/use-wiki";
-import { ENTITY_TYPE_LABELS, capitalise } from "@/components/wiki/wiki-filters";
-import { api, type EntityFact, type WikiEntity } from "@/lib/api";
+import { ENTITY_TYPE_LABELS, ENTITY_TYPES, capitalise, entityTypeLabel, normalizeEntityType } from "@/components/wiki/wiki-filters";
+import { api, type EntityFact, type EntityRelationship } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
 
 export function EntityDetail({ storyId, entityId }: { storyId: string; entityId: string }) {
 	const router = useRouter();
+	const confirm = useConfirm();
 	const queryClient = useQueryClient();
 	const entity = useEntity(entityId);
 	const story = useStory(storyId);
 	const facts = useEntityAppearances(entityId);
+	const factRows = useEntityFacts(entityId);
 	const relationships = useEntityRelationships(entityId);
 	const threads = useThreads(storyId);
 	const allEntities = useEntities(storyId, {});
@@ -39,7 +43,9 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 	const [mergeOpen, setMergeOpen] = useState(false);
 	const [relType, setRelType] = useState("");
 	const [relTarget, setRelTarget] = useState("");
+	const [relDescription, setRelDescription] = useState("");
 	const [relOpen, setRelOpen] = useState(false);
+	const [relEdit, setRelEdit] = useState<{ id: string; type: string; description: string } | null>(null);
 
 	const linkedThreads = useMemo(() => {
 		const list = threads.data ?? [];
@@ -151,14 +157,82 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 			api.createRelationship(entityId, {
 				to_entity_id: relTarget,
 				relationship_type: relType.trim(),
+				description: relDescription.trim(),
 			}),
 		onSuccess: async () => {
 			setRelOpen(false);
 			setRelType("");
 			setRelTarget("");
+			setRelDescription("");
+			toast.success("Relationship added.");
 			await queryClient.invalidateQueries({ queryKey: qk.entityRelationships(entityId) });
 		},
+		onError: (error) => toast.error(error instanceof Error ? error.message : "That relationship could not be added."),
 	});
+
+	const updateRelationship = useMutation({
+		mutationFn: (edit: { id: string; type: string; description: string }) =>
+			api.updateRelationship(edit.id, {
+				relationship_type: edit.type.trim(),
+				description: edit.description.trim(),
+			}),
+		onSuccess: async () => {
+			setRelEdit(null);
+			toast.success("Relationship updated.");
+			await queryClient.invalidateQueries({ queryKey: qk.entityRelationships(entityId) });
+		},
+		onError: (error) => toast.error(error instanceof Error ? error.message : "That relationship could not be saved."),
+	});
+
+	const removeRelationship = useMutation({
+		mutationFn: (id: string) => api.deleteRelationship(id),
+		onSuccess: async () => {
+			toast.success("Relationship removed.");
+			await queryClient.invalidateQueries({ queryKey: qk.entityRelationships(entityId) });
+		},
+		onError: (error) => toast.error(error instanceof Error ? error.message : "That relationship could not be removed."),
+	});
+
+	const archiveEntry = useMutation({
+		mutationFn: () => api.archiveEntity(entityId),
+		onSuccess: async () => {
+			toast.success("Entry archived.");
+			await queryClient.invalidateQueries({ queryKey: qk.entityList(storyId) });
+			router.push(`/stories/${storyId}/wiki`);
+		},
+		onError: (error) => toast.error(error instanceof Error ? error.message : "That entry could not be archived."),
+	});
+
+	async function deleteFact(fact: EntityFact) {
+		const ok = await confirm({
+			title: "Delete this fact?",
+			description: "The value and its provenance will be removed. This cannot be undone.",
+			confirmLabel: "Delete fact",
+			destructive: true,
+		});
+		if (!ok) return;
+		try {
+			await api.deleteFact(fact.id);
+			toast.success("Fact deleted.");
+			await invalidateEntity(entityId);
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "That fact could not be deleted.");
+		}
+	}
+
+	async function confirmRemoveRelationship(row: EntityRelationship) {
+		const ok = await confirm({
+			title: "Remove this relationship?",
+			description: `Remove “${row.relationship_type.replace(/_/g, " ")}” between ${detailType(row.from_entity_id)} and ${detailType(row.to_entity_id)}.`,
+			confirmLabel: "Remove",
+			destructive: true,
+		});
+		if (ok) removeRelationship.mutate(row.id);
+	}
+
+	function detailType(id: string) {
+		return nameById.get(id) ?? "the entry";
+	}
 
 	if (entity.isPending) {
 		return <div className="wiki-detail"><p className="wiki-quiet">Opening this entry…</p></div>;
@@ -187,7 +261,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					</Link>
 					<h1>{detail.name}</h1>
 					<div className="wiki-detail-badges">
-						<span className="wiki-type-chip">{ENTITY_TYPE_LABELS[detail.entity_type] ?? detail.entity_type}</span>
+						<span className="wiki-type-chip">{entityTypeLabel(detail.entity_type)}</span>
 						<span className={`wiki-status-chip status-${detail.status}`}>{capitalise(detail.status)}</span>
 						{detail.first_chapter_number && <span className="wiki-quiet">first seen ch. {detail.first_chapter_number}</span>}
 						{detail.last_chapter_number && <span className="wiki-quiet">last seen ch. {detail.last_chapter_number}</span>}
@@ -208,6 +282,20 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					<button className="quiet-button" onClick={() => setMergeOpen(true)}>
 						Merge into…
 					</button>
+					<button
+						className="quiet-button"
+						disabled={archiveEntry.isPending}
+						onClick={async () => {
+							const ok = await confirm({
+								title: "Archive this entry?",
+								description: "It leaves the active wiki but stays in the database and can be restored from the archived filter.",
+								confirmLabel: "Archive entry",
+							});
+							if (ok) archiveEntry.mutate();
+						}}
+					>
+						{archiveEntry.isPending ? "Archiving…" : "Archive entry"}
+					</button>
 				</div>
 			</header>
 
@@ -219,7 +307,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 						const form = new FormData(event.currentTarget);
 						await api.updateEntity(entityId, {
 							name: String(form.get("name") ?? detail.name),
-							entity_type: String(form.get("type") ?? detail.entity_type) as WikiEntity["entity_type"],
+							entity_type: normalizeEntityType(String(form.get("type") ?? detail.entity_type)),
 							summary: String(form.get("summary") ?? detail.summary),
 						});
 						toast.success("Entry updated.");
@@ -233,13 +321,15 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					</label>
 					<label>
 						<span>Type</span>
-						<select name="type" defaultValue={detail.entity_type}>
-							{Object.entries(ENTITY_TYPE_LABELS).map(([value, label]) => (
+						<input name="type" defaultValue={detail.entity_type} list="entity-type-edit-suggestions" maxLength={32} />
+						<datalist id="entity-type-edit-suggestions">
+							{ENTITY_TYPES.map((value) => (
 								<option key={value} value={value}>
-									{label}
+									{ENTITY_TYPE_LABELS[value]}
 								</option>
 							))}
-						</select>
+						</datalist>
+						<small>Any label works. Spaces become underscores.</small>
 					</label>
 					<label>
 						<span>Summary</span>
@@ -352,6 +442,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 				onEdit={(fact) => setFactDialog({ fact })}
 				onAccept={(fact) => decide.mutate({ fact, accept: true })}
 				onReject={(fact) => decide.mutate({ fact, accept: false })}
+				onDelete={(fact) => void deleteFact(fact)}
 				busyId={decide.isPending ? decide.variables?.fact.id ?? "" : ""}
 				entityNames={nameById}
 			/>
@@ -385,10 +476,17 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 								.filter((row) => row.id !== entityId)
 								.map((row) => (
 									<option key={row.id} value={row.id}>
-										{row.name} · {ENTITY_TYPE_LABELS[row.entity_type] ?? row.entity_type}
+										{row.name} · {entityTypeLabel(row.entity_type)}
 									</option>
 								))}
 						</select>
+						<input
+							value={relDescription}
+							onChange={(event) => setRelDescription(event.target.value)}
+							placeholder="Optional note: how they know each other"
+							aria-label="Relationship description"
+							maxLength={4000}
+						/>
 						<button className="button button-primary" type="submit" disabled={createRelationship.isPending}>
 							Add
 						</button>
@@ -402,31 +500,66 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 						<div>
 							<h3>Outgoing</h3>
 							{(relationships.data?.outgoing ?? []).map((row) => (
-								<p className="relationship-row" key={row.id}>
-									<strong>{row.relationship_type.replace(/_/g, " ")}</strong>
-									<span>{nameById.get(row.to_entity_id) ?? row.to_entity_id.slice(0, 8)}</span>
-									{row.description && <small>{row.description}</small>}
-									<button
-										className="text-button subtle"
-										onClick={async () => {
-											await api.deleteRelationship(row.id);
-											await queryClient.invalidateQueries({ queryKey: qk.entityRelationships(entityId) });
-										}}
-									>
-										Remove
-									</button>
-								</p>
+								<div className="relationship-row" key={row.id}>
+									<div className="relationship-row-copy">
+										<strong>{row.relationship_type.replace(/_/g, " ")}</strong>
+										<span>{nameById.get(row.to_entity_id) ?? row.to_entity_id.slice(0, 8)}</span>
+										{row.description && <small>{row.description}</small>}
+									</div>
+									<div className="relationship-row-actions">
+										<button className="text-button subtle" onClick={() => setRelEdit({ id: row.id, type: row.relationship_type, description: row.description })}>Edit</button>
+										<button className="text-button subtle" onClick={() => void confirmRemoveRelationship(row)}>Remove</button>
+									</div>
+									{relEdit?.id === row.id && (
+										<form
+											className="relationship-edit"
+											onSubmit={(event) => {
+												event.preventDefault();
+												if (relEdit.type.trim()) updateRelationship.mutate(relEdit);
+											}}
+										>
+											<input value={relEdit.type} onChange={(event) => setRelEdit({ ...relEdit, type: event.target.value })} aria-label="Relationship type" maxLength={60} autoFocus />
+											<input value={relEdit.description} onChange={(event) => setRelEdit({ ...relEdit, description: event.target.value })} aria-label="Relationship description" placeholder="A note, if useful" maxLength={4000} />
+											<div className="relationship-edit-actions">
+												<button className="button button-approve" type="submit" disabled={updateRelationship.isPending}>{updateRelationship.isPending ? "Saving…" : "Save"}</button>
+												<button className="text-button subtle" type="button" onClick={() => setRelEdit(null)}>Cancel</button>
+											</div>
+										</form>
+									)}
+								</div>
 							))}
 							{!(relationships.data?.outgoing ?? []).length && <p className="wiki-quiet">None yet.</p>}
 						</div>
 						<div>
 							<h3>Incoming</h3>
 							{(relationships.data?.incoming ?? []).map((row) => (
-								<p className="relationship-row" key={row.id}>
-									<strong>{row.relationship_type.replace(/_/g, " ")}</strong>
-									<span>{nameById.get(row.from_entity_id) ?? row.from_entity_id.slice(0, 8)}</span>
-									{row.description && <small>{row.description}</small>}
-								</p>
+								<div className="relationship-row" key={row.id}>
+									<div className="relationship-row-copy">
+										<strong>{row.relationship_type.replace(/_/g, " ")}</strong>
+										<span>{nameById.get(row.from_entity_id) ?? row.from_entity_id.slice(0, 8)}</span>
+										{row.description && <small>{row.description}</small>}
+									</div>
+									<div className="relationship-row-actions">
+										<button className="text-button subtle" onClick={() => setRelEdit({ id: row.id, type: row.relationship_type, description: row.description })}>Edit</button>
+										<button className="text-button subtle" onClick={() => void confirmRemoveRelationship(row)}>Remove</button>
+									</div>
+									{relEdit?.id === row.id && (
+										<form
+											className="relationship-edit"
+											onSubmit={(event) => {
+												event.preventDefault();
+												if (relEdit.type.trim()) updateRelationship.mutate(relEdit);
+											}}
+										>
+											<input value={relEdit.type} onChange={(event) => setRelEdit({ ...relEdit, type: event.target.value })} aria-label="Relationship type" maxLength={60} autoFocus />
+											<input value={relEdit.description} onChange={(event) => setRelEdit({ ...relEdit, description: event.target.value })} aria-label="Relationship description" placeholder="A note, if useful" maxLength={4000} />
+											<div className="relationship-edit-actions">
+												<button className="button button-approve" type="submit" disabled={updateRelationship.isPending}>{updateRelationship.isPending ? "Saving…" : "Save"}</button>
+												<button className="text-button subtle" type="button" onClick={() => setRelEdit(null)}>Cancel</button>
+											</div>
+										</form>
+									)}
+								</div>
 							))}
 							{!(relationships.data?.incoming ?? []).length && <p className="wiki-quiet">None yet.</p>}
 						</div>
@@ -487,6 +620,7 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 				<FactDialog
 					story={story.data}
 					entityName={detail.name}
+					suggestions={[...new Set((factRows.data ?? []).map((fact) => fact.predicate))]}
 					initial={
 						factDialog.fact
 							? draftFromFact(factDialog.fact, story.data?.chapters[0]?.id ?? "")

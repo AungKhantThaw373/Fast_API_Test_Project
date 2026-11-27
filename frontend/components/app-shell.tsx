@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-type AppSection = 'library' | 'files' | 'settings' | 'diagnostics';
+type AppSection = 'library' | 'files' | 'wiki' | 'settings' | 'diagnostics';
 
 const NAV: { id: AppSection; href: string; label: string; number: string }[] = [
 	{ id: 'library', href: '/dashboard', label: 'Library', number: '01' },
 	{ id: 'files', href: '/editing', label: 'Files', number: '02' },
-	{ id: 'settings', href: '/settings', label: 'Settings', number: '03' },
-	{ id: 'diagnostics', href: '/diagnostics', label: 'Diagnostics', number: '04' },
+	{ id: 'wiki', href: '/wiki', label: 'Wiki', number: '03' },
+	{ id: 'settings', href: '/settings', label: 'Settings', number: '04' },
+	{ id: 'diagnostics', href: '/diagnostics', label: 'Diagnostics', number: '05' },
 ];
 
 export function AppShell({ active, user, children }: { active: AppSection; user?: string | null; children: React.ReactNode }) {

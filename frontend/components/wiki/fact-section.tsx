@@ -53,6 +53,7 @@ export function FactSection({
 	onEdit,
 	onAccept,
 	onReject,
+	onDelete,
 	busyId,
 	entityNames,
 }: {
@@ -63,6 +64,7 @@ export function FactSection({
 	onEdit: (fact: EntityFact) => void;
 	onAccept: (fact: EntityFact) => void;
 	onReject: (fact: EntityFact) => void;
+	onDelete: (fact: EntityFact) => void;
 	busyId: string;
 }) {
 	const facts = useEntityFacts(entityId);
@@ -124,6 +126,9 @@ export function FactSection({
 										)}
 										<button className="text-button subtle" onClick={() => onEdit(fact)}>
 											Edit
+										</button>
+										<button className="text-button subtle fact-delete" onClick={() => onDelete(fact)}>
+											Delete
 										</button>
 									</div>
 								</div>

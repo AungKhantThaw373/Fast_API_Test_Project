@@ -32,12 +32,13 @@ export function ArcPage({ storyId, arcId }: { storyId: string; arcId: string }) 
 	});
 
 	const [summary, setSummary] = useState<string | null>(null);
+	const [name, setName] = useState<string | null>(null);
 	const [editing, setEditing] = useState(false);
 
 	const save = useMutation({
-		mutationFn: (next: string) => api.updateArc(arcId, { summary: next }),
+		mutationFn: (next: { name: string; summary: string }) => api.updateArc(arcId, next),
 		onSuccess: async () => {
-			toast.success("Arc summary saved.");
+			toast.success("Arc saved.");
 			setEditing(false);
 			await queryClient.invalidateQueries({ queryKey: qk.arcs(storyId) });
 		},
@@ -154,6 +155,15 @@ export function ArcPage({ storyId, arcId }: { storyId: string; arcId: string }) 
 				</div>
 				{editing ? (
 					<div className="arc-summary-edit">
+						<label>
+							<span>Arc name</span>
+							<input
+								value={name ?? arc.name}
+								onChange={(event) => setName(event.target.value)}
+								maxLength={300}
+								placeholder="Name this stretch of the story"
+							/>
+						</label>
 						<textarea
 							rows={5}
 							autoFocus
@@ -164,10 +174,10 @@ export function ArcPage({ storyId, arcId }: { storyId: string; arcId: string }) 
 						/>
 						<button
 							className="button button-approve"
-							disabled={save.isPending}
-							onClick={() => save.mutate(summary ?? arc.summary)}
+							disabled={save.isPending || !(name ?? arc.name).trim()}
+							onClick={() => save.mutate({ name: (name ?? arc.name).trim(), summary: summary ?? arc.summary })}
 						>
-							Save summary
+							{save.isPending ? "Saving…" : "Save changes"}
 						</button>
 					</div>
 				) : arc.summary ? (

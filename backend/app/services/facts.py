@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.story_models import Chapter
 from app.models.wiki_models import Entity, EntityFact, EntityRelationship
-from app.schemas.wiki import FactCreate, FactUpdate, RelationshipCreate
+from app.schemas.wiki import FactCreate, FactUpdate, RelationshipCreate, RelationshipUpdate
 from app.services.entities import resolve_entity
 
 FACT_STATUSES = ("proposed", "accepted", "rejected", "superseded")
@@ -237,6 +237,34 @@ async def create_relationship(
         quote=payload.quote,
     )
     session.add(relationship)
+    await session.flush()
+    return relationship
+
+
+async def update_relationship(
+    session: AsyncSession, relationship: EntityRelationship, payload: RelationshipUpdate
+) -> EntityRelationship:
+    data = payload.model_dump(exclude_unset=True)
+    if data.get("chapter_id") is not None:
+        await _owned_chapter(session, relationship.story_id, data["chapter_id"])
+    if data.get("relationship_type") is not None:
+        cleaned = data["relationship_type"].strip()
+        if not cleaned:
+            raise HTTPException(status_code=422, detail="A relationship needs a type.")
+        data["relationship_type"] = cleaned
+        duplicate = await session.scalar(
+            select(EntityRelationship.id).where(
+                EntityRelationship.story_id == relationship.story_id,
+                EntityRelationship.from_entity_id == relationship.from_entity_id,
+                EntityRelationship.to_entity_id == relationship.to_entity_id,
+                EntityRelationship.relationship_type == cleaned,
+                EntityRelationship.id != relationship.id,
+            )
+        )
+        if duplicate is not None:
+            raise HTTPException(status_code=409, detail="That relationship already exists.")
+    for key, value in data.items():
+        setattr(relationship, key, value)
     await session.flush()
     return relationship
 

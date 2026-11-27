@@ -1,11 +1,12 @@
 "use client";
 
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent, type KeyboardCoordinateGetter } from "@dnd-kit/core";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useArcs, useChapters, useThreads } from "@/components/wiki/use-wiki";
 import { api, type WikiThread } from "@/lib/api";
 import { useFocusTrap } from "@/lib/focus-trap";
@@ -20,11 +21,12 @@ const COLUMNS: { state: ThreadState; label: string; hint: string }[] = [
 	{ state: "abandoned", label: "Abandoned", hint: "Deliberately let go" },
 ];
 
-function ThreadCard({ thread, storyId, overlay = false }: { thread: WikiThread; storyId: string; overlay?: boolean }) {
+function ThreadCard({ thread, storyId, overlay = false, onEdit }: { thread: WikiThread; storyId: string; overlay?: boolean; onEdit?: (thread: WikiThread) => void }) {
 	return (
 		<article className={`thread-board-card state-${thread.state}${overlay ? " is-overlay" : ""}`}>
 			<div className="thread-board-card-top">
 				<strong>{thread.title}</strong>
+				{onEdit && <button type="button" className="thread-card-edit" onClick={() => onEdit(thread)} aria-label={`Edit ${thread.title}`}>Edit</button>}
 			</div>
 			{thread.description && <p className="thread-board-description">{thread.description}</p>}
 			{thread.linked_entities.length > 0 && (
@@ -50,18 +52,18 @@ function ThreadCard({ thread, storyId, overlay = false }: { thread: WikiThread; 
 	);
 }
 
-function DraggableThread({ thread, storyId }: { thread: WikiThread; storyId: string }) {
+function DraggableThread({ thread, storyId, onEdit }: { thread: WikiThread; storyId: string; onEdit: (thread: WikiThread) => void }) {
 	const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: thread.id });
 	const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
 	return (
 		<div ref={setNodeRef} style={style} className={`thread-board-drag${isDragging ? " is-dragging" : ""}`}>
 			<button type="button" className="thread-drag-handle" aria-label={`Move ${thread.title}`} {...listeners} {...attributes}>⠿</button>
-			<ThreadCard thread={thread} storyId={storyId} />
+			<ThreadCard thread={thread} storyId={storyId} onEdit={onEdit} />
 		</div>
 	);
 }
 
-function ThreadColumn({ state, label, hint, threads, storyId }: { state: ThreadState; label: string; hint: string; threads: WikiThread[]; storyId: string }) {
+function ThreadColumn({ state, label, hint, threads, storyId, onEdit }: { state: ThreadState; label: string; hint: string; threads: WikiThread[]; storyId: string; onEdit: (thread: WikiThread) => void }) {
 	const { setNodeRef, isOver } = useDroppable({ id: state });
 	return (
 		<section ref={setNodeRef} className={`thread-board-column state-${state}${isOver ? " is-over" : ""}`} aria-label={`${label} threads`}>
@@ -70,7 +72,7 @@ function ThreadColumn({ state, label, hint, threads, storyId }: { state: ThreadS
 				<strong>{threads.length}</strong>
 			</header>
 			<div className="thread-board-stack">
-				{threads.map((thread) => <DraggableThread key={thread.id} thread={thread} storyId={storyId} />)}
+				{threads.map((thread) => <DraggableThread key={thread.id} thread={thread} storyId={storyId} onEdit={onEdit} />)}
 				{threads.length === 0 && <p className="thread-board-empty">Nothing here.</p>}
 			</div>
 		</section>
@@ -79,6 +81,7 @@ function ThreadColumn({ state, label, hint, threads, storyId }: { state: ThreadS
 
 export function ThreadsPage({ storyId }: { storyId: string }) {
 	const queryClient = useQueryClient();
+	const confirm = useConfirm();
 	const threads = useThreads(storyId);
 	const chapters = useChapters(storyId);
 	const arcs = useArcs(storyId);
@@ -87,6 +90,9 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 	const [entityFilter, setEntityFilter] = useState("");
 	const [resolving, setResolving] = useState<{ thread: WikiThread; chapterId: string } | null>(null);
 	const resolveRef = useFocusTrap<HTMLFormElement>(Boolean(resolving));
+	const [editing, setEditing] = useState<WikiThread | null>(null);
+	const [editDraft, setEditDraft] = useState({ title: "", description: "", setupId: "", payoffId: "", linkedIds: [] as string[] });
+	const editRef = useFocusTrap<HTMLFormElement>(Boolean(editing));
 	const threadsRef = useRef<WikiThread[]>([]);
 	useEffect(() => { threadsRef.current = threads.data ?? []; }, [threads.data]);
 
@@ -138,6 +144,66 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 	}, [threads.data]);
 
 	const activeThread = threads.data?.find((thread) => thread.id === activeId) ?? null;
+
+	const allEntities = useQuery({
+		queryKey: ["thread-editor-entities", storyId] as const,
+		queryFn: () => api.entities(storyId, { limit: 200 }),
+		enabled: Boolean(editing),
+	});
+
+	function openEdit(thread: WikiThread) {
+		setEditing(thread);
+		setEditDraft({
+			title: thread.title,
+			description: thread.description,
+			setupId: thread.setup_chapter_id ?? "",
+			payoffId: thread.payoff_chapter_id ?? "",
+			linkedIds: [...thread.linked_entity_ids],
+		});
+	}
+
+	const updateThread = useMutation({
+		mutationFn: () => {
+			if (!editing) throw new Error("No thread selected.");
+			return api.updateThreadEntry(editing.id, {
+				title: editDraft.title.trim(),
+				description: editDraft.description.trim(),
+				setup_chapter_id: editDraft.setupId || null,
+				payoff_chapter_id: editDraft.payoffId || null,
+				linked_entity_ids: editDraft.linkedIds,
+			});
+		},
+		onSuccess: async () => {
+			setEditing(null);
+			toast.success("Thread updated.");
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: qk.threads(storyId) }),
+				queryClient.invalidateQueries({ queryKey: qk.inbox(storyId) }),
+			]);
+		},
+		onError: (error) => toast.error(error instanceof Error ? error.message : "That thread could not be saved."),
+	});
+
+	const removeThread = useMutation({
+		mutationFn: (id: string) => api.deleteThreadEntry(id),
+		onSuccess: async () => {
+			setEditing(null);
+			toast.success("Thread deleted.");
+			await queryClient.invalidateQueries({ queryKey: qk.threads(storyId) });
+		},
+		onError: (error) => toast.error(error instanceof Error ? error.message : "That thread could not be deleted."),
+	});
+
+	async function confirmDeleteThread() {
+		if (!editing) return;
+		const ok = await confirm({
+			title: "Delete this thread?",
+			description: `“${editing.title}” and its setup notes will be removed. The chapters stay untouched.`,
+			confirmLabel: "Delete thread",
+			destructive: true,
+		});
+		if (ok) removeThread.mutate(editing.id);
+	}
 
 	const createThread = useMutation({
 		mutationFn: () => api.createThread(storyId, {
@@ -259,12 +325,86 @@ export function ThreadsPage({ storyId }: { storyId: string }) {
 								label={column.label}
 								hint={column.hint}
 								storyId={storyId}
+								onEdit={openEdit}
 								threads={rows.filter((thread) => thread.state === column.state)}
 							/>
 						))}
 					</div>
 					<DragOverlay>{activeThread ? <ThreadCard thread={activeThread} storyId={storyId} overlay /> : null}</DragOverlay>
 				</DndContext>
+			)}
+
+			{editing && (
+				<div className="thread-resolve-backdrop" role="presentation" onClick={() => setEditing(null)}>
+					<form
+						ref={editRef}
+						className="thread-resolve-dialog thread-edit-dialog"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="thread-edit-title"
+						tabIndex={-1}
+						onClick={(event) => event.stopPropagation()}
+						onKeyDown={(event) => { if (event.key === "Escape") setEditing(null); }}
+						onSubmit={(event) => {
+							event.preventDefault();
+							if (editDraft.title.trim()) updateThread.mutate();
+						}}
+					>
+						<h2 id="thread-edit-title">Edit thread</h2>
+						<label>
+							<span>Question or promise</span>
+							<input data-autofocus value={editDraft.title} onChange={(event) => setEditDraft({ ...editDraft, title: event.target.value })} maxLength={300} />
+						</label>
+						<label>
+							<span>What is still unknown</span>
+							<textarea rows={3} value={editDraft.description} onChange={(event) => setEditDraft({ ...editDraft, description: event.target.value })} maxLength={20000} />
+						</label>
+						<div className="thread-edit-chapters">
+							<label>
+								<span>Set up in</span>
+								<select value={editDraft.setupId} onChange={(event) => setEditDraft({ ...editDraft, setupId: event.target.value })}>
+									<option value="">No chapter</option>
+									{(chapters.data ?? []).map((chapter) => <option key={chapter.id} value={chapter.id}>{chapter.chapter_number}. {chapter.title}</option>)}
+								</select>
+							</label>
+							<label>
+								<span>Paid off in</span>
+								<select value={editDraft.payoffId} onChange={(event) => setEditDraft({ ...editDraft, payoffId: event.target.value })}>
+									<option value="">Not resolved</option>
+									{(chapters.data ?? []).map((chapter) => <option key={chapter.id} value={chapter.id}>{chapter.chapter_number}. {chapter.title}</option>)}
+								</select>
+							</label>
+						</div>
+						<fieldset className="thread-edit-entities">
+							<legend>Linked entries</legend>
+							{allEntities.isPending ? <small>Loading entries…</small> : null}
+							{(allEntities.data ?? []).map((entity) => (
+								<label key={entity.id}>
+									<input
+										type="checkbox"
+										checked={editDraft.linkedIds.includes(entity.id)}
+										onChange={(event) => setEditDraft({
+											...editDraft,
+											linkedIds: event.target.checked
+												? [...editDraft.linkedIds, entity.id]
+												: editDraft.linkedIds.filter((id) => id !== entity.id),
+										})}
+									/>
+									<span>{entity.name}</span>
+								</label>
+							))}
+						</fieldset>
+						<div className="thread-resolve-actions">
+							<button className="button button-approve" type="submit" disabled={!editDraft.title.trim() || updateThread.isPending}>
+								{updateThread.isPending ? "Saving…" : "Save thread"}
+							</button>
+							<button className="text-button subtle" type="button" onClick={() => setEditing(null)}>Cancel</button>
+							<button className="text-button subtle thread-edit-delete" type="button" onClick={() => void confirmDeleteThread()} disabled={removeThread.isPending}>
+								{removeThread.isPending ? "Deleting…" : "Delete thread"}
+							</button>
+						</div>
+					</form>
+				</div>
 			)}
 
 			{resolving && (

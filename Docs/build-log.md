@@ -882,3 +882,43 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   appearance rows with no per-passage list. `npm test -- --run` 58/58,
   `npx tsc --noEmit` clean, `npm run lint` 0 errors (4 existing warnings),
   `npm run build` clean, `ruff check` clean on the seed.
+
+### Complete interface pass and editable wiki (post-release)
+
+- Replaced the washed-out settings page with six numbered categories (Profile,
+  AI & API, Security, Sessions, Data & privacy, Activity). The category is kept
+  in `?section=`, a mobile select mirrors the rail, and `?story=` preserves a
+  "Back to the writing desk" link. The API settings form still supports both a
+  story-scoped return and the plain settings route.
+- Added **Wiki** to the dashboard rail and a `/wiki` hub. One story opens its
+  full wiki immediately; several stories show a card per story, so the full
+  entry page is always reachable without opening the desk first.
+- Inline formatting now behaves like Word at an empty caret. Pressing Bold or
+  Italic inserts one marker pair and leaves the caret inside it; the whole typed
+  run is wrapped, the toolbar stays pressed while the style is active, and
+  pressing the control again steps the caret outside the closing marker. Typing
+  no longer produces "bold text" or "italic text" placeholders.
+- Entity types are novel-specific. The create and edit forms accept free text
+  ("Cursed Technique"), the API slugifies it to `cursed_technique`, and filters
+  and badges render custom labels. Built-in types remain suggestions. The
+  Pydantic schema accepts the writer's label before validating the slug.
+- Wiki editing no longer stops at the summary: facts can be deleted, relationships
+  can be created with a note and edited or removed, threads can be edited (title,
+  description, setup chapter, payoff chapter, linked entries) or deleted, arcs
+  can rename their name and summary, and entries can be archived with a
+  confirmation. All writes go through the API and PostgreSQL; nothing is kept in
+  localStorage.
+- Added `PATCH /relationships/{id}` with ownership checks, duplicate-pair
+  protection, and optional description/chapter fields. `ThreadUpdate` now accepts
+  `setup_chapter_id` and validates chapter ownership. Archived entries remain
+  recoverable through the archived filter.
+- Wrapped the wiki layout in `ConfirmProvider`; the new confirmation dialogs
+  had exposed that the wiki routes were outside the provider and would throw on
+  render.
+- Verification: backend **262 tests pass**, frontend Vitest **59/59**, `tsc --noEmit`
+  clean, `npm run lint` 0 errors (4 pre-existing warnings), `npm run build`
+  clean, `ruff` and `pyright` clean. A new production-build Playwright pass
+  covered the sidebar wiki hub, settings categories and back link, Word-style
+  bold/italic persistence, a custom entity type, fact delete, relationship
+  create/edit/remove, thread edit/delete, arc name/summary edit, and archive:
+  **29/29 checks** with no browser console errors.

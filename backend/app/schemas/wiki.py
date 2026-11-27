@@ -1,21 +1,39 @@
 """Wiki API models: entities, aliases, facts, relationships, threads, events."""
 
+import re
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
-EntityType = Literal[
-    "character",
-    "location",
-    "item",
-    "organization",
-    "concept",
-    "world_rule",
-    "power_system",
-    "creature",
-    "other",
+
+def _entity_type_slug(value: Any) -> Any:
+    """Accept a writer's label ("Cursed Technique") and store a short slug."""
+    if not isinstance(value, str):
+        return value
+    return re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
+
+
+# A novel defines its own cast: magic schools, ship classes, guilds, whatever it
+# needs. The database already stores a free string; validate a URL-safe slug
+# instead of forcing every writer into the built-in list.
+EntityType = Annotated[
+    str,
+    BeforeValidator(_entity_type_slug),
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=32,
+        pattern=r"^[a-z][a-z0-9_]*$",
+    ),
 ]
 AliasType = Literal["name", "title", "epithet", "disguise", "translation", "other"]
 FactStatus = Literal["proposed", "accepted", "rejected", "superseded"]
@@ -202,6 +220,15 @@ class RelationshipCreate(BaseModel):
     quote: str | None = Field(default=None, max_length=4000)
 
 
+class RelationshipUpdate(BaseModel):
+    relationship_type: str | None = Field(default=None, min_length=1, max_length=60)
+    description: str | None = Field(default=None, max_length=4000)
+    since_chapter: int | None = Field(default=None, ge=1)
+    until_chapter: int | None = Field(default=None, ge=1)
+    chapter_id: UUID | None = None
+    quote: str | None = Field(default=None, max_length=4000)
+
+
 class RelationshipOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -238,6 +265,7 @@ class ThreadCreate(BaseModel):
 class ThreadUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     description: str | None = Field(default=None, max_length=20000)
+    setup_chapter_id: UUID | None = None
     payoff_chapter_id: UUID | None = None
     state: ThreadState | None = None
     linked_entity_ids: list[UUID] | None = None

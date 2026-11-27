@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
 	EMPTY_FILTERS,
 	activeFilterLabels,
+	entityTypeLabel,
 	filtersForApi,
 	hasActiveFilters,
 	lastSeenLabel,
+	normalizeEntityType,
 	oneLineSummary,
 	openThreadCount,
 	parseFilters,
@@ -47,6 +49,15 @@ describe('wiki filter URL state', () => {
 			'Place',
 			'Archived',
 		]);
+		expect(activeFilterLabels({ ...EMPTY_FILTERS, type: 'cursed_technique' })).toEqual(['Cursed technique']);
+	});
+
+	it('turns a novel-specific type label into a safe slug', () => {
+		expect(normalizeEntityType('Cursed Technique')).toBe('cursed_technique');
+		expect(normalizeEntityType('  ship-class!! ')).toBe('ship_class');
+		expect(normalizeEntityType('9 lives')).toBe('type_9_lives');
+		expect(normalizeEntityType('')).toBe('other');
+		expect(entityTypeLabel('cursed_technique')).toBe('Cursed technique');
 	});
 });
 

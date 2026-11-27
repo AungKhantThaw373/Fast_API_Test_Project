@@ -4,7 +4,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyField, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, defaultHighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
-import { Compartment, EditorState, type Extension, type Range } from '@codemirror/state';
+import { Compartment, EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
 import {
 	EditorView,
 	crosshairCursor,
@@ -62,11 +62,49 @@ interface ManuscriptEditorProps {
 	ariaLabel?: string;
 	autoFocus?: boolean;
 	onBlur?: () => void;
+	onPendingFormat?: (format: ManuscriptFormat | null) => void;
 }
 
 type EditorPopover =
 	| { kind: 'entity'; entityId: string; x: number; y: number }
 	| { kind: 'finding'; findingId: string; x: number; y: number };
+
+type PendingInlineFormat = {
+	command: 'bold' | 'italic' | 'underline' | 'strike' | 'highlight' | 'color';
+	open: string;
+	close: string;
+	/** Content bounds between the two markers, mapped as the writer types. */
+	from: number;
+	to: number;
+};
+
+const setPendingInlineFormat = StateEffect.define<PendingInlineFormat | null>();
+
+const pendingInlineFormatField = StateField.define<PendingInlineFormat | null>({
+	create: () => null,
+	update(value, transaction) {
+		for (const effect of transaction.effects) {
+			if (effect.is(setPendingInlineFormat)) return effect.value;
+		}
+		if (!value) return null;
+		const mapped = transaction.docChanged
+			? {
+				...value,
+				from: transaction.changes.mapPos(value.from, -1),
+				to: transaction.changes.mapPos(value.to, 1),
+			}
+			: value;
+		const head = transaction.newSelection.main.head;
+		return head < mapped.from || head > mapped.to ? null : mapped;
+	},
+});
+
+/**
+ * Word-style formatting at an empty caret: no placeholder words. We insert the
+ * pair of markers once and leave the caret between them, so a whole typed run
+ * stays formatted until the writer turns the style off.
+ */
+const pendingInlineFormatExtension = pendingInlineFormatField;
 
 const EMIT_DEBOUNCE_MS = 180;
 const PERSIST_DEBOUNCE_MS = 500;
@@ -137,13 +175,14 @@ function markFromEvent(event: Event): HTMLElement | null {
  */
 export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEditorProps>(
 	function ManuscriptEditor({
-		chapterId, value, onChange, onSelectionChange, preferences, entities = [], findings = [], styleIssues = [], onOpenEntity, onStyleIssue, onFindingAction, onOpenEvidence, ariaLabel, autoFocus, onBlur,
+		chapterId, value, onChange, onSelectionChange, preferences, entities = [], findings = [], styleIssues = [], onOpenEntity, onStyleIssue, onFindingAction, onOpenEvidence, ariaLabel, autoFocus, onBlur, onPendingFormat,
 	}, ref) {
 		const hostRef = useRef<HTMLDivElement>(null);
 		const viewRef = useRef<EditorView | null>(null);
 		const onChangeRef = useRef(onChange);
 		const onSelectionRef = useRef(onSelectionChange);
 		const onBlurRef = useRef(onBlur);
+		const onPendingFormatRef = useRef(onPendingFormat);
 		const onOpenEntityRef = useRef(onOpenEntity);
 		const onStyleIssueRef = useRef(onStyleIssue);
 		const onFindingActionRef = useRef(onFindingAction);
@@ -172,6 +211,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 		onChangeRef.current = onChange;
 		onSelectionRef.current = onSelectionChange;
 		onBlurRef.current = onBlur;
+		onPendingFormatRef.current = onPendingFormat;
 		onOpenEntityRef.current = onOpenEntity;
 		onStyleIssueRef.current = onStyleIssue;
 		onFindingActionRef.current = onFindingAction;
@@ -321,6 +361,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 					autocapitalize: 'off',
 					autocorrect: 'off',
 				}),
+				pendingInlineFormatExtension,
 				annotationField,
 				createFindingGutter((findingId) => showFinding(findingId, null)),
 				EditorView.domEventHandlers({
@@ -408,6 +449,11 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 						scheduleAnnotations();
 					}
 					if (update.selectionSet || update.docChanged) emitSelection(update.state);
+					const previousPending = update.startState.field(pendingInlineFormatField, false);
+					const nextPending = update.state.field(pendingInlineFormatField, false);
+					if (previousPending?.command !== nextPending?.command || previousPending?.open !== nextPending?.open) {
+						onPendingFormatRef.current?.(nextPending?.command ?? null);
+					}
 					if (preferencesRef.current.typewriter && update.selectionSet && !update.docChanged) {
 						const head = update.state.selection.main.head;
 						window.requestAnimationFrame(() => {
@@ -508,13 +554,26 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 					const end = state.doc.lineAt(selection.to).to;
 					const block = state.sliceDoc(start, end);
 					const next = block.split('\n').map((line) => (line.startsWith(prefix) ? line.slice(prefix.length) : prefix + line)).join('\n');
-					view.dispatch({ changes: { from: start, to: end, insert: next }, selection: { anchor: start, head: start + next.length } });
+					view.dispatch({ changes: { from: start, to: end, insert: next }, selection: { anchor: start, head: start + next.length }, effects: setPendingInlineFormat.of(null) });
 					return;
 				}
 				if (command === 'clear') {
 					const cleaned = selected.replace(/\*+|__+|~~|==|<\/?u>|<\/?em>|<\/?strong>|<\/?s>|<\/?mark>/g, '').replace(/<span style=["']color:#[0-9a-fA-F]{3,8}["']>|<\/span>/g, '');
-					if (!selected) return;
-					view.dispatch({ changes: { from: selection.from, to: selection.to, insert: cleaned }, selection: { anchor: selection.from, head: selection.from + cleaned.length } });
+					if (!selected) {
+						const pending = view.state.field(pendingInlineFormatField, false);
+						if (pending) {
+							const openStart = pending.from - pending.open.length;
+							const closeEnd = pending.to + pending.close.length;
+							const empty = pending.from === pending.to
+								&& state.sliceDoc(openStart, pending.from) === pending.open
+								&& state.sliceDoc(pending.to, closeEnd) === pending.close;
+							view.dispatch(empty
+								? { changes: { from: openStart, to: closeEnd, insert: "" }, selection: { anchor: openStart }, effects: setPendingInlineFormat.of(null) }
+								: { effects: setPendingInlineFormat.of(null) });
+						}
+						return;
+					}
+					view.dispatch({ changes: { from: selection.from, to: selection.to, insert: cleaned }, selection: { anchor: selection.from, head: selection.from + cleaned.length }, effects: setPendingInlineFormat.of(null) });
 					return;
 				}
 				const pair = command === 'bold' ? '**'
@@ -534,8 +593,35 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 							{ from: closeFrom, to: closeTo },
 						],
 						selection: { anchor: selection.from - shift, head: selection.to - shift },
+						effects: setPendingInlineFormat.of(null),
 					});
 				};
+
+				// Word keeps text typed in a style formatted when you press the
+				// shortcut again; it only stops applying that style to new text.
+				const pendingNow = view.state.field(pendingInlineFormatField, false);
+				if (
+					!selected
+					&& pendingNow
+					&& pendingNow.command === command
+					&& pendingNow.open === pair
+					&& selection.from >= pendingNow.from
+					&& selection.to <= pendingNow.to
+				) {
+					const openStart = pendingNow.from - pendingNow.open.length;
+					const closeEnd = pendingNow.to + pendingNow.close.length;
+					const empty = pendingNow.from === pendingNow.to
+						&& state.sliceDoc(openStart, pendingNow.from) === pendingNow.open
+						&& state.sliceDoc(pendingNow.to, closeEnd) === pendingNow.close;
+					if (empty) removeWrapper(openStart, pendingNow.from, pendingNow.to, closeEnd);
+					else view.dispatch({
+						// Leave the marker pair, then step the caret past it so the
+						// next words are outside the style, as in Word.
+						selection: { anchor: closeEnd },
+						effects: setPendingInlineFormat.of(null),
+					});
+					return;
+				}
 
 				// A selection that already includes the delimiters should unwrap, not
 				// collect another pair (which produced **** and *** runs).
@@ -547,6 +633,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 					view.dispatch({
 						changes: { from: selection.from, to: selection.to, insert: inner },
 						selection: { anchor: selection.from, head: selection.from + inner.length },
+						effects: setPendingInlineFormat.of(null),
 					});
 					return;
 				}
@@ -556,9 +643,6 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 				// bold's ** with italic's * and removed the wrong leading or trailing
 				// stars. This keeps toggles balanced for nested marks.
 				const line = state.doc.lineAt(selection.from);
-				const lineEnd = state.doc.lineAt(selection.to).to;
-				const lineBefore = state.sliceDoc(line.from, selection.from);
-				const lineAfter = state.sliceDoc(selection.to, lineEnd);
 				if (line.number === state.doc.lineAt(selection.to).number) {
 					const kind = command as InlineStyle['kind'];
 					const wrapper = parseInlineLine(line.text, line.from)
@@ -581,19 +665,51 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 					}
 				}
 
+				const beginPending = (at: number) => {
+					view.dispatch({
+						changes: { from: at, insert: pair + closing },
+						selection: { anchor: at + pair.length },
+						effects: setPendingInlineFormat.of({ command, open: pair, close: closing, from: at + pair.length, to: at + pair.length }),
+					});
+				};
+
 				if (!selected) {
-					// Older builds could leave the closing half of a highlight behind.
-					// When the caret sits after that orphan, clean it up instead of
-					// seeding another ==highlighted text==.
-					if (command === 'highlight' && lineAfter === '' && lineBefore.endsWith('==')) {
-						view.dispatch({ changes: { from: selection.from - 2, to: selection.from }, selection: { anchor: selection.from - 2 } });
+					// Word-style toggle: insert the pair once and leave the caret inside.
+					// A whole typed run stays formatted until the style is switched off,
+					// instead of wrapping only the first keystroke.
+					const current = view.state.field(pendingInlineFormatField, false);
+					if (current) {
+						const same = current.command === command && current.open === pair;
+						const openStart = current.from - current.open.length;
+						const closeEnd = current.to + current.close.length;
+						const intact = current.from === current.to
+							&& state.sliceDoc(openStart, current.from) === current.open
+							&& state.sliceDoc(current.to, closeEnd) === current.close;
+						if (intact && same) {
+							view.dispatch({
+								changes: { from: openStart, to: closeEnd, insert: "" },
+								selection: { anchor: openStart },
+								effects: setPendingInlineFormat.of(null),
+							});
+							return;
+						}
+						if (intact) {
+							view.dispatch({
+								changes: { from: openStart, to: closeEnd, insert: pair + closing },
+								selection: { anchor: openStart + pair.length },
+								effects: setPendingInlineFormat.of({ command, open: pair, close: closing, from: openStart + pair.length, to: openStart + pair.length }),
+							});
+							return;
+						}
+						const after = current.to + current.close.length;
+						view.dispatch({
+							selection: { anchor: after },
+							effects: setPendingInlineFormat.of(null),
+						});
+						if (!same) beginPending(after);
 						return;
 					}
-					const body = command === 'highlight' ? 'highlighted text' : command === 'strike' ? 'struck text' : command === 'underline' ? 'underlined text' : color ? 'coloured text' : command === 'italic' ? 'italic text' : 'bold text';
-					view.dispatch({
-						changes: { from: selection.from, to: selection.to, insert: pair + body + closing },
-						selection: { anchor: selection.from + pair.length, head: selection.from + pair.length + body.length },
-					});
+					beginPending(selection.from);
 					return;
 				}
 
@@ -601,6 +717,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
 				view.dispatch({
 					changes: { from: selection.from, to: selection.to, insert: pair + selected + closing },
 					selection: { anchor: selection.from + pair.length, head: selection.from + pair.length + selected.length },
+					effects: setPendingInlineFormat.of(null),
 				});
 			},
 			focusRange: (from, to) => {

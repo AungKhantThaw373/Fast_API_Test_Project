@@ -3,13 +3,13 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 
-import { api, type EntityType, type WikiEntity } from "@/lib/api";
-import { ENTITY_TYPE_LABELS, ENTITY_TYPES } from "@/components/wiki/wiki-filters";
+import { api, type WikiEntity } from "@/lib/api";
+import { ENTITY_TYPE_LABELS, ENTITY_TYPES, normalizeEntityType } from "@/components/wiki/wiki-filters";
 import { toast } from "sonner";
 
 export interface EntityDraft {
 	name: string;
-	entityType: EntityType;
+	entityType: string;
 	summary: string;
 	alias: string;
 	quote: string;
@@ -53,7 +53,7 @@ export function AddEntityDialog({
 		try {
 			const created = await api.createEntity(storyId, {
 				name: draft.name.trim(),
-				entity_type: draft.entityType,
+				entity_type: normalizeEntityType(draft.entityType),
 				summary: draft.summary.trim(),
 				aliases: draft.alias.trim() ? [{ alias: draft.alias.trim(), alias_type: "title" }] : [],
 			});
@@ -102,16 +102,21 @@ export function AddEntityDialog({
 						</label>
 						<label>
 							<span>Type</span>
-							<select
+							<input
+								list="entity-type-suggestions"
 								value={draft.entityType}
-								onChange={(event) => setDraft({ ...draft, entityType: event.target.value as EntityType })}
-							>
+								onChange={(event) => setDraft({ ...draft, entityType: event.target.value })}
+								placeholder="character, faction, curse…"
+								maxLength={32}
+							/>
+							<datalist id="entity-type-suggestions">
 								{ENTITY_TYPES.map((type) => (
 									<option key={type} value={type}>
 										{ENTITY_TYPE_LABELS[type]}
 									</option>
 								))}
-							</select>
+							</datalist>
+							<small>Any type works. Write what this novel calls it; the wiki remembers it.</small>
 						</label>
 						<label>
 							<span>Summary</span>

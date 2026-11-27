@@ -50,12 +50,14 @@ export function FactDialog({
 	story,
 	entityName,
 	initial,
+	suggestions: existingSuggestions = [],
 	onClose,
 	onSave,
 }: {
 	story: StoryDetails | undefined;
 	entityName: string;
 	initial: FactDraft;
+	suggestions?: string[];
 	onClose: () => void;
 	onSave: (draft: FactDraft) => Promise<void>;
 }) {
@@ -66,9 +68,18 @@ export function FactDialog({
 
 	const chapters = useMemo(() => story?.chapters ?? [], [story]);
 	const suggestions = useMemo(() => {
-		const predicates = new Set(["summary", "eye_color", "age", "rank", "location", "goal", "secret"]);
-		return [...predicates];
-	}, []);
+		const predicates = new Set([
+			"summary",
+			"eye_color",
+			"age",
+			"rank",
+			"location",
+			"goal",
+			"secret",
+			...existingSuggestions,
+		]);
+		return [...predicates].sort((a, b) => a.localeCompare(b));
+	}, [existingSuggestions]);
 
 	async function submit(event: React.FormEvent) {
 		event.preventDefault();
@@ -121,6 +132,7 @@ export function FactDialog({
 									<option key={value} value={value} />
 								))}
 							</datalist>
+							<small>Use any field this novel needs. Existing fields appear as suggestions.</small>
 						</label>
 						<label>
 							<span>Value</span>
