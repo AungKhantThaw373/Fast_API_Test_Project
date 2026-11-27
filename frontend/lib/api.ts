@@ -594,30 +594,6 @@ export interface FactInput {
 	context?: Record<string, unknown>;
 }
 
-export interface DraftFolder {
-	id: string;
-	name: string;
-	file_count: number;
-	size_bytes: number;
-	created_at: string;
-	updated_at: string;
-}
-
-export interface DraftFile {
-	id: string;
-	folder_id: string;
-	folder_name: string;
-	title: string;
-	original_filename: string;
-	extension: string;
-	media_type: string;
-	size_bytes: number;
-	sha256: string;
-	created_at: string;
-	updated_at: string;
-	previewable: boolean;
-}
-
 async function download(path: string): Promise<{ blob: Blob; filename: string }> {
 	let response: Response;
 	try {
@@ -1134,31 +1110,6 @@ export const api = {
 			method: "PUT",
 			body: JSON.stringify({ arc_id: arcId, chapter_ids: chapterIds }),
 		}),
-	editingFolders: async () => (await request<{ folders: DraftFolder[] }>("/editing/folders")).folders,
-	createEditingFolder: (name: string) => request<DraftFolder>("/editing/folders", {
-		method: "POST",
-		body: JSON.stringify({ name }),
-	}),
-	renameEditingFolder: (folderId: string, name: string) => request<DraftFolder>(`/editing/folders/${folderId}`, {
-		method: "PATCH",
-		body: JSON.stringify({ name }),
-	}),
-	deleteEditingFolder: (folderId: string) => request<void>(`/editing/folders/${folderId}`, { method: "DELETE" }),
-	draftFiles: async (folderId?: string) => {
-		const query = folderId ? `?folder_id=${encodeURIComponent(folderId)}` : "";
-		return (await request<{ files: DraftFile[] }>(`/editing/files${query}`)).files;
-	},
-	uploadDraftFile: (file: File, folderId: string) => {
-		const form = new FormData();
-		form.set("file", file);
-		form.set("folder_id", folderId);
-		return request<DraftFile>("/editing/files", { method: "POST", body: form });
-	},
-	updateDraftFile: (fileId: string, changes: { title?: string; folder_id?: string }) =>
-		request<DraftFile>(`/editing/files/${fileId}`, { method: "PATCH", body: JSON.stringify(changes) }),
-	deleteDraftFile: (fileId: string) => request<void>(`/editing/files/${fileId}`, { method: "DELETE" }),
-	draftFileContentUrl: (fileId: string, inline = false) =>
-		`${API_BASE_URL}/editing/files/${fileId}/content${inline ? "?inline=true" : ""}`,
 	chapterSynopsis: (chapterId: string) =>
 		request<ChapterSynopsis>(`/stories/chapters/${chapterId}/synopsis`),
 	updateChapterSynopsis: (chapterId: string, synopsis: string) =>

@@ -1033,7 +1033,6 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 							<div>
 								<button className="menu-item" onClick={() => { setFocusMode((value) => !value); closeStoryMenu(); }}>{focusMode ? '◱ Exit focus mode' : '◱ Focus mode'}</button>
 								<button className="menu-item menu-settings" onClick={() => { closeStoryMenu(); void go(`/settings?section=ai&story=${encodeURIComponent(storyId)}`); }}>⚙ AI &amp; API settings</button>
-								<button className="menu-item" onClick={() => { closeStoryMenu(); void go('/editing'); }}>▤ Editing files</button>
 								{activeChapter && otherStories.length > 0 && (
 									<label className="menu-field">Move chapter to
 										<select defaultValue="" onChange={(event) => { if (event.target.value) void moveActiveChapter(event.target.value); event.target.value = ''; closeStoryMenu(); }}>

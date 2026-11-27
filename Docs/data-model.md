@@ -74,7 +74,7 @@ and scene is not enough to be actionable, so the model records both.
 | `worker_heartbeats` | Liveness for the single worker |
 | `ai_usage` | Per-call provider, model, purpose, tokens, cost estimate |
 | `user_ai_settings` | Per-user provider/model/budget choices |
-| `editing_folders` / `editing_draft_files` | Draft-file library, separate from manuscript chapters |
+| `editing_folders` / `editing_draft_files` | Retained draft-file uploads; the editing-library page and API were retired, but existing files remain available in account export |
 
 `jobs` is the only queue. Statuses in use are `queued`, `running`, `succeeded`,
 `failed`, `cancelled`, and `dead`; a failed job is retried with backoff until

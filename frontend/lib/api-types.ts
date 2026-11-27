@@ -986,95 +986,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/editing/folders": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Folders */
-        get: operations["list_folders_editing_folders_get"];
-        put?: never;
-        /** Create Folder */
-        post: operations["create_folder_editing_folders_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/editing/folders/{folder_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Folder */
-        delete: operations["delete_folder_editing_folders__folder_id__delete"];
-        options?: never;
-        head?: never;
-        /** Rename Folder */
-        patch: operations["rename_folder_editing_folders__folder_id__patch"];
-        trace?: never;
-    };
-    "/editing/files": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Draft Files */
-        get: operations["list_draft_files_editing_files_get"];
-        put?: never;
-        /** Upload Draft File */
-        post: operations["upload_draft_file_editing_files_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/editing/files/{file_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Draft File */
-        delete: operations["delete_draft_file_editing_files__file_id__delete"];
-        options?: never;
-        head?: never;
-        /** Update Draft File */
-        patch: operations["update_draft_file_editing_files__file_id__patch"];
-        trace?: never;
-    };
-    "/editing/files/{file_id}/content": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Draft File Content */
-        get: operations["get_draft_file_content_editing_files__file_id__content_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/stories/{story_id}/entities": {
         parameters: {
             query?: never;
@@ -1316,7 +1227,8 @@ export interface paths {
         delete: operations["delete_relationship_relationships__relationship_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Relationship */
+        patch: operations["update_relationship_relationships__relationship_id__patch"];
         trace?: never;
     };
     "/stories/{story_id}/threads": {
@@ -2523,15 +2435,6 @@ export interface components {
              */
             client_secret?: string | null;
         };
-        /** Body_upload_draft_file_editing_files_post */
-        Body_upload_draft_file_editing_files_post: {
-            /** File */
-            file: string;
-            /** Folder Id */
-            folder_id?: string | null;
-            /** Title */
-            title?: string | null;
-        };
         /** CanonCoverageOut */
         CanonCoverageOut: {
             /**
@@ -2589,6 +2492,8 @@ export interface components {
         ChapterIndexStatusOut: {
             /** Chapters */
             chapters: components["schemas"]["ChapterIndexRowOut"][];
+            /** Worker Alive */
+            worker_alive: boolean;
         };
         /** ChapterListOut */
         ChapterListOut: {
@@ -2828,20 +2733,10 @@ export interface components {
              */
             created_at: string;
         };
-        /** DraftFileUpdate */
-        DraftFileUpdate: {
-            /** Title */
-            title?: string | null;
-            /** Folder Id */
-            folder_id?: string | null;
-        };
         /** EntityCreate */
         EntityCreate: {
-            /**
-             * Entity Type
-             * @enum {string}
-             */
-            entity_type: "character" | "location" | "item" | "organization" | "concept" | "world_rule" | "power_system" | "creature" | "other";
+            /** Entity Type */
+            entity_type: string;
             /** Name */
             name: string;
             /**
@@ -2908,7 +2803,7 @@ export interface components {
         /** EntityUpdate */
         EntityUpdate: {
             /** Entity Type */
-            entity_type?: ("character" | "location" | "item" | "organization" | "concept" | "world_rule" | "power_system" | "creature" | "other") | null;
+            entity_type?: string | null;
             /** Name */
             name?: string | null;
             /** Summary */
@@ -3255,16 +3150,6 @@ export interface components {
              */
             review_status: "open" | "resolved" | "dismissed";
         };
-        /** FolderCreate */
-        FolderCreate: {
-            /** Name */
-            name: string;
-        };
-        /** FolderUpdate */
-        FolderUpdate: {
-            /** Name */
-            name: string;
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -3490,11 +3375,8 @@ export interface components {
         NameCandidateAccept: {
             /** Name */
             name: string;
-            /**
-             * Entity Type
-             * @enum {string}
-             */
-            entity_type: "character" | "location" | "item" | "organization" | "concept" | "world_rule" | "power_system" | "creature" | "other";
+            /** Entity Type */
+            entity_type: string;
             /**
              * Chapter Id
              * Format: uuid
@@ -3657,6 +3539,21 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** RelationshipUpdate */
+        RelationshipUpdate: {
+            /** Relationship Type */
+            relationship_type?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Since Chapter */
+            since_chapter?: number | null;
+            /** Until Chapter */
+            until_chapter?: number | null;
+            /** Chapter Id */
+            chapter_id?: string | null;
+            /** Quote */
+            quote?: string | null;
         };
         /** RetryIndexOut */
         RetryIndexOut: {
@@ -4296,6 +4193,8 @@ export interface components {
             title?: string | null;
             /** Description */
             description?: string | null;
+            /** Setup Chapter Id */
+            setup_chapter_id?: string | null;
             /** Payoff Chapter Id */
             payoff_chapter_id?: string | null;
             /** State */
@@ -6726,320 +6625,6 @@ export interface operations {
             };
         };
     };
-    list_folders_editing_folders_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_folder_editing_folders_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FolderCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_folder_editing_folders__folder_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                folder_id: string;
-            };
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rename_folder_editing_folders__folder_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                folder_id: string;
-            };
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FolderUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_draft_files_editing_files_get: {
-        parameters: {
-            query?: {
-                folder_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upload_draft_file_editing_files_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_draft_file_editing_files_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_draft_file_editing_files__file_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                file_id: string;
-            };
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_draft_file_editing_files__file_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                file_id: string;
-            };
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DraftFileUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_draft_file_content_editing_files__file_id__content_get: {
-        parameters: {
-            query?: {
-                inline?: boolean;
-            };
-            header?: never;
-            path: {
-                file_id: string;
-            };
-            cookie?: {
-                token?: string | null;
-                "__Host-token"?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_entities_stories__story_id__entities_get: {
         parameters: {
             query?: {
@@ -7744,6 +7329,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_relationship_relationships__relationship_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                relationship_id: string;
+            };
+            cookie?: {
+                token?: string | null;
+                "__Host-token"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelationshipUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationshipOut"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -1,6 +1,6 @@
 # Stillroom API
 
-FastAPI backend for Stillroom's Writing studio and Editing file library. It stores accounts, chapters, reviewable Story Bible suggestions, scene embeddings, continuity scans, intentional flags, and uploaded draft files organized into private folders.
+FastAPI backend for Stillroom's Writing studio and wiki. It stores accounts, chapters, reviewable Story Bible suggestions, scene embeddings, continuity scans, intentional flags, and retained draft uploads included in account exports.
 
 ## Local setup
 

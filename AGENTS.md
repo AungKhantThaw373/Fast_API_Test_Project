@@ -26,7 +26,7 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (263 tests)
+make test             # backend pytest (252 tests)
 make test-frontend    # vitest (60 tests)
 make qa-phase6        # 8 Playwright local-AI checks
 make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
@@ -86,10 +86,9 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   suites via `frontend/scripts/phase7-qa.mjs`.
 - **Phase 8 complete** (`Docs/phase-8-acceptance.md`): token-bucket limits
   and lockout, double-submit CSRF plus origin checks, SSRF validation with a
-  local-Ollama exception, security headers and `__Host-` cookies, upload
-  signature/quota checks with sandboxed previews, revocable sessions and
-  one-time password resets, audit/export/typed account deletion, retention
-  docs, slow-query logging, `/diagnostics`, Dependabot/gitleaks/pip-audit/npm
+  local-Ollama exception, security headers and `__Host-` cookies, revocable
+  sessions and one-time password resets, audit/export/typed account deletion,
+  retention docs, slow-query logging, `/diagnostics`, Dependabot/gitleaks/pip-audit/npm
   audit, a Compose stack with optional Caddy, and a verified restore drill.
 - **Phase 9 complete** (`Docs/phase-9-acceptance.md`): a deterministic
   1,029,590-word fixture, resumable import, lazy per-arc canon coverage, HNSW
@@ -97,7 +96,10 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   runbook/privacy/limitations docs. Release drills passed on a fresh database,
   a real scale backup, all exports, and a measured 30-minute mixed soak. The
   fixture is synthetic and the longest soak is 30 minutes, not 24 hours.
-- Backend: 263 tests pass, ruff and pyright clean, pip-audit clean.
+- Backend: 252 tests pass, ruff and pyright clean, pip-audit clean.
+- The separate draft-file library page and its upload/manage API are retired.
+  Existing uploads stay in PostgreSQL and are still included in account export;
+  no `/editing` page or endpoints are served.
 - Frontend: lint, `tsc --noEmit`, `next build`, 60 vitest tests, and npm audit
   clean. Expired sessions redirect once to `/login?next=<page>` and return there
   after sign-in (5 unit tests, 2 browser checks).

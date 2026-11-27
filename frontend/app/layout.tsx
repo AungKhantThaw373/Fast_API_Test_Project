@@ -4,8 +4,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-	title: "Stillroom — Writing and Editing",
-	description: "A quiet chapter writing studio and a structured library for story draft files.",
+	title: "Stillroom — Writing",
+	description: "A quiet chapter writing studio and a structured wiki for story memory.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

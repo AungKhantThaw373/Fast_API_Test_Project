@@ -959,3 +959,18 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   skips that mark while keeping the finding in the gutter, where it can still
   be opened. A regression test covers the empty-line case; frontend Vitest is
   now 60/60.
+
+### Retire the separate editing file library
+
+- Removed the `/editing` draft-file library from the interface: the standalone
+  page, the **Files** workspace link, and the story menu item are gone. The page
+  was a separate upload library, not the manuscript editor.
+- Removed the frontend API client, generated OpenAPI types, and editing-only CSS,
+  plus the backend router, request schemas, upload rate limit, and quota config.
+  The backend test file that covered those endpoints is deleted (11 tests).
+- Existing uploads were not destroyed. The `editing_folders` and
+  `editing_draft_files` tables and models remain so the one live demo upload is
+  still included in **Account → Export**. No upload/manage endpoint is served.
+- Verification: backend **252 tests pass**, frontend Vitest **60/60**, `tsc`,
+  lint, `next build`, `ruff`, and `pyright` clean; production-build check
+  confirms `/editing` is a 404 and the workspace has no Files entry.

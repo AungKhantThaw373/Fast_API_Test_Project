@@ -35,6 +35,8 @@ Tagged `phase-8-complete`. This page maps the manual's acceptance list to the co
 
 ## P8-5 — Upload safety
 
+> Retired after acceptance: the `/editing` page and upload API were removed. Existing uploads remain in PostgreSQL and account export; the checks below describe the historical implementation.
+
 - Signatures, not extensions, are checked for PDF, DOCX, ODT, DOC, RTF, and text in `editing_routes.py`; the 25 MiB file limit and the 500-file / 2 GiB account quota are enforced server-side.
 - Downloads use `Content-Disposition: attachment`; inline previews are limited to PDF and plain text and carry `Content-Security-Policy: sandbox; default-src 'none'; frame-ancestors 'self'`.
 - The preview iframe in the editing desk uses `sandbox="allow-same-origin"` with `referrerPolicy="no-referrer"`. User HTML is never rendered.

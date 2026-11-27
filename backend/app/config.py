@@ -55,8 +55,6 @@ class Settings(BaseSettings):
     # Optional comma-separated hostnames for custom provider URLs. Empty means
     # any public host is accepted. Useful for a locked-down deployment.
     PROVIDER_HOST_ALLOWLIST: str = ""
-    USER_STORAGE_QUOTA_BYTES: int = Field(default=2 * 1024 * 1024 * 1024, ge=1)
-    USER_FILE_LIMIT: int = Field(default=500, ge=1)
     # Soft warning only; the manual says not to hard-block normal manuscripts.
     STORY_CHAPTER_WARNING: int = Field(default=1000, ge=1)
     # Slow SQL is logged at WARNING; the request id comes from the logging filter.

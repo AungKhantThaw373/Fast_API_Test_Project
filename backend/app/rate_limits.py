@@ -22,8 +22,6 @@ REGISTER_LIMIT = 3
 REGISTER_WINDOW_SECONDS = 60 * 60
 AI_SCAN_LIMIT = 10
 AI_SCAN_WINDOW_SECONDS = 60 * 60
-UPLOAD_LIMIT = 20
-UPLOAD_WINDOW_SECONDS = 60 * 60
 PASSWORD_RESET_LIMIT = 5
 PASSWORD_RESET_WINDOW_SECONDS = 60 * 60
 
@@ -107,14 +105,6 @@ async def ai_scan_rate_limit(user: User = Depends(get_current_user)) -> None:
     )
     if retry_after is not None:
         raise _too_many(retry_after, "AI scan limit reached (10 per hour). Try again later.")
-
-
-async def upload_rate_limit(user: User = Depends(get_current_user)) -> None:
-    retry_after = limiter.consume(
-        f"upload:{user.id}", UPLOAD_LIMIT, UPLOAD_WINDOW_SECONDS
-    )
-    if retry_after is not None:
-        raise _too_many(retry_after, "Upload limit reached (20 per hour). Try again later.")
 
 
 async def password_reset_rate_limit(request: Request) -> None:

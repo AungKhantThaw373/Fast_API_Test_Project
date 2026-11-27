@@ -21,7 +21,6 @@ from app.routes.bible import router as bible_router
 from app.routes.canon import router as canon_router
 from app.routes.chapters import router as chapter_router
 from app.routes.continuity import router as continuity_router
-from app.routes.editing_routes import router as editing_router
 from app.routes.entities import router as entities_router
 from app.routes.export_routes import router as export_router
 from app.routes.health import router as health_router
@@ -142,7 +141,6 @@ app.include_router(continuity_router)
 app.include_router(job_router)
 app.include_router(trash_router)
 app.include_router(system_router)
-app.include_router(editing_router)
 app.include_router(entities_router)
 app.include_router(wiki_router)
 app.include_router(search_router)
