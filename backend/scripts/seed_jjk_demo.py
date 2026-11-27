@@ -13,6 +13,7 @@ from app.db import async_session
 from app.models import Arc, Chapter, Story, User
 from app.schemas.wiki import EventCreate, FactCreate, RelationshipCreate, ThreadCreate
 from app.security import get_password_hash
+from app.services import indexing
 from app.services.entities import create_entity, extract_mentions
 from app.services.facts import create_fact, create_relationship
 from app.services.threads import create_event, create_thread
@@ -299,7 +300,7 @@ async def seed() -> None:
                 content=body.strip(),
                 word_count=len(body.split()),
                 revision=1,
-                index_status="ready",
+                index_status="pending",
             )
             session.add(chapter)
             chapters.append(chapter)
@@ -777,9 +778,12 @@ async def seed() -> None:
             )
 
         await session.commit()
+        for chapter in chapters:
+            await indexing.enqueue_reindex(session, chapter.id, owner_id=story.owner_id)
         print(
             f"Seeded {STORY_TITLE!r} with {len(chapters)} chapters, {len(entities)} entities, and a deliberate continuity break in chapter 11."
         )
+        print(f"Queued {len(chapters)} chapter indexes. Start them with `make worker`.")
         print(f"Login: {EMAIL} / {PASSWORD}")
 
 

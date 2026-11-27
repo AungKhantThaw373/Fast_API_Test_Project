@@ -19,6 +19,7 @@ from app.schemas.stories import (
     StoryUpdate,
 )
 from app.security import get_current_user
+from app.services import jobs as jobs_service
 from app.services import stories as stories_service
 from app.services.audit import record_audit
 from app.services.trash import trash_story
@@ -121,7 +122,10 @@ async def get_story_index_status(
 ) -> ChapterIndexStatusOut:
     await stories_service.owned_story(session, story_id, user.id)
     rows = await stories_service.index_status_rows(session, story_id)
-    return ChapterIndexStatusOut(chapters=[ChapterIndexRowOut.model_validate(row) for row in rows])
+    return ChapterIndexStatusOut(
+        chapters=[ChapterIndexRowOut.model_validate(row) for row in rows],
+        worker_alive=await jobs_service.worker_is_alive(session),
+    )
 
 
 @router.patch("/{story_id}", response_model=StoryOut)

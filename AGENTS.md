@@ -26,7 +26,7 @@ cd frontend && npm ci
 make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
-make test             # backend pytest (262 tests)
+make test             # backend pytest (263 tests)
 make test-frontend    # vitest (59 tests)
 make qa-phase6        # 8 Playwright local-AI checks
 make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
@@ -97,7 +97,7 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   runbook/privacy/limitations docs. Release drills passed on a fresh database,
   a real scale backup, all exports, and a measured 30-minute mixed soak. The
   fixture is synthetic and the longest soak is 30 minutes, not 24 hours.
-- Backend: 262 tests pass, ruff and pyright clean, pip-audit clean.
+- Backend: 263 tests pass, ruff and pyright clean, pip-audit clean.
 - Frontend: lint, `tsc --noEmit`, `next build`, 59 vitest tests, and npm audit
   clean. Expired sessions redirect once to `/login?next=<page>` and return there
   after sign-in (5 unit tests, 2 browser checks).

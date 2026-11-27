@@ -91,6 +91,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const [askFocus, setAskFocus] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [checking, setChecking] = useState(false);
+	const [indexWorkerAlive, setIndexWorkerAlive] = useState<boolean | null>(null);
 	const [checkRetryCountdown, setCheckRetryCountdown] = useState(0);
 	const [scanProgress, setScanProgress] = useState<{ scenes_done?: number; scenes_total?: number; scenes_failed?: number } | null>(null);
 	const [lastScan, setLastScan] = useState<{ chapterId: string; revision: number } | null>(null);
@@ -170,6 +171,8 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 	const earlierChapters = chapters.filter((chapter) => chapter.chapter_number < (activeChapter?.chapter_number ?? 0));
 	const earlierIndexedCount = earlierChapters.filter((chapter) => chapter.index_status === 'indexed').length;
 	const earlierChaptersReady = earlierChapters.length > 0 && earlierIndexedCount === earlierChapters.length;
+	const memoryIndexing = activeChapter !== null && (activeChapter.index_status === 'pending' || activeChapter.index_status === 'indexing');
+	const indexWorkerOffline = memoryIndexing && indexWorkerAlive === false;
 	const currentFindings = useMemo(() => findingsChapterId === findingsTargetChapterId ? findings : [], [findings, findingsChapterId, findingsTargetChapterId]);
 	const visibleFindings = useMemo(() => currentFindings.filter((finding) => findingFilter === 'all' || finding.review_status === findingFilter), [currentFindings, findingFilter]);
 	const deferredDraftContent = useDeferredValue(draftContent);
@@ -384,6 +387,7 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 			try {
 				const latest = await api.storyIndexStatus(storyId);
 				if (!alive) return;
+				setIndexWorkerAlive(latest.worker_alive);
 				setChapters((current) => current.map((chapter) => {
 					const updated = latest.chapters.find((item) => item.id === chapter.id);
 					return updated ? { ...chapter, index_status: updated.index_status, index_error: updated.index_error, bible_scan_revision: updated.bible_scan_revision } : chapter;
@@ -1048,8 +1052,9 @@ function StoryStudioInner({ storyId }: { storyId: string }) {
 				{error && <div className="studio-notice error-notice" role="alert">{error}</div>}
 				{notice && <div className="studio-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice('')}>×</button></div>}
 				{!activeChapter ? <div className="first-chapter"><div className="first-chapter-flower">✳</div><div className="eyebrow">A BLANK PAGE, ON PURPOSE</div><h1>Begin wherever you are.</h1><p>No prompts, no generated prose. Just your manuscript and a careful memory for its details.</p><button className="button button-primary" onClick={() => void addChapter()}>Start the first chapter</button></div> : <>
-					<div className="editor-toolbar"><div className="chapter-kicker">CHAPTER {String(activeChapter.chapter_number).padStart(2, '0')}</div><div className="editor-toolbar-right"><span>{editorPreferences.wordGoal > 0 ? `${words.toLocaleString()} / ${editorPreferences.wordGoal.toLocaleString()} words` : `${words.toLocaleString()} words`}</span><EditorPreferencesMenu preferences={editorPreferences} onChange={updateEditorPreferences} /><button className="text-button history-trigger" onClick={() => void openChapterHistory()}>Version history</button><span className={'index-indicator index-' + activeChapter.index_status}>{activeChapter.index_status === 'indexed' ? 'Memory ready' : activeChapter.index_status === 'failed' ? 'Memory paused' : 'Updating memory'}</span></div></div>
+					<div className="editor-toolbar"><div className="chapter-kicker">CHAPTER {String(activeChapter.chapter_number).padStart(2, '0')}</div><div className="editor-toolbar-right"><span>{editorPreferences.wordGoal > 0 ? `${words.toLocaleString()} / ${editorPreferences.wordGoal.toLocaleString()} words` : `${words.toLocaleString()} words`}</span><EditorPreferencesMenu preferences={editorPreferences} onChange={updateEditorPreferences} /><button className="text-button history-trigger" onClick={() => void openChapterHistory()}>Version history</button><span className={'index-indicator index-' + activeChapter.index_status}>{activeChapter.index_status === 'indexed' ? 'Memory ready' : activeChapter.index_status === 'failed' ? 'Memory paused' : indexWorkerOffline ? 'Indexer offline' : 'Updating memory'}</span></div></div>
 					{activeChapter.index_status === 'failed' && <div className="index-error">Story memory could not update. Check that the local Ollama embedding service is running. <button className="text-button" onClick={() => void retryIndex()}>Try again</button></div>}
+					{indexWorkerOffline && <div className="index-error">Story memory is queued, but the background indexing worker is offline. Start it with <code>make worker</code>; the queued chapter will be picked up automatically.</div>}
 					<div className="editor-page">
 						<input className="chapter-title-input" aria-label="Chapter title" value={draftTitle} onChange={(event) => { draftEditVersionRef.current += 1; draftRef.current = { ...draftRef.current, chapterId: activeChapter.id, title: event.target.value }; setHasUnsavedChanges(true); setDraftTitle(event.target.value); }} onBlur={() => void persistChapter(activeChapter.id, draftTitle, draftContent)} placeholder="Chapter title" maxLength={200} />
 						<div className="editor-rule" />

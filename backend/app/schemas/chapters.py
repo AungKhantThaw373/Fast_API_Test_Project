@@ -100,6 +100,9 @@ class ChapterIndexRowOut(BaseModel):
 
 class ChapterIndexStatusOut(BaseModel):
     chapters: list[ChapterIndexRowOut]
+    # Indexing is durable work done by a separate process. Expose whether that
+    # process is alive so the writing desk can explain a queue that is not moving.
+    worker_alive: bool
 
 
 class RetryIndexOut(BaseModel):

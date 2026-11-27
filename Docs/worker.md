@@ -20,6 +20,13 @@ Run **one** worker. `MAX_CONCURRENT_JOBS` is 1 because a 6 GB GPU cannot hold tw
 models at once: a chapter reindex and a Bible scan would evict each other.
 Scaling out means more VRAM, not more worker processes.
 
+If the writing desk says **Updating memory** and never finishes, or shows
+**Indexer offline**, the API is up but this process is not. `/system/status`
+returns `worker: "offline"`. Start `make worker`; queued chapters survive
+restarts and are picked up automatically. The desk reads worker liveness from
+`GET /stories/{id}/index-status` (`worker_alive`) so it can say this directly
+instead of spinning forever.
+
 ## Lifecycle
 
 | Status | Meaning |

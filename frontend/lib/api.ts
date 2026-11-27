@@ -766,7 +766,7 @@ export const api = {
 		const story = await request<StoryDetails>(`/stories/${storyId}`);
 		return story.chapters;
 	},
-	storyIndexStatus: (storyId: string) => request<{ chapters: Array<Pick<Chapter, "id" | "revision" | "word_count" | "index_status" | "index_error" | "bible_scan_revision" | "bible_scan_error">> }>(`/stories/${storyId}/index-status`),
+	storyIndexStatus: (storyId: string) => request<{ chapters: Array<Pick<Chapter, "id" | "revision" | "word_count" | "index_status" | "index_error" | "bible_scan_revision" | "bible_scan_error">>; worker_alive: boolean }>(`/stories/${storyId}/index-status`),
 	updateStory: (storyId: string, changes: Partial<Pick<Story, "title" | "collection_name" | "scan_interval_words" | "external_analysis_enabled" | "monthly_ai_budget">>) =>
 		request<Story>(`/stories/${storyId}`, { method: "PATCH", body: JSON.stringify(changes) }),
 	aiUsage: (storyId: string) => request<AIUsage>(`/stories/${storyId}/ai-usage`),

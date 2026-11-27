@@ -163,6 +163,21 @@ async def test_heartbeat_marks_the_worker_alive(session):
     assert await jobs_service.worker_is_alive(session) is True
 
 
+async def test_index_status_reports_whether_the_worker_is_alive(user_client, session):
+    story = (await user_client.post("/stories", json={"title": "Worker state"})).json()
+    await user_client.post(
+        f"/stories/{story['id']}/chapters",
+        json={"title": "One", "content": "First draft."},
+    )
+
+    body = (await user_client.get(f"/stories/{story['id']}/index-status")).json()
+    assert body["worker_alive"] is False
+
+    await jobs_service.heartbeat(session, "worker-1")
+    body = (await user_client.get(f"/stories/{story['id']}/index-status")).json()
+    assert body["worker_alive"] is True
+
+
 async def test_saving_a_chapter_enqueues_one_reindex_job(user_client, session):
     story = (await user_client.post("/stories", json={"title": "Queue me"})).json()
     chapter = (

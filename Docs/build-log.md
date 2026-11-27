@@ -922,3 +922,31 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   bold/italic persistence, a custom entity type, fact delete, relationship
   create/edit/remove, thread edit/delete, arc name/summary edit, and archive:
   **29/29 checks** with no browser console errors.
+
+### Indexing that actually finishes (post-release)
+
+- The demo seed wrote `index_status="ready"`, a status no reader understood.
+  Ten chapters therefore showed **Updating memory** forever and were excluded
+  from continuity retrieval. Migration `c4e8b2a7d9f1` normalises the legacy
+  label. A second migration, `d8a5f2c7b1e4`, handles the deeper problem: a
+  chapter marked indexed with no chunks has no searchable memory. Those rows
+  become `pending` and get a durable reindex job.
+- The seed now creates `pending` chapters and queues all of them, so a fresh
+  demo is honest about needing the worker. The live demo story is 11 of 11
+  chapters indexed with real chunks (chapter 1 has three; chapters 2-11 have
+  two each).
+- Indexing is durable work done by `app.worker`, not the API. With no worker
+  running, queued jobs sat untouched with `attempts=0`. The live queue had 21
+  qualifying jobs; starting the worker drained them in seconds (21 succeeded).
+- `GET /stories/{id}/index-status` now also returns `worker_alive`, read from the
+  existing heartbeat check. The editor shows **Indexer offline** and a guidance
+  line (`make worker`) when memory is queued but no worker is alive, instead of
+  an endless **Updating memory** spinner. Once the worker starts, the next poll
+  returns to **Memory ready** with no page reload.
+- Verification: backend **263 tests pass** (new worker-liveness API test),
+  frontend Vitest **59/59**, `tsc --noEmit` clean, `npm run lint` 0 errors
+  (4 pre-existing warnings), `npm run build` clean, `ruff` and `pyright` clean.
+  A production-build Playwright pass covered both states: offline worker shows
+  **Indexer offline** plus the `make worker` guidance, then after restart the
+  same queued chapter becomes **Memory ready** and the demo story shows no
+  **Updating memory**. The temporary QA story was deleted afterwards.
