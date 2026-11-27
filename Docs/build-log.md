@@ -950,3 +950,12 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   **Indexer offline** plus the `make worker` guidance, then after restart the
   same queued chapter becomes **Memory ready** and the demo story shows no
   **Updating memory**. The temporary QA story was deleted afterwards.
+
+### Empty-line findings no longer crash the editor
+
+- CodeMirror rejects zero-length mark decorations. A finding whose recorded
+  line was empty had no text to underline, so the decoration builder threw
+  `Mark decorations may not be empty` and the editor failed to load. It now
+  skips that mark while keeping the finding in the gutter, where it can still
+  be opened. A regression test covers the empty-line case; frontend Vitest is
+  now 60/60.

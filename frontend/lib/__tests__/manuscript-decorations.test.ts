@@ -2,7 +2,8 @@ import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 
 import type { ContinuityFinding } from '@/lib/api';
-import { findingRange } from '@/lib/manuscript-decorations';
+import { buildEntityMatcher } from '@/lib/entity-matcher';
+import { buildAnnotations, findingRange } from '@/lib/manuscript-decorations';
 
 function finding(overrides: Partial<ContinuityFinding>): ContinuityFinding {
 	return {
@@ -38,5 +39,13 @@ describe('findingRange', () => {
 		const state = EditorState.create({ doc: 'Only this line.' });
 		const range = findingRange(state, finding({ draft_line: 1, draft_quote: 'missing words' }));
 		expect(state.sliceDoc(range.from, range.to)).toBe('Only this line.');
+	});
+
+	it('keeps the gutter finding on an empty line without an empty decoration', () => {
+		const state = EditorState.create({ doc: 'Only this line.\n' });
+		const emptyLineFinding = finding({ id: 'empty-line', draft_line: 2 });
+		const payload = buildAnnotations(state, buildEntityMatcher([]), [], [emptyLineFinding]);
+		expect(payload.decorations.size).toBe(0);
+		expect(payload.findingsByLine.get(2)).toEqual([emptyLineFinding]);
 	});
 });

@@ -27,7 +27,7 @@ make dev-backend      # uvicorn app.app:app --reload --port 8000
 make dev-frontend     # next dev on :3000
 make worker           # durable job worker (long AI work); run exactly one
 make test             # backend pytest (263 tests)
-make test-frontend    # vitest (59 tests)
+make test-frontend    # vitest (60 tests)
 make qa-phase6        # 8 Playwright local-AI checks
 make qa-phase7        # 8 Playwright writing/export/accessibility suites (85 checks)
 make qa-phase8        # 15 diagnostics/account-data checks
@@ -98,7 +98,7 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   a real scale backup, all exports, and a measured 30-minute mixed soak. The
   fixture is synthetic and the longest soak is 30 minutes, not 24 hours.
 - Backend: 263 tests pass, ruff and pyright clean, pip-audit clean.
-- Frontend: lint, `tsc --noEmit`, `next build`, 59 vitest tests, and npm audit
+- Frontend: lint, `tsc --noEmit`, `next build`, 60 vitest tests, and npm audit
   clean. Expired sessions redirect once to `/login?next=<page>` and return there
   after sign-in (5 unit tests, 2 browser checks).
 - Browser QA: 8 Phase 7 suites / 85 checks, 15 Phase 8 checks, 10 Phase 9

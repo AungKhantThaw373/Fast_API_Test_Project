@@ -82,17 +82,21 @@ export function buildAnnotations(
 	const findingsByLine = new Map<number, ContinuityFinding[]>();
 	for (const finding of findings.slice(0, 200)) {
 		const range = findingRange(state, finding);
-		ranges.push(
-			Decoration.mark({
-				class: 'cm-finding-mark',
-				attributes: {
-					'data-finding-id': finding.id,
-					role: 'button',
-					tabindex: '0',
-					'aria-label': `Continuity finding on line ${finding.draft_line}`,
-				},
-			}).range(range.from, range.to),
-		);
+		// An empty line has no text to decorate. The gutter still records the
+		// finding so it can be opened and navigated to.
+		if (range.to > range.from) {
+			ranges.push(
+				Decoration.mark({
+					class: 'cm-finding-mark',
+					attributes: {
+						'data-finding-id': finding.id,
+						role: 'button',
+						tabindex: '0',
+						'aria-label': `Continuity finding on line ${finding.draft_line}`,
+					},
+				}).range(range.from, range.to),
+			);
+		}
 		const lineNumber = state.doc.lineAt(range.from).number;
 		const current = findingsByLine.get(lineNumber) ?? [];
 		current.push(finding);
