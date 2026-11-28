@@ -107,6 +107,7 @@ async function main() {
 
 		const fields = page.locator(".wiki-fields-section");
 		assert(await fields.isVisible(), "entry shows its configured field");
+		await fields.getByRole("button", { name: "Add detail" }).click();
 		await fields.getByRole("button", { name: "Add", exact: true }).click();
 		await fields.getByLabel("Element", { exact: true }).fill("fire");
 		await fields.getByRole("button", { name: "Save", exact: true }).click();
@@ -115,7 +116,7 @@ async function main() {
 		const facts = page.locator('section[aria-labelledby="facts-heading"]');
 		assert((await facts.getByText("Element", { exact: true }).count()) === 0, "configured field is not duplicated in Facts");
 
-		await fields.getByRole("button", { name: "Edit" }).click();
+		await fields.getByRole("button", { name: "Edit", exact: true }).click();
 		await fields.getByLabel("Element", { exact: true }).fill("ash");
 		await fields.getByRole("button", { name: "Save", exact: true }).click();
 		await fields.getByText("ash", { exact: true }).waitFor();

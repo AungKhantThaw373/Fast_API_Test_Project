@@ -113,6 +113,17 @@ make lint typecheck   # ruff + eslint, pyright + tsc
   default is only a starting skeleton; removing a type or section never deletes
   entries or facts. Unknown types fall back to the full layout, and backups,
   extraction, custom fields, and provenance all read the same format.
+- The full story wiki uses one dashboard-style dark rail: workspace navigation,
+  story controls and filters in a scrollable middle area, and the account/theme
+  footer at the bottom. The page is locked to the viewport, so the rail and the
+  article scroll independently. Mobile keeps the compact story header and a
+  collapsible filter block.
+- Entry pages read as a flat article, not stacked cards. **Customise page** shows
+  every card as a direct on/off chip, exposes **Add field**, and allows renaming
+  or removing fields. Appearances is always shown; hiding a card or removing a
+  field never deletes facts or relationships. Empty detail fields collapse until
+  needed, relationships are one mixed list with a direction arrow (no Outgoing/
+  Incoming columns), and the index is a flat separator list rather than cards.
 - AI spend is recorded, not budget-gated. The monthly budget input, `402` guard,
   `budget_usd`/`remaining_usd` response fields, and `Story.monthly_ai_budget`
   API field are gone. The legacy DB column and backup schema remain only so old

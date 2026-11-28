@@ -33,6 +33,11 @@ export function CustomFieldsSection({
 	facts,
 	chapters,
 	onChanged,
+	layoutEditing = false,
+	onAddField,
+	onEditField,
+	onRemoveField,
+	onCustomise,
 }: {
 	storyId: string;
 	entityId: string;
@@ -40,13 +45,21 @@ export function CustomFieldsSection({
 	facts: EntityFact[];
 	chapters: { id: string; chapter_number: number }[];
 	onChanged: () => Promise<void> | void;
+	layoutEditing?: boolean;
+	onAddField?: () => void;
+	onEditField?: (field: WikiFieldDefinition) => void;
+	onRemoveField?: (field: WikiFieldDefinition) => void;
+	onCustomise?: () => void;
 }) {
 	const confirm = useConfirm();
 	const [editing, setEditing] = useState<string | null>(null);
 	const [draft, setDraft] = useState("");
 	const [saving, setSaving] = useState<string | null>(null);
 
-	if (!fields.length) return null;
+	if (!fields.length && !layoutEditing) return null;
+	const filled = fields.filter((field) => Boolean(latestFact(facts, field.key)));
+	const shownFields = layoutEditing ? fields : filled;
+	const hasEmpty = filled.length < fields.length;
 
 	function start(key: string, fact?: EntityFact) {
 		setEditing(key);
@@ -114,18 +127,34 @@ export function CustomFieldsSection({
 		<section className="wiki-detail-section wiki-fields-section" aria-labelledby="details-heading">
 			<header className="wiki-section-head">
 				<h2 id="details-heading">Details</h2>
-				<span className="wiki-quiet">Fields from your story format</span>
+				<div className="wiki-section-actions">
+					{layoutEditing && onAddField && (
+						<button type="button" className="text-button" onClick={onAddField}>Add field</button>
+					)}
+					{!layoutEditing && hasEmpty && onCustomise && (
+						<button type="button" className="text-button" onClick={onCustomise}>Add detail</button>
+					)}
+					<span className="wiki-quiet">{fields.length ? "Fields from your story format" : "No fields yet"}</span>
+				</div>
 			</header>
+			{shownFields.length === 0 ? (
+				<p className="wiki-quiet">No details yet. Use Add detail to fill in a field.</p>
+			) : (
 			<dl className="wiki-field-list">
-				{fields.map((field) => {
+				{shownFields.map((field) => {
 					const fact = latestFact(facts, field.key);
 					const chapter = fact?.chapter_id ? chapters.find((item) => item.id === fact.chapter_id) : undefined;
 					const isEditing = editing === field.key;
 					return (
 						<div className="wiki-field-row" key={field.key}>
 							<dt title={field.hint}>
-								{field.label}
-								{field.hint && <small>{field.hint}</small>}
+								<span className="wiki-field-label">{field.label}{field.hint && <small>{field.hint}</small>}</span>
+								{layoutEditing && (
+									<span className="wiki-field-tools">
+										<button type="button" className="text-button subtle" onClick={() => onEditField?.(field)}>Edit field</button>
+										<button type="button" className="text-button subtle" onClick={() => onRemoveField?.(field)}>Remove field</button>
+									</span>
+								)}
 							</dt>
 							<dd>
 								{isEditing ? (
@@ -177,6 +206,7 @@ export function CustomFieldsSection({
 					);
 				})}
 			</dl>
+			)}
 		</section>
 	);
 }

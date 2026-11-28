@@ -79,7 +79,7 @@ export function WikiFormatDialog({
 
 	function toggleSection(index: number, key: WikiSectionKey) {
 		const type = draft.types[index];
-		if (!type) return;
+		if (!type || key === "appearances") return;
 		updateType(index, { sections: { ...type.sections, [key]: !type.sections[key] } });
 	}
 
@@ -159,6 +159,7 @@ export function WikiFormatDialog({
 				...draft,
 				types: draft.types.map((item) => ({
 					...item,
+					sections: { ...item.sections, appearances: true },
 					label: item.label.trim(),
 					fields: item.fields.map((field) => ({ ...field, label: field.label.trim(), hint: field.hint.trim() })),
 				})),
@@ -240,10 +241,11 @@ export function WikiFormatDialog({
 										<label key={section.key} title={section.hint}>
 											<input
 												type="checkbox"
-												checked={type.sections[section.key]}
+												checked={section.key === "appearances" ? true : type.sections[section.key]}
+												disabled={section.key === "appearances"}
 												onChange={() => toggleSection(typeIndex, section.key)}
 											/>
-											{section.label}
+											{section.label}{section.key === "appearances" && <small> · always shown</small>}
 										</label>
 									))}
 								</fieldset>

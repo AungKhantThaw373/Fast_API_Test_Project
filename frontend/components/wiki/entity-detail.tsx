@@ -11,6 +11,7 @@ import { CustomFieldsSection } from "@/components/wiki/custom-fields-section";
 import { FactDialog, EMPTY_FACT, draftFromFact, type FactDraft } from "@/components/wiki/fact-dialog";
 import { FactSection } from "@/components/wiki/fact-section";
 import { MergeDialog } from "@/components/wiki/merge-dialog";
+import { WikiFieldDialog } from "@/components/wiki/wiki-field-dialog";
 import { useStoryWikiFormat } from "@/components/wiki/wiki-format-context";
 import {
 	useEntities,
@@ -22,8 +23,16 @@ import {
 	useThreads,
 } from "@/components/wiki/use-wiki";
 import { capitalise, entityTypeLabel, normalizeEntityType, typeOptionsFor } from "@/components/wiki/wiki-filters";
-import { api, type EntityFact, type EntityRelationship } from "@/lib/api";
+import { api, type EntityFact, type EntityRelationship, type WikiEntryType, type WikiFieldDefinition, type WikiSectionKey } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
+
+const PAGE_CARDS: { key: WikiSectionKey; label: string }[] = [
+	{ key: "summary", label: "Summary" },
+	{ key: "facts", label: "Facts" },
+	{ key: "relationships", label: "Relationships" },
+	{ key: "aliases", label: "Aliases" },
+	{ key: "threads", label: "Threads" },
+];
 
 export function EntityDetail({ storyId, entityId }: { storyId: string; entityId: string }) {
 	const router = useRouter();
@@ -49,6 +58,9 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 	const [relDescription, setRelDescription] = useState("");
 	const [relOpen, setRelOpen] = useState(false);
 	const [relEdit, setRelEdit] = useState<{ id: string; type: string; description: string } | null>(null);
+	const [layoutEditing, setLayoutEditing] = useState(false);
+	const [layoutSaving, setLayoutSaving] = useState(false);
+	const [fieldDialog, setFieldDialog] = useState<{ field: WikiFieldDefinition | null } | null>(null);
 
 	const linkedThreads = useMemo(() => {
 		const list = threads.data ?? [];
@@ -73,6 +85,11 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 		for (const row of allEntities.data ?? []) names.set(row.id, row.name);
 		return names;
 	}, [entity.data, allEntities.data]);
+
+	const relationshipRows = [
+		...(relationships.data?.outgoing ?? []).map((row) => ({ row, outgoing: true, otherId: row.to_entity_id })),
+		...(relationships.data?.incoming ?? []).map((row) => ({ row, outgoing: false, otherId: row.from_entity_id })),
+	];
 
 	const invalidateEntity = async (id: string) => {
 		await Promise.all([
@@ -257,11 +274,71 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 	const detail = entity.data;
 	const lastAppearance = facts.data?.[0];
 	const typeConfig = format?.types.find((item) => item.key === detail.entity_type);
-	const sectionOn = (key: "summary" | "facts" | "relationships" | "aliases" | "appearances" | "threads") =>
-		typeConfig ? typeConfig.sections[key] : true;
+	const sectionOn = (key: WikiSectionKey) => (key === "appearances" ? true : typeConfig ? typeConfig.sections[key] : true);
 	const customFields = typeConfig?.fields ?? [];
 	const configuredPredicates = new Set(customFields.map((field) => field.key));
 	const typeOptions = typeOptionsFor(format);
+
+	async function writeType(nextType: WikiEntryType) {
+		if (!format || !typeConfig) throw new Error("This entry type is not in the story format yet.");
+		const next = structuredClone(format);
+		const index = next.types.findIndex((item) => item.key === typeConfig.key);
+		if (index < 0) throw new Error("This entry type is not in the story format yet.");
+		next.types[index] = nextType;
+		setLayoutSaving(true);
+		try {
+			await api.updateWikiFormat(storyId, next);
+			await queryClient.invalidateQueries({ queryKey: qk.wikiFormat(storyId) });
+		} finally {
+			setLayoutSaving(false);
+		}
+	}
+
+	async function setSectionVisible(key: WikiSectionKey, visible: boolean) {
+		if (!typeConfig || key === "appearances") return;
+		try {
+			await writeType({ ...typeConfig, sections: { ...typeConfig.sections, [key]: visible } });
+			toast.success(visible ? "Card added back." : "Card hidden. Its entries and sources are untouched.");
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : "That card could not be changed.");
+		}
+	}
+
+	async function saveFieldDefinition(field: WikiFieldDefinition) {
+		if (!typeConfig) throw new Error("This entry type is not in the story format yet.");
+		const existing = fieldDialog?.field;
+		if (!existing && typeConfig.fields.some((item) => item.key === field.key)) {
+			throw new Error("A field with that key already exists. Edit it instead.");
+		}
+		const fields = existing
+			? typeConfig.fields.map((item) => (item.key === existing.key ? field : item))
+			: [...typeConfig.fields, field];
+		try {
+			await writeType({ ...typeConfig, fields });
+			setFieldDialog(null);
+			toast.success(existing ? "Field updated." : "Field added.");
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : "That field could not be saved.");
+			throw cause;
+		}
+	}
+
+	async function removeFieldDefinition(field: WikiFieldDefinition) {
+		if (!typeConfig) return;
+		const ok = await confirm({
+			title: `Remove the “${field.label}” field?`,
+			description: "This removes the field from the page, not its values. Existing values stay in Facts, with their sources, and can be added back under the same key.",
+			confirmLabel: "Remove field",
+			destructive: true,
+		});
+		if (!ok) return;
+		try {
+			await writeType({ ...typeConfig, fields: typeConfig.fields.filter((item) => item.key !== field.key) });
+			toast.success("Field removed. Its values remain in Facts.");
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : "That field could not be removed.");
+		}
+	}
 	return (
 		<div className="wiki-detail">
 			<header className="wiki-detail-head">
@@ -278,6 +355,11 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					</div>
 				</div>
 				<div className="wiki-detail-actions">
+					{typeConfig && (
+						<button className="quiet-button" onClick={() => setLayoutEditing((value) => !value)}>
+							{layoutEditing ? "Done customising" : "Customise page"}
+						</button>
+					)}
 					{lastAppearance && (
 						<Link
 							className="button button-quiet"
@@ -308,6 +390,40 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					</button>
 				</div>
 			</header>
+
+			{layoutEditing && (
+				<section className="wiki-page-panel" aria-label="Page cards">
+					<div className="wiki-page-panel-head">
+						<strong>Page cards</strong>
+						<span>Click a card to show or hide it. Nothing is deleted.</span>
+					</div>
+					{!typeConfig ? (
+						<p className="wiki-quiet">This entry type is not in the story format yet. Use Format in the sidebar first.</p>
+					) : (
+						<>
+							<div className="wiki-card-toggles">
+								{PAGE_CARDS.map((card) => {
+									const visible = sectionOn(card.key);
+									return (
+										<button
+											key={card.key}
+											className={`wiki-card-add${visible ? " is-on" : ""}`}
+											aria-pressed={visible}
+											disabled={layoutSaving}
+											onClick={() => void setSectionVisible(card.key, !visible)}
+										>
+											{visible ? "✓" : "＋"} {card.label}
+										</button>
+									);
+								})}
+								<span className="wiki-card-add is-locked">✓ Appearances · always</span>
+								<button className="wiki-card-add" onClick={() => setFieldDialog({ field: null })}>＋ Field</button>
+							</div>
+							<p className="wiki-page-panel-note">Fields live in Details. Appearances and sources always stay.</p>
+						</>
+					)}
+				</section>
+			)}
 
 			{editing ? (
 				<form
@@ -359,9 +475,14 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 					<header className="wiki-section-head">
 						<h2 id="summary-heading">Summary</h2>
 						{summaryDraft === null && (
-							<button className="text-button" onClick={() => setSummaryDraft(detail.summary)}>
-								Edit
-							</button>
+							<div className="wiki-section-actions">
+								{layoutEditing && typeConfig && (
+									<button className="text-button subtle" disabled={layoutSaving} onClick={() => void setSectionVisible("summary", false)}>Hide</button>
+								)}
+								<button className="text-button" onClick={() => setSummaryDraft(detail.summary)}>
+									Edit
+								</button>
+							</div>
 						)}
 					</header>
 					{summaryDraft === null ? (
@@ -397,9 +518,14 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 				<section className="wiki-detail-section" aria-labelledby="aliases-heading">
 				<header className="wiki-section-head">
 					<h2 id="aliases-heading">Aliases</h2>
-					<button className="text-button" onClick={() => setAddingAlias(true)}>
-						Add alias
-					</button>
+					<div className="wiki-section-actions">
+						{layoutEditing && typeConfig && (
+							<button className="text-button subtle" disabled={layoutSaving} onClick={() => void setSectionVisible("aliases", false)}>Hide</button>
+						)}
+						<button className="text-button" onClick={() => setAddingAlias(true)}>
+							Add alias
+						</button>
+					</div>
 				</header>
 				<div className="alias-chips">
 					{detail.aliases.map((alias) => (
@@ -447,40 +573,51 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 			</section>
 			)}
 
+			{typeConfig && (customFields.length > 0 || layoutEditing) && (
+				<CustomFieldsSection
+					storyId={storyId}
+					entityId={entityId}
+					fields={customFields}
+					facts={factRows.data ?? []}
+					chapters={(story.data?.chapters ?? []).map((chapter) => ({ id: chapter.id, chapter_number: chapter.chapter_number }))}
+					onChanged={() => invalidateEntity(entityId)}
+					layoutEditing={layoutEditing}
+					onAddField={() => setFieldDialog({ field: null })}
+					onEditField={(field) => setFieldDialog({ field })}
+					onRemoveField={(field) => void removeFieldDefinition(field)}
+					onCustomise={() => setLayoutEditing(true)}
+				/>
+			)}
+
 			{sectionOn("facts") && (
-				<>
-					{customFields.length > 0 && (
-						<CustomFieldsSection
-							storyId={storyId}
-							entityId={entityId}
-							fields={customFields}
-							facts={factRows.data ?? []}
-							chapters={(story.data?.chapters ?? []).map((chapter) => ({ id: chapter.id, chapter_number: chapter.chapter_number }))}
-							onChanged={() => invalidateEntity(entityId)}
-						/>
-					)}
-					<FactSection
-						storyId={storyId}
-						entityId={entityId}
-						onAdd={() => setFactDialog({ fact: null })}
-						onEdit={(fact) => setFactDialog({ fact })}
-						onAccept={(fact) => decide.mutate({ fact, accept: true })}
-						onReject={(fact) => decide.mutate({ fact, accept: false })}
-						onDelete={(fact) => void deleteFact(fact)}
-						busyId={decide.isPending ? decide.variables?.fact.id ?? "" : ""}
-						entityNames={nameById}
-						hidePredicates={[...configuredPredicates]}
-					/>
-				</>
+				<FactSection
+					storyId={storyId}
+					entityId={entityId}
+					onAdd={() => setFactDialog({ fact: null })}
+					onEdit={(fact) => setFactDialog({ fact })}
+					onAccept={(fact) => decide.mutate({ fact, accept: true })}
+					onReject={(fact) => decide.mutate({ fact, accept: false })}
+					onDelete={(fact) => void deleteFact(fact)}
+					busyId={decide.isPending ? decide.variables?.fact.id ?? "" : ""}
+					entityNames={nameById}
+					hidePredicates={[...configuredPredicates]}
+					onHide={layoutEditing && typeConfig ? () => void setSectionVisible("facts", false) : undefined}
+					hideDisabled={layoutSaving}
+				/>
 			)}
 
 			{sectionOn("relationships") && (
 			<section className="wiki-detail-section" aria-labelledby="relationships-heading">
 				<header className="wiki-section-head">
 					<h2 id="relationships-heading">Relationships</h2>
-					<button className="text-button" onClick={() => setRelOpen((value) => !value)}>
-						{relOpen ? "Close" : "Add relationship"}
-					</button>
+					<div className="wiki-section-actions">
+						{layoutEditing && typeConfig && (
+							<button className="text-button subtle" disabled={layoutSaving} onClick={() => void setSectionVisible("relationships", false)}>Hide</button>
+						)}
+						<button className="text-button" onClick={() => setRelOpen((value) => !value)}>
+							{relOpen ? "Close" : "Add relationship"}
+						</button>
+					</div>
 				</header>
 				{relOpen && (
 					<form
@@ -523,75 +660,41 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 				{createRelationship.error instanceof Error && <p className="form-error">{createRelationship.error.message}</p>}
 				{relationships.isPending ? (
 					<p className="wiki-quiet">Loading relationships…</p>
+				) : relationshipRows.length === 0 ? (
+					<p className="wiki-quiet">None yet.</p>
 				) : (
-					<div className="relationship-columns">
-						<div>
-							<h3>Outgoing</h3>
-							{(relationships.data?.outgoing ?? []).map((row) => (
-								<div className="relationship-row" key={row.id}>
-									<div className="relationship-row-copy">
-										<strong>{row.relationship_type.replace(/_/g, " ")}</strong>
-										<span>{nameById.get(row.to_entity_id) ?? row.to_entity_id.slice(0, 8)}</span>
-										{row.description && <small>{row.description}</small>}
-									</div>
-									<div className="relationship-row-actions">
-										<button className="text-button subtle" onClick={() => setRelEdit({ id: row.id, type: row.relationship_type, description: row.description })}>Edit</button>
-										<button className="text-button subtle" onClick={() => void confirmRemoveRelationship(row)}>Remove</button>
-									</div>
-									{relEdit?.id === row.id && (
-										<form
-											className="relationship-edit"
-											onSubmit={(event) => {
-												event.preventDefault();
-												if (relEdit.type.trim()) updateRelationship.mutate(relEdit);
-											}}
-										>
-											<input value={relEdit.type} onChange={(event) => setRelEdit({ ...relEdit, type: event.target.value })} aria-label="Relationship type" maxLength={60} autoFocus />
-											<input value={relEdit.description} onChange={(event) => setRelEdit({ ...relEdit, description: event.target.value })} aria-label="Relationship description" placeholder="A note, if useful" maxLength={4000} />
-											<div className="relationship-edit-actions">
-												<button className="button button-approve" type="submit" disabled={updateRelationship.isPending}>{updateRelationship.isPending ? "Saving…" : "Save"}</button>
-												<button className="text-button subtle" type="button" onClick={() => setRelEdit(null)}>Cancel</button>
-											</div>
-										</form>
-									)}
+					<ul className="relationship-list">
+						{relationshipRows.map(({ row, outgoing, otherId }) => (
+							<li className="relationship-row" key={row.id}>
+								<div className="relationship-row-copy">
+									<span className="relationship-direction" aria-label={outgoing ? "Outgoing" : "Incoming"} title={outgoing ? "From this entry" : "To this entry"}>{outgoing ? "→" : "←"}</span>
+									<strong>{nameById.get(otherId) ?? otherId.slice(0, 8)}</strong>
+									<span className="relationship-type">{row.relationship_type.replace(/_/g, " ")}</span>
+									{row.description && <small>{row.description}</small>}
 								</div>
-							))}
-							{!(relationships.data?.outgoing ?? []).length && <p className="wiki-quiet">None yet.</p>}
-						</div>
-						<div>
-							<h3>Incoming</h3>
-							{(relationships.data?.incoming ?? []).map((row) => (
-								<div className="relationship-row" key={row.id}>
-									<div className="relationship-row-copy">
-										<strong>{row.relationship_type.replace(/_/g, " ")}</strong>
-										<span>{nameById.get(row.from_entity_id) ?? row.from_entity_id.slice(0, 8)}</span>
-										{row.description && <small>{row.description}</small>}
-									</div>
-									<div className="relationship-row-actions">
-										<button className="text-button subtle" onClick={() => setRelEdit({ id: row.id, type: row.relationship_type, description: row.description })}>Edit</button>
-										<button className="text-button subtle" onClick={() => void confirmRemoveRelationship(row)}>Remove</button>
-									</div>
-									{relEdit?.id === row.id && (
-										<form
-											className="relationship-edit"
-											onSubmit={(event) => {
-												event.preventDefault();
-												if (relEdit.type.trim()) updateRelationship.mutate(relEdit);
-											}}
-										>
-											<input value={relEdit.type} onChange={(event) => setRelEdit({ ...relEdit, type: event.target.value })} aria-label="Relationship type" maxLength={60} autoFocus />
-											<input value={relEdit.description} onChange={(event) => setRelEdit({ ...relEdit, description: event.target.value })} aria-label="Relationship description" placeholder="A note, if useful" maxLength={4000} />
-											<div className="relationship-edit-actions">
-												<button className="button button-approve" type="submit" disabled={updateRelationship.isPending}>{updateRelationship.isPending ? "Saving…" : "Save"}</button>
-												<button className="text-button subtle" type="button" onClick={() => setRelEdit(null)}>Cancel</button>
-											</div>
-										</form>
-									)}
+								<div className="relationship-row-actions">
+									<button className="text-button subtle" onClick={() => setRelEdit({ id: row.id, type: row.relationship_type, description: row.description })}>Edit</button>
+									<button className="text-button subtle" onClick={() => void confirmRemoveRelationship(row)}>Remove</button>
 								</div>
-							))}
-							{!(relationships.data?.incoming ?? []).length && <p className="wiki-quiet">None yet.</p>}
-						</div>
-					</div>
+								{relEdit?.id === row.id && (
+									<form
+										className="relationship-edit"
+										onSubmit={(event) => {
+											event.preventDefault();
+											if (relEdit.type.trim()) updateRelationship.mutate(relEdit);
+										}}
+									>
+										<input value={relEdit.type} onChange={(event) => setRelEdit({ ...relEdit, type: event.target.value })} aria-label="Relationship type" maxLength={60} autoFocus />
+										<input value={relEdit.description} onChange={(event) => setRelEdit({ ...relEdit, description: event.target.value })} aria-label="Relationship description" placeholder="A note, if useful" maxLength={4000} />
+										<div className="relationship-edit-actions">
+											<button className="button button-approve" type="submit" disabled={updateRelationship.isPending}>{updateRelationship.isPending ? "Saving…" : "Save"}</button>
+											<button className="text-button subtle" type="button" onClick={() => setRelEdit(null)}>Cancel</button>
+										</div>
+									</form>
+								)}
+							</li>
+						))}
+					</ul>
 				)}
 			</section>
 			)}
@@ -629,9 +732,14 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 			<section className="wiki-detail-section" aria-labelledby="threads-heading">
 				<header className="wiki-section-head">
 					<h2 id="threads-heading">Threads</h2>
-					<Link className="text-button" href={`/stories/${storyId}/wiki/threads`}>
-						All threads
-					</Link>
+					<div className="wiki-section-actions">
+						{layoutEditing && typeConfig && (
+							<button className="text-button subtle" disabled={layoutSaving} onClick={() => void setSectionVisible("threads", false)}>Hide</button>
+						)}
+						<Link className="text-button" href={`/stories/${storyId}/wiki/threads`}>
+							All threads
+						</Link>
+					</div>
 				</header>
 				{linkedThreads.length === 0 ? (
 					<p className="wiki-quiet">No thread links to this entry yet.</p>
@@ -649,6 +757,14 @@ export function EntityDetail({ storyId, entityId }: { storyId: string; entityId:
 			</section>
 			)}
 
+			{fieldDialog && typeConfig && (
+				<WikiFieldDialog
+					field={fieldDialog.field ?? undefined}
+					existingKeys={customFields.map((field) => field.key)}
+					onSave={saveFieldDefinition}
+					onClose={() => setFieldDialog(null)}
+				/>
+			)}
 			{factDialog && (
 				<FactDialog
 					story={story.data}

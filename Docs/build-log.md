@@ -1042,3 +1042,31 @@ Phase 8 was interrupted in one working tree and committed afterwards by task. Th
   clean. The browser pass covers the format dialog, section hiding, custom field
   save/clear, provenance, the removed duplicate link, and the mobile filter
   collapse.
+
+### Story wiki rail and direct page control
+
+- The full story wiki now uses the same dark dashboard rail as the rest of the
+  app. Workspace navigation stays at the top; the story title, Format control,
+  wiki links, filters, saved views, and New entry live in an independently
+  scrollable middle area; the account and theme toggle stay at the bottom. The
+  page shell is locked to the viewport, so the rail cannot scroll past the
+  article into blank space. Mobile keeps a compact story header and collapses
+  filters behind one button.
+- Entry pages are flat article sections instead of bordered cards. Relationships
+  are one mixed list with a direction arrow, not Outgoing and Incoming columns.
+  Detail fields that have no value do not occupy rows until they are needed, and
+  the index is a separator list rather than a stack of large row cards.
+- **Customise page** exposes structural editing directly on the entry: every
+  card is an on/off chip, and Add field opens a small dialog for label, hint, and
+  a stable fact key. Existing fields can be renamed or removed; their key stays
+  fixed so values remain connected. The Appearances card is fixed on. Removing a card or field never
+  deletes entities, facts, aliases, or relationships; restoring a card or
+  re-adding the same field key brings the existing values back.
+- Custom fields remain ordinary facts, so values keep provenance chips, review
+  state, and source deep links. The Facts list continues to hide configured
+  field predicates to avoid duplication.
+- Verification: **61 Vitest tests** and **22** production-build Playwright
+  checks pass; `tsc`, lint, and `next build` are clean. The browser pass covers
+  the dashboard rail, viewport lock, independent rail scrolling, fixed theme
+  footer, direct card hide/restore, add/edit/remove field with value retention,
+  the single relationship list, and mobile filter collapse without overflow.

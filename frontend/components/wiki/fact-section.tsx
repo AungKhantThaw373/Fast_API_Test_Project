@@ -57,11 +57,15 @@ export function FactSection({
 	busyId,
 	entityNames,
 	hidePredicates = [],
+	onHide,
+	hideDisabled = false,
 }: {
 	storyId: string;
 	entityId: string;
 	entityNames?: Map<string, string>;
 	hidePredicates?: string[];
+	onHide?: () => void;
+	hideDisabled?: boolean;
 	onAdd: () => void;
 	onEdit: (fact: EntityFact) => void;
 	onAccept: (fact: EntityFact) => void;
@@ -84,6 +88,9 @@ export function FactSection({
 				<h2 id="facts-heading">Facts</h2>
 				<div className="wiki-section-actions">
 					{proposed > 0 && <span className="wiki-pending-chip">{proposed} proposed</span>}
+					{onHide && (
+						<button className="text-button subtle" disabled={hideDisabled} onClick={onHide}>Hide</button>
+					)}
 					<button className="text-button" onClick={onAdd}>
 						Add fact
 					</button>

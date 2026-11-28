@@ -14,7 +14,21 @@ const NAV: { id: AppSection; href: string; label: string }[] = [
 	{ id: 'diagnostics', href: '/diagnostics', label: 'Diagnostics' },
 ];
 
-export function AppShell({ active, user, showBottomNav = true, children }: { active: AppSection; user?: string | null; showBottomNav?: boolean; children: React.ReactNode }) {
+export function AppShell({
+	active,
+	user,
+	showBottomNav = true,
+	rail,
+	lockPage = false,
+	children,
+}: {
+	active: AppSection;
+	user?: string | null;
+	showBottomNav?: boolean;
+	rail?: React.ReactNode;
+	lockPage?: boolean;
+	children: React.ReactNode;
+}) {
 	const router = useRouter();
 	const initial = (user?.trim()?.[0] ?? 's').toUpperCase();
 
@@ -23,7 +37,7 @@ export function AppShell({ active, user, showBottomNav = true, children }: { act
 	}
 
 	return (
-		<div className="app-frame">
+		<div className={`app-frame${lockPage ? " app-frame-locked" : ""}`}>
 			<aside className="app-rail" aria-label="Workspace">
 				<Link className="app-rail-brand" href="/dashboard">
 					<span className="app-rail-mark" aria-hidden="true">s</span>
@@ -37,6 +51,7 @@ export function AppShell({ active, user, showBottomNav = true, children }: { act
 						</Link>
 					))}
 				</nav>
+				{rail && <div className="app-rail-story">{rail}</div>}
 				<div className="app-rail-foot">
 					<div className="app-rail-user">
 						<span className="app-avatar" aria-hidden="true">{initial}</span>

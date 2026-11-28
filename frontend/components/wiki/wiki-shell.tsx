@@ -113,143 +113,127 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 		searchRef.current?.focus();
 	};
 
-	return (
-		<AppShell active="wiki" user={user} showBottomNav={false}>
-			<div className="wiki-shell">
-				<aside className="wiki-rail" aria-label="Wiki filters" data-filters-open={filtersOpen ? "true" : "false"}>
-					<Link className="wiki-back-link" href={`/stories/${storyId}`}>
-						← Writing desk
+	const storyRail = (
+		<div className="story-rail">
+			<Link className="story-rail-back" href={`/stories/${storyId}`}>← Writing desk</Link>
+			<div className="story-rail-kicker">STORY WIKI</div>
+			<div className="story-rail-title-row">
+				<div className="story-rail-title" title={story.data?.title ?? ""}>{story.data?.title ?? "Loading story…"}</div>
+				<button type="button" className="story-rail-format" onClick={() => setFormatOpen(true)} disabled={!wikiFormat.data} title="Choose entry types, sections, and fields">Format</button>
+			</div>
+
+			{coverage.data && coverage.data.chapters > 0 ? (
+				currentArc ? (
+					<Link className="story-rail-coverage" href={`/stories/${storyId}/wiki/arcs/${currentArc.arc_id}`} aria-label={`Canon coverage: arc ${currentArcIndex} of ${coverage.data.arcs.length}, ${currentArc.extracted_count} of ${currentArc.chapter_count} chapters extracted`}>
+						<span>Canon coverage</span>
+						<strong>Arc {currentArcIndex} of {coverage.data.arcs.length}</strong>
+						<small>{currentArc.extracted_count.toLocaleString()} of {currentArc.chapter_count.toLocaleString()} chapters extracted</small>
 					</Link>
-					<div className="book-label">STORY WIKI</div>
-					<div className="wiki-rail-title-row">
-						<div className="rail-story-title" title={story.data?.title ?? ""}>
-							{story.data?.title ?? "Loading story…"}
-						</div>
-						<button
-							type="button"
-							className="wiki-format-button"
-							onClick={() => setFormatOpen(true)}
-							disabled={!wikiFormat.data}
-							title="Choose entry types, sections, and fields"
-						>
-							Format
-						</button>
+				) : (
+					<div className="story-rail-coverage">
+						<span>Canon coverage</span>
+						<strong>{coverage.data.extracted.toLocaleString()} of {coverage.data.chapters.toLocaleString()}</strong>
+						<small>Assign chapters to an arc to track it here.</small>
 					</div>
+				)
+			) : null}
 
-				{coverage.data && coverage.data.chapters > 0 ? (
-					currentArc ? (
-						<Link
-							className="wiki-canon-summary"
-							href={`/stories/${storyId}/wiki/arcs/${currentArc.arc_id}`}
-							aria-label={`Canon coverage: arc ${currentArcIndex} of ${coverage.data.arcs.length}, ${currentArc.extracted_count} of ${currentArc.chapter_count} chapters extracted`}
-						>
-							<span className="wiki-canon-summary-label">Canon coverage</span>
-							<strong>
-								Arc {currentArcIndex} of {coverage.data.arcs.length}
-							</strong>
-							<small>
-								{currentArc.extracted_count.toLocaleString()} of{" "}
-								{currentArc.chapter_count.toLocaleString()} chapters extracted
-							</small>
-						</Link>
-					) : (
-						<div className="wiki-canon-summary">
-							<span className="wiki-canon-summary-label">Canon coverage</span>
-							<strong>
-								{coverage.data.extracted.toLocaleString()} of{" "}
-								{coverage.data.chapters.toLocaleString()}
-							</strong>
-							<small>Assign chapters to an arc to track it here.</small>
-						</div>
-					)
-				) : null}
+			<nav className="story-wiki-nav" aria-label="Wiki sections">
+				<Link href={`/stories/${storyId}/wiki`} aria-current={pathname.endsWith("/wiki") ? "page" : undefined}>Wiki</Link>
+				<Link href={`/stories/${storyId}/wiki/review`} aria-current={pathname.endsWith("/review") ? "page" : undefined}>Review</Link>
+				<Link href={`/stories/${storyId}/wiki/threads`} aria-current={pathname.endsWith("/threads") ? "page" : undefined}>Threads</Link>
+				<Link href={`/stories/${storyId}`}>Write</Link>
+			</nav>
 
-				<nav className="wiki-rail-links" aria-label="Wiki sections">
-					<Link className="wiki-nav-link" href={`/stories/${storyId}/wiki`} aria-current={pathname.endsWith("/wiki") ? "page" : undefined}>
-						Wiki
-					</Link>
-					<Link className="wiki-nav-link" href={`/stories/${storyId}/wiki/review`} aria-current={pathname.endsWith("/review") ? "page" : undefined}>
-						Review
-					</Link>
-					<Link className="wiki-nav-link" href={`/stories/${storyId}/wiki/threads`} aria-current={pathname.endsWith("/threads") ? "page" : undefined}>
-						Threads
-					</Link>
-					<Link className="wiki-nav-link" href={`/stories/${storyId}`}>
-						Write
-					</Link>
-				</nav>
+			<div className="story-filters">
+				<label className="wiki-search">
+					<span className="sr-only">Search the wiki</span>
+					<input ref={searchRef} type="search" value={filters.q} onChange={(event) => apply({ ...filters, q: event.target.value })} placeholder="Search names, aliases…  /" autoComplete="off" />
+				</label>
+				<label className="wiki-select">
+					<span>Type</span>
+					<select value={filters.type} onChange={(event) => apply({ ...filters, type: event.target.value })}>
+						<option value="">Every type</option>
+						{typeOptions.map((type) => <option key={type} value={type}>{entityTypeLabel(type, wikiFormat.data)}</option>)}
+					</select>
+				</label>
+				<label className="wiki-select">
+					<span>Status</span>
+					<select value={filters.status} onChange={(event) => apply({ ...filters, status: event.target.value })}>
+						<option value="">Any status</option>
+						<option value="active">Active</option>
+						<option value="archived">Archived</option>
+					</select>
+				</label>
+			</div>
 
-				<div className="wiki-filters">
-					<label className="wiki-search">
-						<span className="sr-only">Search the wiki</span>
-						<input
-							ref={searchRef}
-							type="search"
-							value={filters.q}
-							onChange={(event) => apply({ ...filters, q: event.target.value })}
-							placeholder="Search names, aliases…  /"
-							autoComplete="off"
-						/>
-					</label>
-					<button
-						type="button"
-						className="wiki-filter-toggle"
-						aria-expanded={filtersOpen}
-						onClick={() => setFiltersOpen((value) => !value)}
-					>
-						{filtersOpen ? "Hide filters" : "Filters"}
-						{railFilterCount ? ` · ${railFilterCount}` : ""}
-					</button>
-					<label className="wiki-select">
-						<span>Type</span>
-						<select value={filters.type} onChange={(event) => apply({ ...filters, type: event.target.value })}>
-							<option value="">Every type</option>
-							{typeOptions.map((type) => (
-								<option key={type} value={type}>
-									{entityTypeLabel(type, wikiFormat.data)}
-								</option>
-							))}
-						</select>
-					</label>
-					<label className="wiki-select">
-						<span>Status</span>
-						<select value={filters.status} onChange={(event) => apply({ ...filters, status: event.target.value })}>
-							<option value="">Any status</option>
-							<option value="active">Active</option>
-							<option value="archived">Archived</option>
-						</select>
-					</label>
-				</div>
+			<label className="wiki-select">
+				<span>Arc</span>
+				<select value={filters.arc} onChange={(event) => apply({ ...filters, arc: event.target.value })} aria-label="Filter by arc">
+					<option value="">Every arc</option>
+					{(arcs.data ?? []).map((arc) => <option key={arc.id} value={arc.id}>{arc.name}</option>)}
+				</select>
+			</label>
+			<div className="wiki-result-count" role="status" aria-live="polite">
+				{entities.isPending ? "Counting…" : `${rows.length} ${rows.length === 1 ? "entry" : "entries"}`}
+				{hasActiveFilters(filters) && <button className="text-button subtle" onClick={clearAll}>Clear</button>}
+			</div>
 
+			<SavedViews filters={filters} onApply={apply} types={wikiFormat.data?.types} />
+			<button className="button button-primary button-wide wiki-new-button" onClick={() => setAddOpen(true)}>＋ New entry</button>
+			<p className="story-rail-keys"><kbd>j</kbd>/<kbd>k</kbd> move · <kbd>Enter</kbd> open · <kbd>/</kbd> search</p>
+		</div>
+	);
+
+	const mobileStoryControls = (
+		<div className="wiki-mobile-controls wiki-filters" data-filters-open={filtersOpen ? "true" : "false"}>
+			<div className="wiki-mobile-head">
+				<Link className="wiki-mobile-back" href={`/stories/${storyId}`}>← Desk</Link>
+				<div className="wiki-mobile-title"><span>STORY WIKI</span><strong>{story.data?.title ?? "Wiki"}</strong></div>
+				<button type="button" className="wiki-format-button" onClick={() => setFormatOpen(true)} disabled={!wikiFormat.data}>Format</button>
+			</div>
+			<label className="wiki-search">
+				<span className="sr-only">Search the wiki</span>
+				<input type="search" value={filters.q} onChange={(event) => apply({ ...filters, q: event.target.value })} placeholder="Search names, aliases…" autoComplete="off" />
+			</label>
+			<button type="button" className="wiki-filter-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((value) => !value)}>
+				{filtersOpen ? "Hide filters" : "Filters"}{railFilterCount ? ` · ${railFilterCount}` : ""}
+			</button>
+			<div className="wiki-mobile-filter-body">
+				<label className="wiki-select">
+					<span>Type</span>
+					<select value={filters.type} onChange={(event) => apply({ ...filters, type: event.target.value })}>
+						<option value="">Every type</option>
+						{typeOptions.map((type) => <option key={type} value={type}>{entityTypeLabel(type, wikiFormat.data)}</option>)}
+					</select>
+				</label>
+				<label className="wiki-select">
+					<span>Status</span>
+					<select value={filters.status} onChange={(event) => apply({ ...filters, status: event.target.value })}>
+						<option value="">Any status</option>
+						<option value="active">Active</option>
+						<option value="archived">Archived</option>
+					</select>
+				</label>
 				<label className="wiki-select">
 					<span>Arc</span>
-					<select value={filters.arc} onChange={(event) => apply({ ...filters, arc: event.target.value })} aria-label="Filter by arc">
+					<select value={filters.arc} onChange={(event) => apply({ ...filters, arc: event.target.value })}>
 						<option value="">Every arc</option>
-						{(arcs.data ?? []).map((arc) => (
-							<option key={arc.id} value={arc.id}>
-								{arc.name}
-							</option>
-						))}
+						{(arcs.data ?? []).map((arc) => <option key={arc.id} value={arc.id}>{arc.name}</option>)}
 					</select>
 				</label>
 				<div className="wiki-result-count" role="status" aria-live="polite">
 					{entities.isPending ? "Counting…" : `${rows.length} ${rows.length === 1 ? "entry" : "entries"}`}
-					{hasActiveFilters(filters) && (
-						<button className="text-button subtle" onClick={clearAll}>
-							Clear
-						</button>
-					)}
+					{hasActiveFilters(filters) && <button className="text-button subtle" onClick={clearAll}>Clear</button>}
 				</div>
+			</div>
+			<button className="button button-primary button-wide wiki-new-button" onClick={() => setAddOpen(true)}>＋ New entry</button>
+		</div>
+	);
 
-				<SavedViews filters={filters} onApply={apply} types={wikiFormat.data?.types} />
-				<button className="button button-primary button-wide wiki-new-button" onClick={() => setAddOpen(true)}>
-					＋ New entry
-				</button>
-				<p className="wiki-keys-hint">
-					<kbd>j</kbd>/<kbd>k</kbd> move · <kbd>Enter</kbd> open · <kbd>/</kbd> search
-				</p>
-			</aside>
-
+	return (
+		<AppShell active="wiki" user={user} showBottomNav={false} rail={storyRail} lockPage>
+			{mobileStoryControls}
 			<WikiFormatProvider format={wikiFormat.data ?? null}>
 				<section className="wiki-main">{children}</section>
 			</WikiFormatProvider>
@@ -271,12 +255,10 @@ function WikiShellInner({ storyId, children }: { storyId: string; children: Reac
 			{formatOpen && wikiFormat.data && (
 				<WikiFormatDialog storyId={storyId} format={wikiFormat.data} onClose={() => setFormatOpen(false)} />
 			)}
-			</div>
 			<StoryMobileNav storyId={storyId} />
 		</AppShell>
 	);
 }
-
 export function WikiShell({ storyId, children }: { storyId: string; children: React.ReactNode }) {
 	return (
 		<Suspense fallback={<div className="wiki-loading">Opening the wiki…</div>}>
